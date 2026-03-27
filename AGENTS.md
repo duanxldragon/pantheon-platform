@@ -3,6 +3,22 @@
 > 这份文件用于约束 Codex CLI 在本仓库中的默认行为。  
 > 目标不是解释所有实现细节，而是让代理先理解项目，再动手修改。
 
+## 0. 规则作用域
+
+本仓库使用分层 `AGENTS.md` 规则。进入对应目录工作时，除了本文件，还要继续遵守该目录下更具体的规则：
+
+- `backend/AGENTS.md`
+- `frontend/AGENTS.md`
+- `docs/AGENTS.md`
+- `backend/docs/AGENTS.md`
+- `frontend/docs/AGENTS.md`
+
+原则：
+
+- 根目录 `AGENTS.md` 负责全局行为约束
+- 子目录 `AGENTS.md` 负责该目录下更具体的实现约束
+- 如果规则冲突，优先遵守离当前工作目录更近的 `AGENTS.md`
+
 ## 1. 总原则
 
 - 先理解，再修改；先查文档，再查代码。
