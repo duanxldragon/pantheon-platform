@@ -6,15 +6,18 @@ import (
 	"pantheon-platform/backend/internal/shared/middleware"
 )
 
-type Router struct {
+// NotificationRouter registers notification module routes.
+type NotificationRouter struct {
 	handler *NotificationHandler
 }
 
-func NewRouter(handler *NotificationHandler) *Router {
-	return &Router{handler: handler}
+// NewNotificationRouter creates a notification router.
+func NewNotificationRouter(handler *NotificationHandler) *NotificationRouter {
+	return &NotificationRouter{handler: handler}
 }
 
-func (r *Router) RegisterRoutes(api *gin.RouterGroup, authMiddleware gin.HandlerFunc, tenantMiddleware gin.HandlerFunc) {
+// RegisterRoutes registers notification routes.
+func (r *NotificationRouter) RegisterRoutes(api *gin.RouterGroup, authMiddleware gin.HandlerFunc, tenantMiddleware gin.HandlerFunc) {
 	// All notification APIs require auth; tenant middleware is optional depending on deployment.
 	guard := []gin.HandlerFunc{authMiddleware}
 	if tenantMiddleware != nil {

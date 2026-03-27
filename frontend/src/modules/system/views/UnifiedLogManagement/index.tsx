@@ -175,11 +175,6 @@ export function UnifiedLogManagement() {
     }
   };
 
-  const handleImport = () => {
-    // Log import is not supported
-    toast.info(t.systemManagement.logs.importNotSupported);
-  };
-
   return (
     <PageLayout title={t.systemManagement.logs.title} description={t.systemManagement.logs.description}>
       {!canQueryLogs ? (
@@ -206,9 +201,9 @@ export function UnifiedLogManagement() {
             onStatusChange={setStatusFilter}
             selectedCount={selectedLogs.length}
             onBatchDelete={handleClearLogs}
-            onImport={handleImport}
             onExport={handleExport}
             canBatchDelete={canClearLogs}
+            canImport={false}
             canExport={canExportLogs}
           />
 

@@ -19,6 +19,7 @@ import { RouteGuard } from './RouteGuard';
 
 function PageSkeleton() {
   const t = useLanguageStore((state) => state.t);
+
   return (
     <div className="flex h-full items-center justify-center">
       <div className="flex flex-col items-center gap-4">

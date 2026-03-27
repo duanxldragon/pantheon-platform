@@ -1,10 +1,8 @@
 package cache
 
-import (
-	"time"
-)
+import "time"
 
-// Cache cache interface
+// Cache defines the shared cache interface.
 type Cache interface {
 	Get(key string) (interface{}, bool)
 	Set(key string, value interface{}, ttl time.Duration)

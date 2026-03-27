@@ -89,7 +89,7 @@ func (s *authService) recordLoginAttemptToDB(ctx context.Context, username, tena
 
 	// Determine the correct database
 	if tenantCode != "" {
-		tenantRecord, err := s.tenantRepo.GetByCode(ctx, tenantCode)
+		tenantRecord, err := s.tenantDAO.GetByCode(ctx, tenantCode)
 		if err != nil {
 			return nil // Skip recording if tenant not found
 		}
@@ -182,7 +182,7 @@ func (s *authService) GetLoginAttemptsSummary(ctx context.Context, username, ten
 	// Get last attempt time from database
 	db := s.masterDB
 	if tenantCode != "" {
-		tenantRecord, err := s.tenantRepo.GetByCode(ctx, tenantCode)
+		tenantRecord, err := s.tenantDAO.GetByCode(ctx, tenantCode)
 		if err == nil {
 			tenantDB := s.dbManager.GetTenantDB(tenantRecord.ID)
 			if tenantDB != nil {

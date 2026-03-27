@@ -27,7 +27,7 @@ type DBConfig struct {
 	ConnMaxLifetime int
 }
 
-// TenantConfigInfo represents tenant database configuration from repository
+// TenantConfigInfo represents tenant database configuration loaded by the tenant config DAO.
 type TenantConfigInfo struct {
 	TenantID        string
 	Code            string

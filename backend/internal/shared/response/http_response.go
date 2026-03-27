@@ -7,12 +7,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Translator interface to avoid circular dependency
+// Translator avoids a circular dependency with i18n services.
 type Translator interface {
 	Translate(ctx interface{}, key string, params ...interface{}) string
 }
 
-// getMessage returns the translated message if a translator is present in the context
+// getMessage returns the translated message when a translator is present.
 func getMessage(c *gin.Context, message string) string {
 	if translator, exists := c.Get("translator"); exists {
 		if t, ok := translator.(interface {
@@ -24,7 +24,7 @@ func getMessage(c *gin.Context, message string) string {
 	return message
 }
 
-// Response 统一响应结构
+// Response is the shared API response envelope.
 type Response struct {
 	Code      int         `json:"code"`
 	Message   string      `json:"message"`
@@ -33,17 +33,15 @@ type Response struct {
 	Timestamp string      `json:"timestamp"`
 }
 
-// Meta 元数据信息
+// Meta contains response metadata.
 type Meta struct {
-	RequestID string `json:"request_id,omitempty"`
-	Version   string `json:"version,omitempty"`
-	// 分页信息
+	RequestID  string      `json:"request_id,omitempty"`
+	Version    string      `json:"version,omitempty"`
 	Pagination *Pagination `json:"pagination,omitempty"`
-	// 性能信息
-	Duration int64 `json:"duration,omitempty"`
+	Duration   int64       `json:"duration,omitempty"`
 }
 
-// Pagination 分页信息
+// Pagination contains pagination metadata.
 type Pagination struct {
 	Page       int64 `json:"page"`
 	PageSize   int64 `json:"page_size"`
@@ -53,7 +51,7 @@ type Pagination struct {
 	HasPrev    bool  `json:"has_prev"`
 }
 
-// ErrorDetail 错误详情
+// ErrorDetail is the shared API error payload.
 type ErrorDetail struct {
 	Code      string       `json:"code"`
 	Message   string       `json:"message"`
@@ -64,7 +62,7 @@ type ErrorDetail struct {
 	Errors    []FieldError `json:"errors,omitempty"`
 }
 
-// FieldError 字段验证错误
+// FieldError describes a field-level validation error.
 type FieldError struct {
 	Field   string      `json:"field"`
 	Code    string      `json:"code"`
@@ -72,14 +70,14 @@ type FieldError struct {
 	Value   interface{} `json:"value,omitempty"`
 }
 
-// DefaultOptions 默认选项
+// DefaultOptions stores default response metadata.
 type DefaultOptions struct {
 	Meta      *Meta
 	RequestID string
 	Version   string
 }
 
-// getDefaultOptions 获取默认选项
+// getDefaultOptions builds the default response metadata.
 func getDefaultOptions(c *gin.Context) DefaultOptions {
 	requestID, exists := c.Get("request_id")
 	if !exists {
@@ -96,12 +94,12 @@ func getDefaultOptions(c *gin.Context) DefaultOptions {
 	}
 }
 
-// generateRequestID 生成请求ID
+// generateRequestID generates a request id.
 func generateRequestID() string {
 	return time.Now().Format("20060102150405") + "-" + randomString(8)
 }
 
-// randomString 生成随机字符串
+// randomString generates a random string with the given length.
 func randomString(length int) string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	b := make([]byte, length)
@@ -111,7 +109,7 @@ func randomString(length int) string {
 	return string(b)
 }
 
-// Success 成功响应
+// Success writes a successful response.
 func Success(c *gin.Context, data interface{}) {
 	opts := getDefaultOptions(c)
 
@@ -124,7 +122,7 @@ func Success(c *gin.Context, data interface{}) {
 	})
 }
 
-// SuccessWithMessage 带消息的成功响应
+// SuccessWithMessage writes a successful response with a custom message.
 func SuccessWithMessage(c *gin.Context, message string, data interface{}) {
 	opts := getDefaultOptions(c)
 
@@ -137,7 +135,7 @@ func SuccessWithMessage(c *gin.Context, message string, data interface{}) {
 	})
 }
 
-// Created 创建成功响应
+// Created writes a creation success response.
 func Created(c *gin.Context, data interface{}) {
 	opts := getDefaultOptions(c)
 
@@ -150,7 +148,7 @@ func Created(c *gin.Context, data interface{}) {
 	})
 }
 
-// SuccessPage 分页成功响应
+// SuccessPage writes a paginated successful response.
 func SuccessPage(c *gin.Context, items interface{}, total int64, page, pageSize int) {
 	opts := getDefaultOptions(c)
 
@@ -182,7 +180,7 @@ func SuccessPage(c *gin.Context, items interface{}, total int64, page, pageSize 
 	})
 }
 
-// BadRequest 错误请求响应
+// BadRequest writes a bad request response.
 func BadRequest(c *gin.Context, code, message string, details ...string) {
 	opts := getDefaultOptions(c)
 
@@ -201,7 +199,7 @@ func BadRequest(c *gin.Context, code, message string, details ...string) {
 	})
 }
 
-// BadRequestWithFields 带字段验证错误的请求错误
+// BadRequestWithFields writes a bad request response with field errors.
 func BadRequestWithFields(c *gin.Context, code, message string, errors []FieldError) {
 	opts := getDefaultOptions(c)
 
@@ -215,7 +213,7 @@ func BadRequestWithFields(c *gin.Context, code, message string, errors []FieldEr
 	})
 }
 
-// Unauthorized 未授权响应
+// Unauthorized writes an unauthorized response.
 func Unauthorized(c *gin.Context, code, message string) {
 	opts := getDefaultOptions(c)
 
@@ -228,7 +226,7 @@ func Unauthorized(c *gin.Context, code, message string) {
 	})
 }
 
-// Forbidden 禁止访问响应
+// Forbidden writes a forbidden response.
 func Forbidden(c *gin.Context, code, message string) {
 	opts := getDefaultOptions(c)
 
@@ -241,7 +239,7 @@ func Forbidden(c *gin.Context, code, message string) {
 	})
 }
 
-// NotFound 未找到响应
+// NotFound writes a not found response.
 func NotFound(c *gin.Context, code, message string) {
 	opts := getDefaultOptions(c)
 
@@ -254,7 +252,7 @@ func NotFound(c *gin.Context, code, message string) {
 	})
 }
 
-// Conflict 冲突响应
+// Conflict writes a conflict response.
 func Conflict(c *gin.Context, code, message string) {
 	opts := getDefaultOptions(c)
 
@@ -267,7 +265,7 @@ func Conflict(c *gin.Context, code, message string) {
 	})
 }
 
-// UnprocessableEntity 数据验证失败响应
+// UnprocessableEntity writes a validation failure response.
 func UnprocessableEntity(c *gin.Context, code, message string, errors []FieldError) {
 	opts := getDefaultOptions(c)
 
@@ -281,7 +279,7 @@ func UnprocessableEntity(c *gin.Context, code, message string, errors []FieldErr
 	})
 }
 
-// TooManyRequests 请求过于频繁响应
+// TooManyRequests writes a rate limit response.
 func TooManyRequests(c *gin.Context, code, message string) {
 	opts := getDefaultOptions(c)
 
@@ -294,7 +292,7 @@ func TooManyRequests(c *gin.Context, code, message string) {
 	})
 }
 
-// InternalError 内部错误响应
+// InternalError writes an internal server error response.
 func InternalError(c *gin.Context, code, message string) {
 	opts := getDefaultOptions(c)
 
@@ -307,7 +305,7 @@ func InternalError(c *gin.Context, code, message string) {
 	})
 }
 
-// ServiceUnavailable 服务不可用响应
+// ServiceUnavailable writes a service unavailable response.
 func ServiceUnavailable(c *gin.Context, code, message string) {
 	opts := getDefaultOptions(c)
 
@@ -320,7 +318,7 @@ func ServiceUnavailable(c *gin.Context, code, message string) {
 	})
 }
 
-// Legacy PageResponse 保持向后兼容
+// PageResponse remains for backward compatibility.
 type PageResponse struct {
 	Items      interface{} `json:"items"`
 	Total      int64       `json:"total"`

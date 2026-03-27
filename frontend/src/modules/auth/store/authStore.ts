@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 
 import { systemNotification } from '../../../shared/utils/notification';
@@ -660,3 +660,4 @@ export const useAuthStore = create<AuthState>()(
     { name: 'AuthStore' },
   ),
 );
+

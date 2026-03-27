@@ -35,17 +35,17 @@ const (
 
 // Tenant stores tenant metadata.
 type Tenant struct {
-	ID           uuid.UUID      `json:"id" gorm:"type:char(36);primaryKey"`
-	Name         string         `json:"name" gorm:"size:100;notNull"`
-	Code         string         `json:"code" gorm:"size:50;notNull;uniqueIndex"`
-	Description  string         `json:"description" gorm:"type:text"`
-	ContactPerson string        `json:"contact_person" gorm:"size:100"`
-	ExpireAt     *time.Time     `json:"expire_at,omitempty"`
-	Status       TenantStatus   `json:"status" gorm:"size:20;notNull;default:'pending'"`
-	IsFirstLogin bool           `json:"is_first_login" gorm:"default:true"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	DeletedAt    gorm.DeletedAt `json:"-" gorm:"index"`
+	ID            uuid.UUID      `json:"id" gorm:"type:char(36);primaryKey"`
+	Name          string         `json:"name" gorm:"size:100;notNull"`
+	Code          string         `json:"code" gorm:"size:50;notNull;uniqueIndex"`
+	Description   string         `json:"description" gorm:"type:text"`
+	ContactPerson string         `json:"contact_person" gorm:"size:100"`
+	ExpireAt      *time.Time     `json:"expire_at,omitempty"`
+	Status        TenantStatus   `json:"status" gorm:"size:20;notNull;default:'pending'"`
+	IsFirstLogin  bool           `json:"is_first_login" gorm:"default:true"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+	DeletedAt     gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
 // TableName returns the tenant table name.

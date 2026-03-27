@@ -12,7 +12,7 @@ import (
 	"pantheon-platform/backend/internal/shared/database"
 )
 
-type NotificationRepository interface {
+type NotificationDAO interface {
 	database.TenantMigrator
 
 	Create(ctx context.Context, n *Notification) error
@@ -46,7 +46,7 @@ type NotificationRepository interface {
 	MarkJobFailed(ctx context.Context, id uuid.UUID, attempts int, lastErr string) error
 }
 
-type notificationRepository struct {
+type notificationDAO struct {
 	db        *gorm.DB
 	notifRepo *database.BaseDAO[Notification]
 	inboxRepo *database.BaseDAO[NotificationInbox]
@@ -54,8 +54,8 @@ type notificationRepository struct {
 	jobRepo   *database.BaseDAO[NotificationJob]
 }
 
-func NewNotificationRepository(db *gorm.DB) NotificationRepository {
-	return &notificationRepository{
+func NewNotificationDAO(db *gorm.DB) NotificationDAO {
+	return &notificationDAO{
 		db:        db,
 		notifRepo: database.NewBaseDAO[Notification](db),
 		inboxRepo: database.NewBaseDAO[NotificationInbox](db),
@@ -64,7 +64,7 @@ func NewNotificationRepository(db *gorm.DB) NotificationRepository {
 	}
 }
 
-func (r *notificationRepository) GetTenantModels() []interface{} {
+func (r *notificationDAO) GetTenantModels() []interface{} {
 	return []interface{}{
 		&Notification{},
 		&NotificationInbox{},
@@ -83,14 +83,14 @@ func tenantIDFromCtx(ctx context.Context) string {
 	return ""
 }
 
-func (r *notificationRepository) Create(ctx context.Context, n *Notification) error {
+func (r *notificationDAO) Create(ctx context.Context, n *Notification) error {
 	if n.TenantID == "" {
 		n.TenantID = tenantIDFromCtx(ctx)
 	}
 	return r.notifRepo.GetDB(ctx).Create(n).Error
 }
 
-func (r *notificationRepository) GetByID(ctx context.Context, id string) (*Notification, error) {
+func (r *notificationDAO) GetByID(ctx context.Context, id string) (*Notification, error) {
 	var n Notification
 	err := r.notifRepo.GetDB(ctx).Where("id = ?", id).First(&n).Error
 	if err != nil {
@@ -99,7 +99,7 @@ func (r *notificationRepository) GetByID(ctx context.Context, id string) (*Notif
 	return &n, nil
 }
 
-func (r *notificationRepository) List(ctx context.Context, req *NotificationListRequest) ([]*Notification, int64, error) {
+func (r *notificationDAO) List(ctx context.Context, req *NotificationListRequest) ([]*Notification, int64, error) {
 	if req.Page < 1 {
 		req.Page = 1
 	}
@@ -153,26 +153,26 @@ func (r *notificationRepository) List(ctx context.Context, req *NotificationList
 	return items, total, nil
 }
 
-func (r *notificationRepository) Update(ctx context.Context, id string, n *Notification) error {
+func (r *notificationDAO) Update(ctx context.Context, id string, n *Notification) error {
 	return r.notifRepo.GetDB(ctx).Model(&Notification{}).Where("id = ?", id).Updates(n).Error
 }
 
-func (r *notificationRepository) UpdateNotificationFields(ctx context.Context, id string, fields map[string]interface{}) error {
+func (r *notificationDAO) UpdateNotificationFields(ctx context.Context, id string, fields map[string]interface{}) error {
 	return r.notifRepo.GetDB(ctx).Model(&Notification{}).Where("id = ?", id).Updates(fields).Error
 }
 
-func (r *notificationRepository) Delete(ctx context.Context, id string) error {
+func (r *notificationDAO) Delete(ctx context.Context, id string) error {
 	return r.notifRepo.GetDB(ctx).Where("id = ?", id).Delete(&Notification{}).Error
 }
 
-func (r *notificationRepository) CreateInbox(ctx context.Context, inbox *NotificationInbox) error {
+func (r *notificationDAO) CreateInbox(ctx context.Context, inbox *NotificationInbox) error {
 	if inbox.TenantID == "" {
 		inbox.TenantID = tenantIDFromCtx(ctx)
 	}
 	return r.inboxRepo.GetDB(ctx).Create(inbox).Error
 }
 
-func (r *notificationRepository) GetInbox(ctx context.Context, id string) (*NotificationInbox, error) {
+func (r *notificationDAO) GetInbox(ctx context.Context, id string) (*NotificationInbox, error) {
 	var inbox NotificationInbox
 	err := r.inboxRepo.GetDB(ctx).Where("id = ?", id).
 		Preload("NotificationRef").
@@ -183,7 +183,7 @@ func (r *notificationRepository) GetInbox(ctx context.Context, id string) (*Noti
 	return &inbox, nil
 }
 
-func (r *notificationRepository) ListInbox(ctx context.Context, receiverID string, req *InboxListRequest) ([]*NotificationInbox, int64, error) {
+func (r *notificationDAO) ListInbox(ctx context.Context, receiverID string, req *InboxListRequest) ([]*NotificationInbox, int64, error) {
 	if req.Page < 1 {
 		req.Page = 1
 	}
@@ -219,13 +219,13 @@ func (r *notificationRepository) ListInbox(ctx context.Context, receiverID strin
 	return items, total, nil
 }
 
-func (r *notificationRepository) DeleteInbox(ctx context.Context, id string) error {
+func (r *notificationDAO) DeleteInbox(ctx context.Context, id string) error {
 	// soft-delete by flag for mailbox semantics
 	return r.inboxRepo.GetDB(ctx).Model(&NotificationInbox{}).Where("id = ?", id).
 		Update("is_deleted", true).Error
 }
 
-func (r *notificationRepository) MarkAsRead(ctx context.Context, receiverID string, ids []string) error {
+func (r *notificationDAO) MarkAsRead(ctx context.Context, receiverID string, ids []string) error {
 	if len(ids) == 0 {
 		return nil
 	}
@@ -238,7 +238,7 @@ func (r *notificationRepository) MarkAsRead(ctx context.Context, receiverID stri
 		}).Error
 }
 
-func (r *notificationRepository) MarkAllAsRead(ctx context.Context, receiverID string) error {
+func (r *notificationDAO) MarkAllAsRead(ctx context.Context, receiverID string) error {
 	now := time.Now()
 	return r.inboxRepo.GetDB(ctx).Model(&NotificationInbox{}).
 		Where("receiver_id = ? AND is_deleted = ?", receiverID, false).
@@ -248,7 +248,7 @@ func (r *notificationRepository) MarkAllAsRead(ctx context.Context, receiverID s
 		}).Error
 }
 
-func (r *notificationRepository) GetUnreadCount(ctx context.Context, receiverID string) (int64, error) {
+func (r *notificationDAO) GetUnreadCount(ctx context.Context, receiverID string) (int64, error) {
 	var cnt int64
 	err := r.inboxRepo.GetDB(ctx).Model(&NotificationInbox{}).
 		Where("receiver_id = ? AND is_deleted = ? AND is_read = ?", receiverID, false, false).
@@ -256,14 +256,14 @@ func (r *notificationRepository) GetUnreadCount(ctx context.Context, receiverID 
 	return cnt, err
 }
 
-func (r *notificationRepository) CreateTemplate(ctx context.Context, t *NotificationTemplate) error {
+func (r *notificationDAO) CreateTemplate(ctx context.Context, t *NotificationTemplate) error {
 	if t.TenantID == "" {
 		t.TenantID = tenantIDFromCtx(ctx)
 	}
 	return r.tmplRepo.GetDB(ctx).Create(t).Error
 }
 
-func (r *notificationRepository) GetTemplateByID(ctx context.Context, id string) (*NotificationTemplate, error) {
+func (r *notificationDAO) GetTemplateByID(ctx context.Context, id string) (*NotificationTemplate, error) {
 	var t NotificationTemplate
 	err := r.tmplRepo.GetDB(ctx).Where("id = ?", id).First(&t).Error
 	if err != nil {
@@ -272,7 +272,7 @@ func (r *notificationRepository) GetTemplateByID(ctx context.Context, id string)
 	return &t, nil
 }
 
-func (r *notificationRepository) ListTemplates(ctx context.Context, req *TemplateListRequest) ([]*NotificationTemplate, int64, error) {
+func (r *notificationDAO) ListTemplates(ctx context.Context, req *TemplateListRequest) ([]*NotificationTemplate, int64, error) {
 	if req.Page < 1 {
 		req.Page = 1
 	}
@@ -306,15 +306,15 @@ func (r *notificationRepository) ListTemplates(ctx context.Context, req *Templat
 	return items, total, nil
 }
 
-func (r *notificationRepository) UpdateTemplate(ctx context.Context, id string, t *NotificationTemplate) error {
+func (r *notificationDAO) UpdateTemplate(ctx context.Context, id string, t *NotificationTemplate) error {
 	return r.tmplRepo.GetDB(ctx).Model(&NotificationTemplate{}).Where("id = ?", id).Updates(t).Error
 }
 
-func (r *notificationRepository) DeleteTemplate(ctx context.Context, id string) error {
+func (r *notificationDAO) DeleteTemplate(ctx context.Context, id string) error {
 	return r.tmplRepo.GetDB(ctx).Where("id = ?", id).Delete(&NotificationTemplate{}).Error
 }
 
-func (r *notificationRepository) GetStats(ctx context.Context, receiverID string) (*NotificationStats, error) {
+func (r *notificationDAO) GetStats(ctx context.Context, receiverID string) (*NotificationStats, error) {
 	db := r.inboxRepo.GetDB(ctx).Model(&NotificationInbox{}).
 		Where("receiver_id = ? AND is_deleted = ?", receiverID, false)
 
@@ -359,7 +359,7 @@ func (r *notificationRepository) GetStats(ctx context.Context, receiverID string
 	}, nil
 }
 
-func (r *notificationRepository) EnqueueJob(ctx context.Context, n *Notification, maxAttempts int, delay time.Duration) (*NotificationJob, error) {
+func (r *notificationDAO) EnqueueJob(ctx context.Context, n *Notification, maxAttempts int, delay time.Duration) (*NotificationJob, error) {
 	job := &NotificationJob{
 		TenantID:       n.TenantID,
 		NotificationID: n.ID,
@@ -376,7 +376,7 @@ func (r *notificationRepository) EnqueueJob(ctx context.Context, n *Notification
 	return job, nil
 }
 
-func (r *notificationRepository) FetchDueJobs(ctx context.Context, limit int) ([]*NotificationJob, error) {
+func (r *notificationDAO) FetchDueJobs(ctx context.Context, limit int) ([]*NotificationJob, error) {
 	now := time.Now()
 	var jobs []*NotificationJob
 	db := r.jobRepo.GetDB(ctx).Where("status = ? AND (next_retry_at IS NULL OR next_retry_at <= ?)", JobPending, now).
@@ -390,7 +390,7 @@ func (r *notificationRepository) FetchDueJobs(ctx context.Context, limit int) ([
 	return jobs, nil
 }
 
-func (r *notificationRepository) MarkJobProcessing(ctx context.Context, id uuid.UUID) (bool, error) {
+func (r *notificationDAO) MarkJobProcessing(ctx context.Context, id uuid.UUID) (bool, error) {
 	now := time.Now()
 	res := r.jobRepo.GetDB(ctx).Model(&NotificationJob{}).
 		Where("id = ? AND status = ?", id, JobPending).
@@ -402,7 +402,7 @@ func (r *notificationRepository) MarkJobProcessing(ctx context.Context, id uuid.
 	return res.RowsAffected == 1, res.Error
 }
 
-func (r *notificationRepository) MarkJobSucceeded(ctx context.Context, id uuid.UUID) error {
+func (r *notificationDAO) MarkJobSucceeded(ctx context.Context, id uuid.UUID) error {
 	now := time.Now()
 	return r.jobRepo.GetDB(ctx).Model(&NotificationJob{}).
 		Where("id = ?", id).
@@ -414,7 +414,7 @@ func (r *notificationRepository) MarkJobSucceeded(ctx context.Context, id uuid.U
 		}).Error
 }
 
-func (r *notificationRepository) RescheduleJob(ctx context.Context, id uuid.UUID, attempts int, nextRetry time.Time, lastErr string) error {
+func (r *notificationDAO) RescheduleJob(ctx context.Context, id uuid.UUID, attempts int, nextRetry time.Time, lastErr string) error {
 	return r.jobRepo.GetDB(ctx).Model(&NotificationJob{}).
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
@@ -426,7 +426,7 @@ func (r *notificationRepository) RescheduleJob(ctx context.Context, id uuid.UUID
 		}).Error
 }
 
-func (r *notificationRepository) MarkJobFailed(ctx context.Context, id uuid.UUID, attempts int, lastErr string) error {
+func (r *notificationDAO) MarkJobFailed(ctx context.Context, id uuid.UUID, attempts int, lastErr string) error {
 	now := time.Now()
 	return r.jobRepo.GetDB(ctx).Model(&NotificationJob{}).
 		Where("id = ?", id).

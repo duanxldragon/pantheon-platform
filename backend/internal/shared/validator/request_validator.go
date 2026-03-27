@@ -472,4 +472,3 @@ func ValidateRegex(value interface{}, pattern, message string) error {
 	}
 	return nil
 }
-

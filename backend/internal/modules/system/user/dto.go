@@ -3,7 +3,7 @@ package user
 import (
 	"time"
 
-	"pantheon-platform/backend/internal/shared/utils"
+	"pantheon-platform/backend/internal/shared/masking"
 )
 
 // UserRequest is the create-user request payload.
@@ -108,9 +108,9 @@ func ToUserResponse(user *User, deptName, posName *string, roleIDs []string, rol
 	resp := &UserResponse{
 		ID:           user.ID.String(),
 		Username:     user.Username,
-		RealName:     utils.MaskRealName(user.RealName),
-		Email:        utils.MaskEmail(user.Email),
-		Phone:        utils.MaskPhone(user.Phone),
+		RealName:     masking.MaskRealName(user.RealName),
+		Email:        masking.MaskEmail(user.Email),
+		Phone:        masking.MaskPhone(user.Phone),
 		Status:       user.Status,
 		DepartmentID: user.DepartmentID,
 		PositionID:   user.PositionID,

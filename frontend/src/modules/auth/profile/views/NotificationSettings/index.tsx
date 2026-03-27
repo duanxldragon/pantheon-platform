@@ -51,6 +51,24 @@ export function NotificationSettings() {
   const userId = useAuthStore((state) => state.user?.id);
   const { compactMode } = useProfilePreferenceSettings();
   const zh = language === 'zh';
+  const copy = {
+    savedTitle: zh ? '通知设置已保存' : 'Notification settings saved',
+    savedDesc: zh ? '新的通知偏好会在当前账号下持续生效' : 'Your preferences are now stored for this account',
+    channels: zh ? '通知渠道' : 'Notification Channels',
+    channelsDesc: zh ? '为不同类型的消息选择接收方式。' : 'Choose how each kind of message should reach you.',
+    email: zh ? '邮件通知' : 'Email',
+    emailDesc: zh ? '发送到当前账号绑定的邮箱' : 'Delivered to your registered email',
+    system: zh ? '站内通知' : 'In-app',
+    systemDesc: zh ? '在系统内实时展示并支持后续查看' : 'Displayed directly in the system',
+    type: zh ? '通知类型' : 'Type',
+    quietHours: zh ? '免打扰时段' : 'Quiet Hours',
+    quietHoursDesc: zh
+      ? '开启后，22:00 - 08:00 仅接收高优先级通知，减少夜间打扰。'
+      : 'Only high-priority notifications are allowed from 22:00 to 08:00.',
+    unsaved: zh ? '当前有未保存的通知设置变更' : 'You have unsaved notification changes',
+    synced: zh ? '通知设置已与当前账号保存状态同步' : 'Notification settings are in sync',
+    saveSettings: zh ? '保存设置' : 'Save Settings',
+  };
 
   const [notifications, setNotifications] = useState<NotificationOption[]>(
     cloneNotifications(DEFAULT_NOTIFICATION_SETTINGS.notifications),
@@ -89,10 +107,7 @@ export function NotificationSettings() {
     saveProfileNotificationSettings(nextSettings, userId);
     setSavedNotifications(cloneNotifications(notifications));
     setSavedQuietHours(quietHours);
-    systemNotification.success(
-      zh ? '通知设置已保存' : 'Notification settings saved',
-      zh ? '新的通知偏好会在当前账号下持续生效' : 'Your preferences are now stored for this account',
-    );
+    systemNotification.success(copy.savedTitle, copy.savedDesc);
   };
 
   return (
@@ -107,10 +122,10 @@ export function NotificationSettings() {
           </div>
           <div>
             <h3 className="text-lg" style={{ color: theme.colors.text }}>
-              {zh ? '通知渠道' : 'Notification Channels'}
+              {copy.channels}
             </h3>
             <p className="text-sm" style={{ color: theme.colors.textSecondary }}>
-              {zh ? '为不同类型的消息选择接收方式。' : 'Choose how each kind of message should reach you.'}
+              {copy.channelsDesc}
             </p>
           </div>
         </div>
@@ -123,9 +138,9 @@ export function NotificationSettings() {
             <div className="flex items-center gap-3">
               <Mail className="h-5 w-5" style={{ color: theme.colors.primary }} />
               <div>
-                <div style={{ color: theme.colors.text }}>{zh ? '邮件通知' : 'Email'}</div>
+                <div style={{ color: theme.colors.text }}>{copy.email}</div>
                 <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
-                  {zh ? '发送到当前账号绑定的邮箱' : 'Delivered to your registered email'}
+                  {copy.emailDesc}
                 </div>
               </div>
             </div>
@@ -137,9 +152,9 @@ export function NotificationSettings() {
             <div className="flex items-center gap-3">
               <MessageSquare className="h-5 w-5" style={{ color: theme.colors.primary }} />
               <div>
-                <div style={{ color: theme.colors.text }}>{zh ? '站内通知' : 'In-app'}</div>
+                <div style={{ color: theme.colors.text }}>{copy.system}</div>
                 <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
-                  {zh ? '在系统内实时展示并支持后续查看' : 'Displayed directly in the system'}
+                  {copy.systemDesc}
                 </div>
               </div>
             </div>
@@ -153,13 +168,13 @@ export function NotificationSettings() {
       >
         <div className="mb-4 grid grid-cols-12 gap-4 border-b pb-3" style={{ borderColor: theme.colors.border }}>
           <div className="col-span-6">
-            <Label>{zh ? '通知类型' : 'Type'}</Label>
+            <Label>{copy.type}</Label>
           </div>
           <div className="col-span-3 text-center">
-            <Label>{zh ? '邮件' : 'Email'}</Label>
+            <Label>{copy.email}</Label>
           </div>
           <div className="col-span-3 text-center">
-            <Label>{zh ? '站内' : 'System'}</Label>
+            <Label>{copy.system}</Label>
           </div>
         </div>
 
@@ -196,12 +211,10 @@ export function NotificationSettings() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <div className="text-lg" style={{ color: theme.colors.text }}>
-              {zh ? '免打扰时段' : 'Quiet Hours'}
+              {copy.quietHours}
             </div>
             <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
-              {zh
-                ? '开启后，22:00 - 08:00 仅接收高优先级通知，减少夜间打扰。'
-                : 'Only high-priority notifications are allowed from 22:00 to 08:00.'}
+              {copy.quietHoursDesc}
             </div>
           </div>
           <Switch checked={quietHours} onCheckedChange={setQuietHours} />
@@ -210,17 +223,11 @@ export function NotificationSettings() {
 
       <div className="flex items-center justify-between gap-3">
         <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
-          {hasChanges
-            ? zh
-              ? '当前有未保存的通知设置变更'
-              : 'You have unsaved notification changes'
-            : zh
-              ? '通知设置已与当前账号保存状态同步'
-              : 'Notification settings are in sync'}
+          {hasChanges ? copy.unsaved : copy.synced}
         </div>
         <Button onClick={handleSave} disabled={!hasChanges}>
           <Save className="mr-2 h-4 w-4" />
-          {zh ? '保存设置' : 'Save Settings'}
+          {copy.saveSettings}
         </Button>
       </div>
     </div>

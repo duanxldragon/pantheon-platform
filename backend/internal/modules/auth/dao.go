@@ -12,8 +12,8 @@ var (
 	ErrApiKeyNotFound = errors.New("api key not found")
 )
 
-// ApiKeyRepository API Key repository interface
-type ApiKeyRepository interface {
+// ApiKeyDAO defines API key persistence operations.
+type ApiKeyDAO interface {
 	Create(ctx context.Context, apiKey *ApiKey) error
 	GetByID(ctx context.Context, id string) (*ApiKey, error)
 	GetByUserID(ctx context.Context, userID string) ([]*ApiKey, error)
@@ -22,20 +22,20 @@ type ApiKeyRepository interface {
 	UpdateLastUsed(ctx context.Context, id string) error
 }
 
-type apiKeyRepository struct {
+type apiKeyDAO struct {
 	db *gorm.DB
 }
 
-// NewApiKeyRepository creates a new API key repository
-func NewApiKeyRepository(db *gorm.DB) ApiKeyRepository {
-	return &apiKeyRepository{db: db}
+// NewApiKeyDAO creates a new API key DAO.
+func NewApiKeyDAO(db *gorm.DB) ApiKeyDAO {
+	return &apiKeyDAO{db: db}
 }
 
-func (r *apiKeyRepository) Create(ctx context.Context, apiKey *ApiKey) error {
+func (r *apiKeyDAO) Create(ctx context.Context, apiKey *ApiKey) error {
 	return r.db.WithContext(ctx).Create(apiKey).Error
 }
 
-func (r *apiKeyRepository) GetByID(ctx context.Context, id string) (*ApiKey, error) {
+func (r *apiKeyDAO) GetByID(ctx context.Context, id string) (*ApiKey, error) {
 	var key ApiKey
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&key).Error
 	if err != nil {
@@ -47,21 +47,21 @@ func (r *apiKeyRepository) GetByID(ctx context.Context, id string) (*ApiKey, err
 	return &key, nil
 }
 
-func (r *apiKeyRepository) GetByUserID(ctx context.Context, userID string) ([]*ApiKey, error) {
+func (r *apiKeyDAO) GetByUserID(ctx context.Context, userID string) ([]*ApiKey, error) {
 	var keys []*ApiKey
 	err := r.db.WithContext(ctx).Where("user_id = ?", userID).Order("created_at DESC").Find(&keys).Error
 	return keys, err
 }
 
-func (r *apiKeyRepository) Update(ctx context.Context, apiKey *ApiKey) error {
+func (r *apiKeyDAO) Update(ctx context.Context, apiKey *ApiKey) error {
 	return r.db.WithContext(ctx).Save(apiKey).Error
 }
 
-func (r *apiKeyRepository) Delete(ctx context.Context, id string) error {
+func (r *apiKeyDAO) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Delete(&ApiKey{}, "id = ?", id).Error
 }
 
-func (r *apiKeyRepository) UpdateLastUsed(ctx context.Context, id string) error {
+func (r *apiKeyDAO) UpdateLastUsed(ctx context.Context, id string) error {
 	uuidID, err := uuid.Parse(id)
 	if err != nil {
 		return err
@@ -71,7 +71,7 @@ func (r *apiKeyRepository) UpdateLastUsed(ctx context.Context, id string) error 
 }
 
 // GetTenantModels returns models that need to be migrated to tenant databases.
-func (r *apiKeyRepository) GetTenantModels() []interface{} {
+func (r *apiKeyDAO) GetTenantModels() []interface{} {
 	// API keys are stored in master database only, not migrated to tenant databases.
 	// This is intentional for centralized credential management.
 	return []interface{}{}

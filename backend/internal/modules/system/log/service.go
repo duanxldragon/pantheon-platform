@@ -2,11 +2,10 @@ package log
 
 import (
 	"context"
-	"gorm.io/gorm"
 	"time"
-)
 
-// ========== 服务接口 ==========
+	"gorm.io/gorm"
+)
 
 type LogService interface {
 	CreateOperationLog(ctx context.Context, log *OperationLog) error
@@ -19,19 +18,17 @@ type LogService interface {
 	MarkLogout(ctx context.Context, userID string) error
 }
 
-// ========== 服务实现 ==========
-
 type logService struct {
-	opRepo            OperationLogRepository
-	loginRepo         LoginLogRepository
+	opDAO             OperationLogDAO
+	loginDAO          LoginLogDAO
 	monitorDB         *gorm.DB
 	enableMonitorSync bool
 }
 
-func NewLogService(opRepo OperationLogRepository, loginRepo LoginLogRepository, monitorDB *gorm.DB) LogService {
+func NewLogService(opDAO OperationLogDAO, loginDAO LoginLogDAO, monitorDB *gorm.DB) LogService {
 	return &logService{
-		opRepo:            opRepo,
-		loginRepo:         loginRepo,
+		opDAO:             opDAO,
+		loginDAO:          loginDAO,
 		monitorDB:         monitorDB,
 		enableMonitorSync: true,
 	}
@@ -40,25 +37,25 @@ func NewLogService(opRepo OperationLogRepository, loginRepo LoginLogRepository, 
 func (s *logService) CreateOperationLog(ctx context.Context, log *OperationLog) error {
 	tenantID := getTenantID(ctx)
 	log.TenantID = tenantID
-	err := s.opRepo.Create(ctx, *log)
+	err := s.opDAO.Create(ctx, *log)
 	if err == nil && s.enableMonitorSync && s.monitorDB != nil {
-		go func(l OperationLog, tID string) {
-			l.TenantID = tID
-			_ = s.monitorDB.Table("monitor_oper_logs").Create(&l).Error
+		go func(record OperationLog, currentTenantID string) {
+			record.TenantID = currentTenantID
+			_ = s.monitorDB.Table("monitor_oper_logs").Create(&record).Error
 		}(*log, tenantID)
 	}
 	return err
 }
 
 func (s *logService) ListOperationLogs(ctx context.Context, page, pageSize int, filter *LogFilter) (*PageResponse, error) {
-	logs, total, err := s.opRepo.ListLogs(ctx, page, pageSize, filter)
+	logs, total, err := s.opDAO.ListLogs(ctx, page, pageSize, filter)
 	if err != nil {
 		return nil, err
 	}
 
 	items := make([]*OperationLogResponse, len(logs))
-	for i, l := range logs {
-		items[i] = ToOperationLogResponse(l)
+	for i, record := range logs {
+		items[i] = ToOperationLogResponse(record)
 	}
 
 	return &PageResponse{
@@ -68,31 +65,31 @@ func (s *logService) ListOperationLogs(ctx context.Context, page, pageSize int, 
 }
 
 func (s *logService) ClearOperationLogs(ctx context.Context, startDate, endDate *time.Time) error {
-	return s.opRepo.ClearLogs(ctx, getTenantID(ctx), startDate, endDate)
+	return s.opDAO.ClearLogs(ctx, getTenantID(ctx), startDate, endDate)
 }
 
 func (s *logService) CreateLoginLog(ctx context.Context, log *LoginLog) error {
 	tenantID := getTenantID(ctx)
 	log.TenantID = tenantID
-	err := s.loginRepo.Create(ctx, *log)
+	err := s.loginDAO.Create(ctx, *log)
 	if err == nil && s.enableMonitorSync && s.monitorDB != nil {
-		go func(l LoginLog, tID string) {
-			l.TenantID = tID
-			_ = s.monitorDB.Table("monitor_login_logs").Create(&l).Error
+		go func(record LoginLog, currentTenantID string) {
+			record.TenantID = currentTenantID
+			_ = s.monitorDB.Table("monitor_login_logs").Create(&record).Error
 		}(*log, tenantID)
 	}
 	return err
 }
 
 func (s *logService) ListLoginLogs(ctx context.Context, page, pageSize int, filter *LogFilter) (*PageResponse, error) {
-	logs, total, err := s.loginRepo.ListLogs(ctx, page, pageSize, filter)
+	logs, total, err := s.loginDAO.ListLogs(ctx, page, pageSize, filter)
 	if err != nil {
 		return nil, err
 	}
 
 	items := make([]*LoginLogResponse, len(logs))
-	for i, l := range logs {
-		items[i] = ToLoginLogResponse(l)
+	for i, record := range logs {
+		items[i] = ToLoginLogResponse(record)
 	}
 
 	return &PageResponse{
@@ -102,14 +99,14 @@ func (s *logService) ListLoginLogs(ctx context.Context, page, pageSize int, filt
 }
 
 func (s *logService) ClearLoginLogs(ctx context.Context, startDate, endDate *time.Time) error {
-	return s.loginRepo.ClearLogs(ctx, getTenantID(ctx), startDate, endDate)
+	return s.loginDAO.ClearLogs(ctx, getTenantID(ctx), startDate, endDate)
 }
 
 func (s *logService) MarkLogout(ctx context.Context, userID string) error {
 	if userID == "" {
 		return nil
 	}
-	return s.loginRepo.MarkLogout(ctx, userID, time.Now())
+	return s.loginDAO.MarkLogout(ctx, userID, time.Now())
 }
 
 func getTenantID(ctx context.Context) string {

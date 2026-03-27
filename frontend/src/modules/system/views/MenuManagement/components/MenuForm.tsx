@@ -198,9 +198,9 @@ export function MenuForm({ data = {}, menus, onChange, isEdit = false, statusHin
     codeDescription: zh ? '用于系统内部唯一标识菜单。' : 'Used as the unique internal identifier for the menu.',
     typeDescription: zh ? '切换类型后，父级、组件、外链等字段会自动联动调整。' : 'Switching type auto-adjusts parent, component, and external-link related fields.',
     parentDescription: {
-      button: zh ? '按钮必须选择一个“菜单”类型的父级。' : 'A button must be placed under a menu node.',
-      directory: zh ? '目录只允许挂在目录下，或作为顶级节点。' : 'A directory can stay under another directory or at the top level.',
-      menu: zh ? '菜单可作为顶级节点，也可挂在目录或菜单下。' : 'A menu can be top-level or nested under a directory/menu.',
+      button: zh ? '按钮必须挂在某个菜单节点下。' : 'A button must be placed under a menu node.',
+      directory: zh ? '目录只能挂在目录下，或作为顶级节点。' : 'A directory can stay under another directory or at the top level.',
+      menu: zh ? '菜单可以作为顶级节点，也可以挂在目录或菜单下。' : 'A menu can be top-level or nested under a directory/menu.',
     },
     pathDescription: zh
       ? (formData.external ? '外链地址必须以 http:// 或 https:// 开头。' : '例如：/system/user')
@@ -213,8 +213,8 @@ export function MenuForm({ data = {}, menus, onChange, isEdit = false, statusHin
           ? (formData.external ? 'External menus do not require a local component path.' : 'Regular menus require a frontend component path.')
           : 'Directories and buttons do not need a component path and it will be cleared on submit.'),
     statusDescription: statusHint?.fieldDescription || (zh ? '修改状态后，保存时会再次确认。' : 'Status changes require confirmation before saving.'),
-    externalDescription: zh ? '开启后菜单将以外部链接打开，不再使用本地组件。' : 'When enabled, the menu opens as an external link instead of a local component.',
-    permissionDescription: zh ? '可为菜单维护一个或多个权限码。' : 'You can maintain one or more permission codes for this menu.',
+    externalDescription: zh ? '启用后菜单将以外部链接打开，不再使用本地组件。' : 'When enabled, the menu opens as an external link instead of a local component.',
+    permissionDescription: zh ? '可为菜单维护一个或多个权限标识。' : 'You can maintain one or more permission codes for this menu.',
     namePlaceholder: zh ? '请输入菜单名称' : 'Enter menu name',
     codePlaceholder: zh ? '请输入菜单编码' : 'Enter menu code',
     parentPlaceholder: zh ? '请选择上级菜单，不选则为顶级菜单' : 'Select a parent menu, or leave empty for top level',

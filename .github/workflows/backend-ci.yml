@@ -59,6 +59,11 @@ jobs:
         working-directory: ./backend
         run: go mod download
 
+      - name: Run backend naming checks
+        working-directory: ./backend
+        run: |
+          go run ./cmd/tools/check-backend-naming
+
       - name: Run tests
         working-directory: ./backend
         env:

@@ -1,17 +1,15 @@
 package errors
 
-import (
-	"fmt"
-)
+import "fmt"
 
-// AppError 应用错误
+// AppError is the shared application error type.
 type AppError struct {
 	Code    string
 	Message string
 	Err     error
 }
 
-// Error 实现 error 接口
+// Error implements the error interface.
 func (e *AppError) Error() string {
 	if e.Err != nil {
 		return fmt.Sprintf("[%s] %s: %v", e.Code, e.Message, e.Err)
@@ -19,12 +17,12 @@ func (e *AppError) Error() string {
 	return fmt.Sprintf("[%s] %s", e.Code, e.Message)
 }
 
-// Unwrap 返回原始错误
+// Unwrap returns the wrapped error.
 func (e *AppError) Unwrap() error {
 	return e.Err
 }
 
-// New 创建新的应用错误
+// New creates a new application error.
 func New(code, message string) *AppError {
 	return &AppError{
 		Code:    code,
@@ -32,7 +30,7 @@ func New(code, message string) *AppError {
 	}
 }
 
-// Wrap 包装错误
+// Wrap wraps an existing error with an application error.
 func Wrap(err error, code, message string) *AppError {
 	return &AppError{
 		Code:    code,
@@ -41,35 +39,28 @@ func Wrap(err error, code, message string) *AppError {
 	}
 }
 
-// ============ 通用错误代码 ============
-
 const (
-	// 成功相关
 	ErrCodeSuccess = "SUCCESS"
 
-	// 请求错误
 	ErrCodeInvalidInput    = "INVALID_INPUT"
-	ErrCodeBadRequest       = "BAD_REQUEST"
-	ErrCodeValidationError  = "VALIDATION_ERROR"
-	ErrCodeMissingRequired  = "MISSING_REQUIRED_FIELD"
-	ErrCodeInvalidFormat    = "INVALID_FORMAT"
+	ErrCodeBadRequest      = "BAD_REQUEST"
+	ErrCodeValidationError = "VALIDATION_ERROR"
+	ErrCodeMissingRequired = "MISSING_REQUIRED_FIELD"
+	ErrCodeInvalidFormat   = "INVALID_FORMAT"
 
-	// 认证错误
-	ErrCodeUnauthorized = "UNAUTHORIZED"
-	ErrCodeForbidden    = "FORBIDDEN"
-	ErrCodeInvalidToken = "INVALID_TOKEN"
-	ErrCodeTokenExpired = "TOKEN_EXPIRED"
+	ErrCodeUnauthorized       = "UNAUTHORIZED"
+	ErrCodeForbidden          = "FORBIDDEN"
+	ErrCodeInvalidToken       = "INVALID_TOKEN"
+	ErrCodeTokenExpired       = "TOKEN_EXPIRED"
 	ErrCodeInvalidCredentials = "INVALID_CREDENTIALS"
-	ErrCodeAccountLocked = "ACCOUNT_LOCKED"
-	ErrCodeAccountDisabled = "ACCOUNT_DISABLED"
+	ErrCodeAccountLocked      = "ACCOUNT_LOCKED"
+	ErrCodeAccountDisabled    = "ACCOUNT_DISABLED"
 
-	// 资源错误
-	ErrCodeNotFound = "NOT_FOUND"
-	ErrCodeConflict = "CONFLICT"
-	ErrCodeDuplicate = "DUPLICATE"
+	ErrCodeNotFound      = "NOT_FOUND"
+	ErrCodeConflict      = "CONFLICT"
+	ErrCodeDuplicate     = "DUPLICATE"
 	ErrCodeResourceInUse = "RESOURCE_IN_USE"
 
-	// 业务错误
 	ErrCodeTenantNotFound        = "TENANT_NOT_FOUND"
 	ErrCodeTenantCodeExists      = "TENANT_CODE_EXISTS"
 	ErrCodeTenantInactive        = "TENANT_INACTIVE"
@@ -80,33 +71,27 @@ const (
 	ErrCodeDBConnectFailed       = "DB_CONNECT_FAILED"
 	ErrCodeDBQueryFailed         = "DB_QUERY_FAILED"
 	ErrCodeDBMigrationFailed     = "DB_MIGRATION_FAILED"
-
-	// 数据库错误
 	ErrCodeDBConnectFailedCommon = "DB_CONNECTION_ERROR"
 
-	// 认证相关错误消息
 	ErrMsgInvalidInput    = "common.invalid_input"
-	ErrMsgBadRequest       = "common.bad_request"
-	ErrMsgValidationError  = "common.validation_error"
-	ErrMsgMissingRequired  = "common.missing_required"
-	ErrMsgInvalidFormat    = "common.invalid_format"
+	ErrMsgBadRequest      = "common.bad_request"
+	ErrMsgValidationError = "common.validation_error"
+	ErrMsgMissingRequired = "common.missing_required"
+	ErrMsgInvalidFormat   = "common.invalid_format"
 
-	// 认证相关错误消息
-	ErrMsgUnauthorized = "auth.unauthorized"
-	ErrMsgForbidden    = "auth.forbidden"
-	ErrMsgInvalidToken = "auth.token.invalid"
-	ErrMsgTokenExpired = "auth.token.expired"
+	ErrMsgUnauthorized       = "auth.unauthorized"
+	ErrMsgForbidden          = "auth.forbidden"
+	ErrMsgInvalidToken       = "auth.token.invalid"
+	ErrMsgTokenExpired       = "auth.token.expired"
 	ErrMsgInvalidCredentials = "auth.login.invalid_credentials"
-	ErrMsgAccountLocked = "auth.account.locked"
-	ErrMsgAccountDisabled = "auth.account.disabled"
+	ErrMsgAccountLocked      = "auth.account.locked"
+	ErrMsgAccountDisabled    = "auth.account.disabled"
 
-	// 资源相关错误消息
-	ErrMsgNotFound = "common.not_found"
-	ErrMsgConflict = "common.conflict"
-	ErrMsgDuplicate = "common.duplicate"
+	ErrMsgNotFound      = "common.not_found"
+	ErrMsgConflict      = "common.conflict"
+	ErrMsgDuplicate     = "common.duplicate"
 	ErrMsgResourceInUse = "common.resource_in_use"
 
-	// 租户相关错误消息
 	ErrMsgTenantNotFound        = "tenant.not_found"
 	ErrMsgTenantCodeExists      = "tenant.code.exists"
 	ErrMsgTenantInactive        = "tenant.inactive"
@@ -117,23 +102,16 @@ const (
 	ErrMsgDBConnectFailed       = "tenant.db.connect_failed"
 	ErrMsgDBQueryFailed         = "tenant.db.query_failed"
 	ErrMsgDBMigrationFailed     = "tenant.db.migration_failed"
-
-	// 数据库相关错误消息
 	ErrMsgDBConnectFailedCommon = "tenant.db.connection_error"
 
-	// 默认错误消息
-	ErrMsgInternalError = "common.internal_error"
+	ErrMsgInternalError      = "common.internal_error"
 	ErrMsgServiceUnavailable = "common.service_unavailable"
-	ErrMsgMethodNotAllowed = "common.method_not_allowed"
-	ErrMsgRateLimitExceeded = "common.rate_limit_exceeded"
-	ErrUnknownError = "common.unknown_error"
+	ErrMsgMethodNotAllowed   = "common.method_not_allowed"
+	ErrMsgRateLimitExceeded  = "common.rate_limit_exceeded"
+	ErrUnknownError          = "common.unknown_error"
 )
 
-// ============ 租户相关错误 ============
-
-// 预定义错误
 var (
-	// 通用错误
 	ErrInvalidInput = New(ErrCodeInvalidInput, ErrMsgInvalidInput)
 	ErrNotFound     = New(ErrCodeNotFound, ErrMsgNotFound)
 	ErrUnauthorized = New(ErrCodeUnauthorized, ErrMsgUnauthorized)
@@ -141,19 +119,16 @@ var (
 	ErrInternal     = New("INTERNAL_ERROR", ErrMsgInternalError)
 	ErrDuplicate    = New(ErrCodeDuplicate, ErrMsgDuplicate)
 
-	// 租户错误
 	ErrTenantNotFound        = New(ErrCodeTenantNotFound, ErrMsgTenantNotFound)
 	ErrTenantCodeExists      = New(ErrCodeTenantCodeExists, ErrMsgTenantCodeExists)
 	ErrTenantInactive        = New(ErrCodeTenantInactive, ErrMsgTenantInactive)
 	ErrTenantDBConfigured    = New(ErrCodeTenantDBConfigured, ErrMsgTenantDBConfigured)
 	ErrDatabaseNotConfigured = New(ErrCodeDatabaseNotConfigured, ErrMsgDatabaseNotConfigured)
 
-	// 数据库错误
 	ErrDatabaseConnect = New(ErrCodeDBConnectFailedCommon, ErrMsgDBConnectFailedCommon)
 	ErrInvalidDBType   = New(ErrCodeInvalidDBType, ErrMsgInvalidDBType)
 	ErrInvalidDBConfig = New(ErrCodeInvalidDBConfig, ErrMsgInvalidDBConfig)
 
-	// 认证错误
 	ErrInvalidToken       = New(ErrCodeInvalidToken, ErrMsgInvalidToken)
 	ErrTokenExpired       = New(ErrCodeTokenExpired, ErrMsgTokenExpired)
 	ErrInvalidCredentials = New(ErrCodeInvalidCredentials, ErrMsgInvalidCredentials)

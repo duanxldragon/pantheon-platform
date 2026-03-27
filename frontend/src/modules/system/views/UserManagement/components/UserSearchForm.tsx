@@ -53,7 +53,7 @@ export const UserSearchForm: React.FC<UserSearchFormProps> = ({
   return (
     <div className="bg-white rounded-xl border border-gray-100 p-4 mb-4 shadow-sm transition-all duration-300">
       <div className="flex flex-wrap items-center gap-4">
-        {/* 鍏抽敭瀛楁悳绱?*/}
+        {/* Keyword Search */}
         <div className="relative flex-1 min-w-[240px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
@@ -117,7 +117,7 @@ export const UserSearchForm: React.FC<UserSearchFormProps> = ({
             className={`h-10 px-3 rounded-lg transition-colors ${isExpanded ? 'bg-primary/10 text-primary' : 'text-gray-500'}`}
           >
             <Filter className="w-4 h-4 mr-2" />
-            {t.common.info}
+            {t.actions.filter}
             <ChevronDown className={`w-3 h-3 ml-1 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
           </Button>
         </div>
@@ -143,7 +143,6 @@ export const UserSearchForm: React.FC<UserSearchFormProps> = ({
               </SelectContent>
             </Select>
           </div>
-          {/* Reserved for more filters in future (e.g. phone/email exact match). */}
         </div>
       )}
     </div>

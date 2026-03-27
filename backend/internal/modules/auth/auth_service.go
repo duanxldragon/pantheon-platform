@@ -33,7 +33,7 @@ func (s *authService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 	}
 
 	if requestedTenantCode == "" && s.config != nil && s.config.IsPrivateSingleTenantMode() && s.config.DefaultTenantID != "" {
-		if defaultTenant, err := s.tenantRepo.GetByID(ctx, s.config.DefaultTenantID); err == nil {
+		if defaultTenant, err := s.tenantDAO.GetByID(ctx, s.config.DefaultTenantID); err == nil {
 			requestedTenantCode = defaultTenant.Code
 		}
 	}
@@ -63,7 +63,7 @@ func (s *authService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 	writeCtx := ctx
 	if requestedTenantCode != "" {
 		// Resolve the tenant and switch the context to the tenant database.
-		tenantRecord, err := s.tenantRepo.GetByCode(ctx, requestedTenantCode)
+		tenantRecord, err := s.tenantDAO.GetByCode(ctx, requestedTenantCode)
 		if err != nil {
 			if errors.Is(err, tenant.ErrTenantNotFound) {
 				return nil, ErrInvalidCredentials
@@ -114,7 +114,7 @@ func (s *authService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 		}
 	} else {
 		// Platform admin users are stored in the master database.
-		// Inject master DB into context so the user repository can find the record
+		// Inject master DB into context so the user DAO can find the record
 		// without a tenant-specific DB connection.
 		masterCtx := context.WithValue(ctx, "tenant_db", s.masterDB)
 		userRecord, err := s.userService.GetByUsername(masterCtx, req.Username)
@@ -137,7 +137,7 @@ func (s *authService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 		// Platform admin user is stored in master DB but still belongs to a tenant (default tenant).
 		tenantID = userRecord.TenantID
 		if tenantID != "" {
-			if tenantRecord, err := s.tenantRepo.GetByID(ctx, tenantID); err == nil {
+			if tenantRecord, err := s.tenantDAO.GetByID(ctx, tenantID); err == nil {
 				tenantCode = tenantRecord.Code
 			}
 		}
@@ -450,7 +450,7 @@ func (s *authService) GetCurrentUser(ctx context.Context, userID, username, tena
 		resp.LastLoginIP = record.LastLoginIP
 	}
 	if tenantID != "" {
-		if tenantRecord, err := s.tenantRepo.GetByID(ctx, tenantID); err == nil {
+		if tenantRecord, err := s.tenantDAO.GetByID(ctx, tenantID); err == nil {
 			resp.TenantCode = tenantRecord.Code
 		}
 	}

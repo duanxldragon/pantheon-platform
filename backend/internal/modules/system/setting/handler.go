@@ -1,8 +1,9 @@
 package setting
 
 import (
-	"github.com/gin-gonic/gin"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 
 	"pantheon-platform/backend/internal/shared/response"
 )
@@ -66,13 +67,4 @@ func (h *SettingHandler) UpdateBatch(c *gin.Context) {
 		return
 	}
 	response.Success(c, gin.H{"message": "ok", "count": len(req.Updates)})
-}
-
-func (h *SettingHandler) RegisterRoutes(group *gin.RouterGroup) {
-	settings := group.Group("/settings")
-	{
-		settings.GET("", h.List)
-		settings.PUT("/:key", h.Update)
-		settings.POST("/batch", h.UpdateBatch)
-	}
 }

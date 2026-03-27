@@ -12,12 +12,12 @@ import (
 	"pantheon-platform/backend/internal/config"
 )
 
-// RedisClient redis client wrapper
+// RedisClient wraps the redis client used across the backend.
 type RedisClient struct {
 	client *redis.Client
 }
 
-// NewRedisClient creates a new redis client
+// NewRedisClient creates a new redis client.
 func NewRedisClient(cfg config.RedisConfig) (*RedisClient, error) {
 	client := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
@@ -25,7 +25,6 @@ func NewRedisClient(cfg config.RedisConfig) (*RedisClient, error) {
 		DB:       cfg.DB,
 	})
 
-	// Test connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -36,43 +35,43 @@ func NewRedisClient(cfg config.RedisConfig) (*RedisClient, error) {
 	return &RedisClient{client: client}, nil
 }
 
-// GetClient returns the underlying redis client
+// GetClient returns the underlying redis client.
 func (r *RedisClient) GetClient() *redis.Client {
 	return r.client
 }
 
-// Set sets a value in redis with expiration
+// Set stores a value in redis with expiration.
 func (r *RedisClient) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
 	return r.client.Set(ctx, key, value, expiration).Err()
 }
 
-// Get gets a value from redis
+// Get retrieves a value from redis.
 func (r *RedisClient) Get(ctx context.Context, key string) (string, error) {
 	return r.client.Get(ctx, key).Result()
 }
 
-// Del deletes a key from redis
+// Del deletes a key from redis.
 func (r *RedisClient) Del(ctx context.Context, key string) error {
 	return r.client.Del(ctx, key).Err()
 }
 
-// Exists checks if a key exists in redis
+// Exists checks whether a key exists in redis.
 func (r *RedisClient) Exists(ctx context.Context, key string) (bool, error) {
 	n, err := r.client.Exists(ctx, key).Result()
 	return n > 0, err
 }
 
-// Incr increments the value of a key by 1
+// Incr increments a key by 1.
 func (r *RedisClient) Incr(ctx context.Context, key string) (int64, error) {
 	return r.client.Incr(ctx, key).Result()
 }
 
-// Expire sets an expiration time on a key
+// Expire sets an expiration time on a key.
 func (r *RedisClient) Expire(ctx context.Context, key string, expiration time.Duration) error {
 	return r.client.Expire(ctx, key, expiration).Err()
 }
 
-// Close closes the redis client
+// Close closes the redis client.
 func (r *RedisClient) Close() error {
 	return r.client.Close()
 }

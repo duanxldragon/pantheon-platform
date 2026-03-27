@@ -110,6 +110,7 @@ Infrastructure
 
 ### 后端实现
 
+- `backend/README.md`
 - `backend/BACKEND_GUIDE.md`
 - `backend/docs/BACKEND_DOCS_INDEX.md`
 - `backend/docs/system/SYSTEM_BACKEND.md`
@@ -132,14 +133,17 @@ Infrastructure
 2. 再读 `docs/system/SYSTEM_MANAGEMENT.md` 理解系统管理业务模型；
 3. 再读 `docs/auth/AUTH_SECURITY.md` 与 `docs/auth/AUTH_SESSION_STRATEGY.md`；
 4. 再读 `docs/tenant/TENANT_INITIALIZATION.md` 理解租户初始化与部署模式；
-5. 部署与验收时再读 `docs/deploy/DEPLOYMENT.md` 与 `docs/governance/SYSTEM_CHECKLIST.md`；
-6. 最后按实现视角进入 `backend/docs/` 与 `frontend/docs/`。
+5. 进入后端实现前，先读 `backend/README.md`、`backend/BACKEND_GUIDE.md` 与 `backend/docs/BACKEND_NAMING_CONVENTIONS.md`；
+6. 部署与验收时再读 `docs/deploy/DEPLOYMENT.md` 与 `docs/governance/SYSTEM_CHECKLIST.md`；
+7. 最后按实现视角进入 `backend/docs/` 与 `frontend/docs/`。
 
 ## 快速开始
 
 后端启动、配置、数据库与 Swagger 说明见：
 
+- `backend/README.md`
 - `backend/BACKEND_GUIDE.md`
+- `backend/docs/BACKEND_NAMING_CONVENTIONS.md`
 - `backend/api/swagger/`
 
 前端启动、构建与开发说明见：

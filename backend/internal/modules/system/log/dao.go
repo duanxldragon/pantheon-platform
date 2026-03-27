@@ -10,16 +10,16 @@ import (
 	"pantheon-platform/backend/internal/shared/database"
 )
 
-// OperationLogRepository 操作日志仓储接口
-type OperationLogRepository interface {
+// OperationLogDAO defines operation log DAO behavior.
+type OperationLogDAO interface {
 	database.DAO[OperationLog]
 	database.TenantMigrator
 	ListLogs(ctx context.Context, page, pageSize int, filter *LogFilter) ([]*OperationLog, int64, error)
 	ClearLogs(ctx context.Context, tenantID string, startDate, endDate *time.Time) error
 }
 
-// LoginLogRepository 登录日志仓储接口
-type LoginLogRepository interface {
+// LoginLogDAO defines login log DAO behavior.
+type LoginLogDAO interface {
 	database.DAO[LoginLog]
 	database.TenantMigrator
 	ListLogs(ctx context.Context, page, pageSize int, filter *LogFilter) ([]*LoginLog, int64, error)
@@ -27,23 +27,22 @@ type LoginLogRepository interface {
 	MarkLogout(ctx context.Context, userID string, logoutAt time.Time) error
 }
 
-// ---- operationLogRepository ----
-
-type operationLogRepository struct {
+type operationLogDAO struct {
 	*database.BaseDAO[OperationLog]
 }
 
-func NewOperationLogRepository(db *gorm.DB) OperationLogRepository {
-	return &operationLogRepository{
+// NewOperationLogDAO creates an operation log DAO.
+func NewOperationLogDAO(db *gorm.DB) OperationLogDAO {
+	return &operationLogDAO{
 		BaseDAO: database.NewBaseDAO[OperationLog](db),
 	}
 }
 
-func (r *operationLogRepository) GetTenantModels() []interface{} {
+func (r *operationLogDAO) GetTenantModels() []interface{} {
 	return []interface{}{&OperationLog{}}
 }
 
-func (r *operationLogRepository) ListLogs(ctx context.Context, page, pageSize int, filter *LogFilter) ([]*OperationLog, int64, error) {
+func (r *operationLogDAO) ListLogs(ctx context.Context, page, pageSize int, filter *LogFilter) ([]*OperationLog, int64, error) {
 	var logs []*OperationLog
 	var total int64
 
@@ -59,7 +58,6 @@ func (r *operationLogRepository) ListLogs(ctx context.Context, page, pageSize in
 		if v := strings.TrimSpace(filter.Action); v != "" {
 			query = query.Where("action = ?", v)
 		}
-		// "success": status 200-399, "failure": status >= 400
 		switch filter.Status {
 		case "success":
 			query = query.Where("status >= 200 AND status < 400")
@@ -83,7 +81,7 @@ func (r *operationLogRepository) ListLogs(ctx context.Context, page, pageSize in
 	return logs, total, err
 }
 
-func (r *operationLogRepository) ClearLogs(ctx context.Context, tenantID string, startDate, endDate *time.Time) error {
+func (r *operationLogDAO) ClearLogs(ctx context.Context, tenantID string, startDate, endDate *time.Time) error {
 	query := r.GetDB(ctx).Where("tenant_id = ?", tenantID)
 	if startDate != nil {
 		query = query.Where("created_at >= ?", *startDate)
@@ -94,29 +92,28 @@ func (r *operationLogRepository) ClearLogs(ctx context.Context, tenantID string,
 	return query.Delete(&OperationLog{}).Error
 }
 
-func (r *operationLogRepository) WithTx(tx *gorm.DB) database.DAO[OperationLog] {
-	return &operationLogRepository{
+func (r *operationLogDAO) WithTx(tx *gorm.DB) database.DAO[OperationLog] {
+	return &operationLogDAO{
 		BaseDAO: database.NewBaseDAO[OperationLog](tx),
 	}
 }
 
-// ---- loginLogRepository ----
-
-type loginLogRepository struct {
+type loginLogDAO struct {
 	*database.BaseDAO[LoginLog]
 }
 
-func NewLoginLogRepository(db *gorm.DB) LoginLogRepository {
-	return &loginLogRepository{
+// NewLoginLogDAO creates a login log DAO.
+func NewLoginLogDAO(db *gorm.DB) LoginLogDAO {
+	return &loginLogDAO{
 		BaseDAO: database.NewBaseDAO[LoginLog](db),
 	}
 }
 
-func (r *loginLogRepository) GetTenantModels() []interface{} {
+func (r *loginLogDAO) GetTenantModels() []interface{} {
 	return []interface{}{&LoginLog{}}
 }
 
-func (r *loginLogRepository) ListLogs(ctx context.Context, page, pageSize int, filter *LogFilter) ([]*LoginLog, int64, error) {
+func (r *loginLogDAO) ListLogs(ctx context.Context, page, pageSize int, filter *LogFilter) ([]*LoginLog, int64, error) {
 	var logs []*LoginLog
 	var total int64
 
@@ -146,7 +143,7 @@ func (r *loginLogRepository) ListLogs(ctx context.Context, page, pageSize int, f
 	return logs, total, err
 }
 
-func (r *loginLogRepository) ClearLogs(ctx context.Context, tenantID string, startDate, endDate *time.Time) error {
+func (r *loginLogDAO) ClearLogs(ctx context.Context, tenantID string, startDate, endDate *time.Time) error {
 	query := r.GetDB(ctx).Where("tenant_id = ?", tenantID)
 	if startDate != nil {
 		query = query.Where("login_at >= ?", *startDate)
@@ -157,7 +154,7 @@ func (r *loginLogRepository) ClearLogs(ctx context.Context, tenantID string, sta
 	return query.Delete(&LoginLog{}).Error
 }
 
-func (r *loginLogRepository) MarkLogout(ctx context.Context, userID string, logoutAt time.Time) error {
+func (r *loginLogDAO) MarkLogout(ctx context.Context, userID string, logoutAt time.Time) error {
 	var latest LoginLog
 	err := r.GetDB(ctx).
 		Where("user_id = ? AND logout_at IS NULL", userID).
@@ -176,8 +173,8 @@ func (r *loginLogRepository) MarkLogout(ctx context.Context, userID string, logo
 		Update("logout_at", logoutAt).Error
 }
 
-func (r *loginLogRepository) WithTx(tx *gorm.DB) database.DAO[LoginLog] {
-	return &loginLogRepository{
+func (r *loginLogDAO) WithTx(tx *gorm.DB) database.DAO[LoginLog] {
+	return &loginLogDAO{
 		BaseDAO: database.NewBaseDAO[LoginLog](tx),
 	}
 }

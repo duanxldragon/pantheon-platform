@@ -125,7 +125,7 @@ func Start() {
 
 	// Initialize Quota and Backup services
 	quotaSvc := tenant.NewQuotaService(db)
-	tenantDBRepo := tenant.NewTenantDatabaseRepository(db)
+	tenantDBDAO := tenant.NewTenantDatabaseDAO(db)
 
 	// Initialize Storage Provider
 	var storageProvider storage.StorageProvider
@@ -142,26 +142,26 @@ func Start() {
 	if redisClient != nil {
 		sysContainer.SetRedisClient(redisClient)
 	}
-	notificationRepo := notification.NewNotificationRepository(db)
-	registerTenantMigrators(dbManager, sysContainer, notificationRepo)
+	notificationDAO := notification.NewNotificationDAO(db)
+	registerTenantMigrators(dbManager, sysContainer, notificationDAO)
 
-	tenantRepo := tenant.NewTenantRepository(db)
-	dbManager.SetTenantLoader(tenantDBRepo) // Set tenant config loader for dynamic reloading
-	apiKeyRepo := auth.NewApiKeyRepository(db)
+	tenantDAO := tenant.NewTenantDAO(db)
+	dbManager.SetTenantLoader(tenantDBDAO) // Set tenant config loader for dynamic reloading
+	apiKeyDAO := auth.NewApiKeyDAO(db)
 
-	authSvc := auth.NewAuthService(db, dbManager, sysContainer.GetUserService(), tenantRepo, sysContainer.GetLogService(), redisClient, cfg, apiKeyRepo)
+	authSvc := auth.NewAuthService(db, dbManager, sysContainer.GetUserService(), tenantDAO, sysContainer.GetLogService(), redisClient, cfg, apiKeyDAO)
 	authHandler := auth.NewAuthHandler(authSvc)
 	authRouter := auth.NewAuthRouter(authHandler)
 
-	tenantSvc := tenant.NewTenantService(tenantRepo, tenantDBRepo, dbManager, db, authzSvc)
-	tenantDatabaseSvc := tenant.NewTenantDatabaseService(tenantDBRepo, tenantRepo, dbManager, redisClient, authzSvc, cfg)
+	tenantSvc := tenant.NewTenantService(tenantDAO, tenantDBDAO, dbManager, db, authzSvc)
+	tenantDatabaseSvc := tenant.NewTenantDatabaseService(tenantDBDAO, tenantDAO, dbManager, redisClient, authzSvc, cfg)
 	if err := tenantDatabaseSvc.LoadAllTenants(context.Background()); err != nil {
 		log.Printf("warning: failed to load tenant databases: %v", err)
 	}
 	tenantHandler := tenant.NewTenantHandler(tenantSvc, tenantDatabaseSvc, quotaSvc)
 	tenantRouter := tenant.NewTenantRouter(tenantHandler)
 
-	systemRouter := system.NewRouter(
+	systemRouter := system.NewSystemRouter(
 		sysContainer.GetUserHandler(),
 		sysContainer.GetRoleHandler(),
 		sysContainer.GetPermissionHandler(),
@@ -176,9 +176,9 @@ func Start() {
 
 	emailSrv := notification.NewEmailService(&cfg.Email)
 	smsSrv := notification.NewSMSService(&cfg.SMS)
-	notificationSvc := notification.NewNotificationService(notificationRepo, emailSrv, smsSrv)
+	notificationSvc := notification.NewNotificationService(notificationDAO, emailSrv, smsSrv)
 	notificationHandler := notification.NewNotificationHandler(notificationSvc)
-	notificationRouter := notification.NewRouter(notificationHandler)
+	notificationRouter := notification.NewNotificationRouter(notificationHandler)
 
 	translationSvc := i18n.NewTranslationService(db)
 	translationHandler := i18n.NewTranslationHandler(translationSvc, cfg.DefaultTenantID)
@@ -323,17 +323,17 @@ func Start() {
 }
 
 func registerTenantMigrators(dbManager *database.Manager, container systemContainer.Container, notificationMigrator database.TenantMigrator) {
-	dbManager.RegisterTenantMigrator("user", container.GetUserRepository())
-	dbManager.RegisterTenantMigrator("dept", container.GetDepartmentRepository())
-	dbManager.RegisterTenantMigrator("position", container.GetPositionRepository())
-	dbManager.RegisterTenantMigrator("role", container.GetRoleRepository())
-	dbManager.RegisterTenantMigrator("permission", container.GetPermissionRepository())
-	dbManager.RegisterTenantMigrator("menu", container.GetMenuRepository())
-	dbManager.RegisterTenantMigrator("dict_type", container.GetDictTypeRepository())
-	dbManager.RegisterTenantMigrator("dict_data", container.GetDictDataRepository())
-	dbManager.RegisterTenantMigrator("op_log", container.GetOperationLogRepository())
-	dbManager.RegisterTenantMigrator("login_log", container.GetLoginLogRepository())
-	dbManager.RegisterTenantMigrator("setting", container.GetSettingRepository())
+	dbManager.RegisterTenantMigrator("user", container.GetUserDAO())
+	dbManager.RegisterTenantMigrator("dept", container.GetDepartmentDAO())
+	dbManager.RegisterTenantMigrator("position", container.GetPositionDAO())
+	dbManager.RegisterTenantMigrator("role", container.GetRoleDAO())
+	dbManager.RegisterTenantMigrator("permission", container.GetPermissionDAO())
+	dbManager.RegisterTenantMigrator("menu", container.GetMenuDAO())
+	dbManager.RegisterTenantMigrator("dict_type", container.GetDictTypeDAO())
+	dbManager.RegisterTenantMigrator("dict_data", container.GetDictDataDAO())
+	dbManager.RegisterTenantMigrator("op_log", container.GetOperationLogDAO())
+	dbManager.RegisterTenantMigrator("login_log", container.GetLoginLogDAO())
+	dbManager.RegisterTenantMigrator("setting", container.GetSettingDAO())
 	dbManager.RegisterTenantMigrator("notification", notificationMigrator)
 }
 

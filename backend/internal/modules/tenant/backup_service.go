@@ -52,28 +52,28 @@ type BackupService interface {
 }
 
 type backupService struct {
-	db                 *gorm.DB
-	tenantDatabaseRepo TenantDatabaseRepository
-	backupDir          string
-	decryptPassword    func(string) (string, error)
+	db                *gorm.DB
+	tenantDatabaseDAO TenantDatabaseDAO
+	backupDir         string
+	decryptPassword   func(string) (string, error)
 }
 
 // NewBackupService creates a backup service.
-func NewBackupService(db *gorm.DB, tenantDatabaseRepo TenantDatabaseRepository, backupDir string, decryptPassword func(string) (string, error)) BackupService {
+func NewBackupService(db *gorm.DB, tenantDatabaseDAO TenantDatabaseDAO, backupDir string, decryptPassword func(string) (string, error)) BackupService {
 	if _, err := os.Stat(backupDir); os.IsNotExist(err) {
 		_ = os.MkdirAll(backupDir, 0755)
 	}
 	return &backupService{
-		db:                 db,
-		tenantDatabaseRepo: tenantDatabaseRepo,
-		backupDir:          backupDir,
-		decryptPassword:    decryptPassword,
+		db:                db,
+		tenantDatabaseDAO: tenantDatabaseDAO,
+		backupDir:         backupDir,
+		decryptPassword:   decryptPassword,
 	}
 }
 
 // CreateBackup creates one backup record and starts the backup job.
 func (s *backupService) CreateBackup(ctx context.Context, tenantID string, createdBy string) (*TenantBackup, error) {
-	databaseConfig, err := s.tenantDatabaseRepo.GetByTenantID(ctx, tenantID)
+	databaseConfig, err := s.tenantDatabaseDAO.GetByTenantID(ctx, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tenant DB config: %w", err)
 	}
@@ -263,7 +263,7 @@ func (s *backupService) RestoreBackup(ctx context.Context, backupID string) erro
 		return fmt.Errorf("backup file not found: %s", backup.FilePath)
 	}
 
-	databaseConfig, err := s.tenantDatabaseRepo.GetByTenantID(ctx, backup.TenantID)
+	databaseConfig, err := s.tenantDatabaseDAO.GetByTenantID(ctx, backup.TenantID)
 	if err != nil {
 		return fmt.Errorf("failed to get tenant DB config: %w", err)
 	}

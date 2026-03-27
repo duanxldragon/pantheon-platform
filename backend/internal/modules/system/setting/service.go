@@ -16,11 +16,11 @@ type SettingService interface {
 
 // settingService implements the system setting service.
 type settingService struct {
-	repo SettingRepository
+	dao SettingDAO
 }
 
-func NewSettingService(repo SettingRepository) SettingService {
-	return &settingService{repo: repo}
+func NewSettingService(dao SettingDAO) SettingService {
+	return &settingService{dao: dao}
 }
 
 func (s *settingService) List(ctx context.Context) ([]*SettingResponse, error) {
@@ -28,7 +28,7 @@ func (s *settingService) List(ctx context.Context) ([]*SettingResponse, error) {
 	if tenantID == "" {
 		tenantID = "00000000-0000-0000-0000-000000000000"
 	}
-	items, err := s.repo.ListByTenant(ctx, tenantID)
+	items, err := s.dao.ListByTenant(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (s *settingService) Update(ctx context.Context, key string, value string, u
 		UpdatedAt: now,
 	}
 
-	return s.repo.Upsert(ctx, entry)
+	return s.dao.Upsert(ctx, entry)
 }
 
 func (s *settingService) UpdateBatch(ctx context.Context, updates map[string]string, updatedBy string) error {
@@ -77,7 +77,7 @@ func (s *settingService) UpdateBatch(ctx context.Context, updates map[string]str
 			UpdatedAt: now,
 		}
 
-		if err := s.repo.Upsert(ctx, entry); err != nil {
+		if err := s.dao.Upsert(ctx, entry); err != nil {
 			return err
 		}
 	}

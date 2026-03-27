@@ -16,7 +16,7 @@ import (
 	"pantheon-platform/backend/internal/shared/middleware"
 )
 
-type Router struct {
+type SystemRouter struct {
 	userHandler       *user.UserHandler
 	roleHandler       *role.RoleHandler
 	permissionHandler *permission.PermissionHandler
@@ -29,7 +29,7 @@ type Router struct {
 	monitorHandler    *monitor.MonitorHandler
 }
 
-func NewRouter(
+func NewSystemRouter(
 	userHandler *user.UserHandler,
 	roleHandler *role.RoleHandler,
 	permissionHandler *permission.PermissionHandler,
@@ -40,8 +40,8 @@ func NewRouter(
 	logHandler *log.LogHandler,
 	settingHandler *setting.SettingHandler,
 	monitorHandler *monitor.MonitorHandler,
-) *Router {
-	return &Router{
+) *SystemRouter {
+	return &SystemRouter{
 		userHandler:       userHandler,
 		roleHandler:       roleHandler,
 		permissionHandler: permissionHandler,
@@ -55,7 +55,7 @@ func NewRouter(
 	}
 }
 
-func (r *Router) RegisterRoutes(router *gin.RouterGroup, authMiddleware gin.HandlerFunc, tenantMiddleware gin.HandlerFunc) {
+func (r *SystemRouter) RegisterRoutes(router *gin.RouterGroup, authMiddleware gin.HandlerFunc, tenantMiddleware gin.HandlerFunc) {
 	system := router.Group("/system")
 	system.Use(authMiddleware, tenantMiddleware)
 	if middleware.GlobalAuthService != nil {

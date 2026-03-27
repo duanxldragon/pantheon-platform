@@ -1,8 +1,9 @@
 import React from 'react';
+import type { ReactNode } from 'react';
+
 import { useAuthStore } from '../../modules/auth/store/authStore';
 import { useLanguageStore } from '../../stores/languageStore';
 import { systemNotification } from '../utils/notification';
-import type { ReactNode } from 'react';
 
 interface RouteGuardProps {
   children: ReactNode;
@@ -12,10 +13,6 @@ interface RouteGuardProps {
   onUnauthorized?: () => void;
 }
 
-/**
- * 路由守卫组件
- * 保护需要特定权限或角色的路由
- */
 export function RouteGuard({
   children,
   requiredPermissions,
@@ -29,22 +26,19 @@ export function RouteGuard({
   const user = useAuthStore((state) => state.user);
   const t = useLanguageStore((state) => state.t);
 
-  // 检查是否已认证
   if (!isAuthenticated || !user) {
     if (onUnauthorized) {
       onUnauthorized();
     } else {
-      // 默认行为：显示未授权提示
       systemNotification.error(t.common.pleaseLogin);
     }
     return fallback || <div>{t.common.pleaseLogin}</div>;
   }
 
-  // 检查权限
   if (requiredPermissions) {
     const permissions = Array.isArray(requiredPermissions) ? requiredPermissions : [requiredPermissions];
-    const hasRequiredPermission = permissions.some(permission => hasPermission(permission));
-    
+    const hasRequiredPermission = permissions.some((permission) => hasPermission(permission));
+
     if (!hasRequiredPermission) {
       if (onUnauthorized) {
         onUnauthorized();
@@ -55,11 +49,10 @@ export function RouteGuard({
     }
   }
 
-  // 检查角色
   if (requiredRoles) {
     const roles = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles];
-    const hasRequiredRole = roles.some(role => hasRole(role));
-    
+    const hasRequiredRole = roles.some((role) => hasRole(role));
+
     if (!hasRequiredRole) {
       if (onUnauthorized) {
         onUnauthorized();
@@ -70,16 +63,12 @@ export function RouteGuard({
     }
   }
 
-  // 所有检查通过，渲染子组件
   return <>{children}</>;
 }
 
-/**
- * 高阶组件：为组件添加路由守卫
- */
 export function withRouteGuard<P extends object>(
   Component: React.ComponentType<P>,
-  guardOptions: Omit<RouteGuardProps, 'children'>
+  guardOptions: Omit<RouteGuardProps, 'children'>,
 ) {
   return function GuardedComponent(props: P) {
     return (
@@ -90,9 +79,6 @@ export function withRouteGuard<P extends object>(
   };
 }
 
-/**
- * 权限检查Hook
- */
 export function usePermissionCheck() {
   const hasPermission = useAuthStore((state) => state.hasPermission);
   const hasRole = useAuthStore((state) => state.hasRole);
@@ -110,7 +96,7 @@ export function usePermissionCheck() {
 
   const checkAny = (
     permissions?: string | string[],
-    roles?: string | string[]
+    roles?: string | string[],
   ): boolean => {
     if (!user) return false;
 

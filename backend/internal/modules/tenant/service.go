@@ -44,22 +44,22 @@ type TenantService interface {
 }
 
 type tenantService struct {
-	tenantRepo         TenantRepository
-	tenantDatabaseRepo TenantDatabaseRepository
-	dbManager          *database.Manager
-	masterDB           *gorm.DB
-	sessionRevoker     SessionRevoker
-	defaultTenantID    string
+	tenantDAO         TenantDAO
+	tenantDatabaseDAO TenantDatabaseDAO
+	dbManager         *database.Manager
+	masterDB          *gorm.DB
+	sessionRevoker    SessionRevoker
+	defaultTenantID   string
 }
 
 // NewTenantService creates a tenant service.
-func NewTenantService(tenantRepo TenantRepository, tenantDatabaseRepo TenantDatabaseRepository, dbManager *database.Manager, masterDB *gorm.DB, sessionRevoker SessionRevoker) TenantService {
+func NewTenantService(tenantDAO TenantDAO, tenantDatabaseDAO TenantDatabaseDAO, dbManager *database.Manager, masterDB *gorm.DB, sessionRevoker SessionRevoker) TenantService {
 	return &tenantService{
-		tenantRepo:         tenantRepo,
-		tenantDatabaseRepo: tenantDatabaseRepo,
-		dbManager:          dbManager,
-		masterDB:           masterDB,
-		sessionRevoker:     sessionRevoker,
+		tenantDAO:         tenantDAO,
+		tenantDatabaseDAO: tenantDatabaseDAO,
+		dbManager:         dbManager,
+		masterDB:          masterDB,
+		sessionRevoker:    sessionRevoker,
 	}
 }
 
@@ -89,13 +89,13 @@ func (s *tenantService) CreateTenant(ctx context.Context, req *CreateTenantReque
 		Status:        TenantStatusActive,
 		IsFirstLogin:  true,
 	}
-	err := s.tenantRepo.Create(ctx, tenantRecord)
+	err := s.tenantDAO.Create(ctx, tenantRecord)
 	return tenantRecord, err
 }
 
 // UpdateTenant updates one tenant base information.
 func (s *tenantService) UpdateTenant(ctx context.Context, id string, req *UpdateTenantRequest) (*Tenant, error) {
-	tenantRecord, err := s.tenantRepo.GetByID(ctx, id)
+	tenantRecord, err := s.tenantDAO.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func (s *tenantService) UpdateTenant(ctx context.Context, id string, req *Update
 		return nil, parseErr
 	}
 
-	if err := s.tenantRepo.Update(ctx, tenantRecord); err != nil {
+	if err := s.tenantDAO.Update(ctx, tenantRecord); err != nil {
 		return nil, err
 	}
 
@@ -123,12 +123,12 @@ func (s *tenantService) UpdateTenant(ctx context.Context, id string, req *Update
 
 // GetTenantStatus returns setup and status information for a tenant code.
 func (s *tenantService) GetTenantStatus(ctx context.Context, code string) (*TenantStatusResponse, error) {
-	tenantRecord, err := s.tenantRepo.GetByCode(ctx, code)
+	tenantRecord, err := s.tenantDAO.GetByCode(ctx, code)
 	if err != nil {
 		return nil, err
 	}
 
-	databaseConfig, databaseConfigErr := s.tenantDatabaseRepo.GetByTenantID(ctx, tenantRecord.ID.String())
+	databaseConfig, databaseConfigErr := s.tenantDatabaseDAO.GetByTenantID(ctx, tenantRecord.ID.String())
 	databaseConfigured := databaseConfigErr == nil
 	if databaseConfigErr != nil && !errors.Is(databaseConfigErr, ErrTenantDBNotFound) {
 		return nil, databaseConfigErr
@@ -148,22 +148,22 @@ func (s *tenantService) GetTenantStatus(ctx context.Context, code string) (*Tena
 
 // ListTenants returns a paginated tenant list.
 func (s *tenantService) ListTenants(ctx context.Context, page, pageSize int) ([]*Tenant, int64, error) {
-	return s.tenantRepo.List(ctx, page, pageSize)
+	return s.tenantDAO.List(ctx, page, pageSize)
 }
 
 // GetTenant returns one tenant by ID.
 func (s *tenantService) GetTenant(ctx context.Context, id string) (*Tenant, error) {
-	return s.tenantRepo.GetByID(ctx, id)
+	return s.tenantDAO.GetByID(ctx, id)
 }
 
 // GetCurrentTenantInfo returns the current tenant information.
 func (s *tenantService) GetCurrentTenantInfo(ctx context.Context, id string) (*TenantInfoResponse, error) {
-	tenantRecord, err := s.tenantRepo.GetByID(ctx, id)
+	tenantRecord, err := s.tenantDAO.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	databaseConfig, databaseConfigErr := s.tenantDatabaseRepo.GetByTenantID(ctx, id)
+	databaseConfig, databaseConfigErr := s.tenantDatabaseDAO.GetByTenantID(ctx, id)
 	databaseConfigured := databaseConfigErr == nil
 	if databaseConfigErr != nil && !errors.Is(databaseConfigErr, ErrTenantDBNotFound) {
 		return nil, databaseConfigErr
@@ -185,20 +185,20 @@ func (s *tenantService) GetCurrentTenantInfo(ctx context.Context, id string) (*T
 
 // ActivateTenant marks a tenant as active.
 func (s *tenantService) ActivateTenant(ctx context.Context, id string) error {
-	tenantRecord, err := s.tenantRepo.GetByID(ctx, id)
+	tenantRecord, err := s.tenantDAO.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 	tenantRecord.Status = TenantStatusActive
-	return s.tenantRepo.Update(ctx, tenantRecord)
+	return s.tenantDAO.Update(ctx, tenantRecord)
 }
 
 // DeleteTenant removes a tenant and clears its database connection.
 func (s *tenantService) DeleteTenant(ctx context.Context, id string) error {
 	_ = s.revokeTenantUsers(ctx, id)
 
-	// Delete tenant from repository
-	err := s.tenantRepo.Delete(ctx, id)
+	// Delete the tenant record through the tenant DAO.
+	err := s.tenantDAO.Delete(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -218,13 +218,13 @@ func (s *tenantService) DeleteTenant(ctx context.Context, id string) error {
 
 // SuspendTenant marks a tenant as disabled and revokes its sessions.
 func (s *tenantService) SuspendTenant(ctx context.Context, id string) error {
-	tenantRecord, err := s.tenantRepo.GetByID(ctx, id)
+	tenantRecord, err := s.tenantDAO.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
 	tenantRecord.Status = TenantStatusDisabled
-	err = s.tenantRepo.Update(ctx, tenantRecord)
+	err = s.tenantDAO.Update(ctx, tenantRecord)
 	if err != nil {
 		return err
 	}
@@ -306,30 +306,30 @@ type TenantDatabaseService interface {
 }
 
 type tenantDatabaseService struct {
-	tenantDatabaseRepo TenantDatabaseRepository
-	tenantRepo         TenantRepository
-	dbManager          *database.Manager
-	locker             *cache.RedisClient
-	authzSvc           *authzService.AuthorizationService
-	cfg                *config.Config
+	tenantDatabaseDAO TenantDatabaseDAO
+	tenantDAO         TenantDAO
+	dbManager         *database.Manager
+	locker            *cache.RedisClient
+	authzSvc          *authzService.AuthorizationService
+	cfg               *config.Config
 }
 
 // NewTenantDatabaseService creates a tenant database service.
 func NewTenantDatabaseService(
-	tenantDatabaseRepo TenantDatabaseRepository,
-	tenantRepo TenantRepository,
+	tenantDatabaseDAO TenantDatabaseDAO,
+	tenantDAO TenantDAO,
 	dbManager *database.Manager,
 	locker *cache.RedisClient,
 	authzSvc *authzService.AuthorizationService,
 	cfg *config.Config,
 ) TenantDatabaseService {
 	return &tenantDatabaseService{
-		tenantDatabaseRepo: tenantDatabaseRepo,
-		tenantRepo:         tenantRepo,
-		dbManager:          dbManager,
-		locker:             locker,
-		authzSvc:           authzSvc,
-		cfg:                cfg,
+		tenantDatabaseDAO: tenantDatabaseDAO,
+		tenantDAO:         tenantDAO,
+		dbManager:         dbManager,
+		locker:            locker,
+		authzSvc:          authzSvc,
+		cfg:               cfg,
 	}
 }
 
@@ -367,7 +367,7 @@ func (s *tenantDatabaseService) SetupDatabase(ctx context.Context, tenantID stri
 	}
 
 	// Get tenant code for pool configuration
-	tenantRecord, err := s.tenantRepo.GetByID(ctx, tenantID)
+	tenantRecord, err := s.tenantDAO.GetByID(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +405,7 @@ func (s *tenantDatabaseService) SetupDatabase(ctx context.Context, tenantID stri
 		return nil, err
 	}
 
-	config, err := s.tenantDatabaseRepo.GetByTenantID(ctx, tenantID)
+	config, err := s.tenantDatabaseDAO.GetByTenantID(ctx, tenantID)
 	if err != nil && !errors.Is(err, ErrTenantDBNotFound) {
 		return nil, err
 	}
@@ -430,21 +430,21 @@ func (s *tenantDatabaseService) SetupDatabase(ctx context.Context, tenantID stri
 	config.ConnMaxLifetime = withDefault(req.ConnMaxLifetime, 3600)
 
 	if config.CreatedAt.IsZero() {
-		if err := s.tenantDatabaseRepo.Create(ctx, config); err != nil {
+		if err := s.tenantDatabaseDAO.Create(ctx, config); err != nil {
 			return nil, err
 		}
 	} else {
-		if err := s.tenantDatabaseRepo.Update(ctx, config); err != nil {
+		if err := s.tenantDatabaseDAO.Update(ctx, config); err != nil {
 			return nil, err
 		}
 	}
 
-	currentTenantRecord, err := s.tenantRepo.GetByID(ctx, tenantID)
+	currentTenantRecord, err := s.tenantDAO.GetByID(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	currentTenantRecord.IsFirstLogin = false
-	if err := s.tenantRepo.Update(ctx, currentTenantRecord); err != nil {
+	if err := s.tenantDAO.Update(ctx, currentTenantRecord); err != nil {
 		return nil, err
 	}
 
@@ -477,7 +477,7 @@ func (s *tenantDatabaseService) TestConnection(ctx context.Context, req *TestCon
 
 // LoadAllTenants loads all tenant database connections into the manager.
 func (s *tenantDatabaseService) LoadAllTenants(ctx context.Context) error {
-	configs, err := s.tenantDatabaseRepo.GetAll(ctx)
+	configs, err := s.tenantDatabaseDAO.GetAll(ctx)
 	if err != nil {
 		return err
 	}
@@ -486,7 +486,7 @@ func (s *tenantDatabaseService) LoadAllTenants(ctx context.Context) error {
 		password, _ := s.dbManager.DecryptPassword(c.PasswordEncrypted)
 
 		// Get tenant code for pool configuration
-		tenantRecord, err := s.tenantRepo.GetByID(ctx, c.TenantID)
+		tenantRecord, err := s.tenantDAO.GetByID(ctx, c.TenantID)
 		if err != nil {
 			log.Printf("Failed to get tenant %s: %v", c.TenantID, err)
 			continue

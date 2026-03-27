@@ -37,7 +37,7 @@ type DepartmentService interface {
 // ========== Service Implementation ==========
 
 type departmentService struct {
-	repo          DepartmentRepository
+	dao           DepartmentDAO
 	userValidator UserValidator
 	authProvider  AuthorizationProvider
 	txManager     database.TransactionManager
@@ -45,13 +45,13 @@ type departmentService struct {
 
 // NewDepartmentService creates a department service instance.
 func NewDepartmentService(
-	repo DepartmentRepository,
+	dao DepartmentDAO,
 	userValidator UserValidator,
 	authProvider AuthorizationProvider,
 	txManager database.TransactionManager,
 ) DepartmentService {
 	return &departmentService{
-		repo:          repo,
+		dao:           dao,
 		userValidator: userValidator,
 		authProvider:  authProvider,
 		txManager:     txManager,
@@ -89,7 +89,7 @@ func (s *departmentService) Create(ctx context.Context, req *DepartmentRequest) 
 		TenantID:    getTenantID(ctx),
 	}
 
-	err = s.repo.Create(ctx, *dept)
+	err = s.dao.Create(ctx, *dept)
 	if err == nil {
 		setDepartmentAuditFields(ctx, audit.OperationFields{
 			Module:       "system/depts",
@@ -107,14 +107,14 @@ func (s *departmentService) Create(ctx context.Context, req *DepartmentRequest) 
 }
 
 func (s *departmentService) GetByID(ctx context.Context, id string) (*DepartmentResponse, error) {
-	dept, err := s.repo.GetByID(ctx, id)
+	dept, err := s.dao.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
 	var parentName, leaderName string
 	if dept.ParentID != nil {
-		p, _ := s.repo.GetByID(ctx, dept.ParentID.String())
+		p, _ := s.dao.GetByID(ctx, dept.ParentID.String())
 		parentName = p.Name
 	}
 	if dept.LeaderID != nil {
@@ -125,7 +125,7 @@ func (s *departmentService) GetByID(ctx context.Context, id string) (*Department
 }
 
 func (s *departmentService) Update(ctx context.Context, id string, req *DepartmentRequest) (*Department, error) {
-	dept, err := s.repo.GetByID(ctx, id)
+	dept, err := s.dao.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func (s *departmentService) Update(ctx context.Context, id string, req *Departme
 		dept.LeaderID = leaderID
 	}
 
-	err = s.repo.Update(ctx, dept)
+	err = s.dao.Update(ctx, dept)
 	if err != nil {
 		return nil, err
 	}
@@ -190,20 +190,20 @@ func (s *departmentService) Update(ctx context.Context, id string, req *Departme
 }
 
 func (s *departmentService) Delete(ctx context.Context, id string) error {
-	dept, err := s.repo.GetByID(ctx, id)
+	dept, err := s.dao.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 	if tenantID := getTenantID(ctx); tenantID != "" && dept.TenantID != tenantID {
 		return fmt.Errorf("department not found in current tenant")
 	}
-	if has, _ := s.repo.HasChildren(ctx, id); has {
+	if has, _ := s.dao.HasChildren(ctx, id); has {
 		return fmt.Errorf("department has children")
 	}
 	if has, _ := s.userValidator.HasUsersInDept(ctx, id); has {
 		return fmt.Errorf("department has users")
 	}
-	if err := s.repo.Delete(ctx, id); err != nil {
+	if err := s.dao.Delete(ctx, id); err != nil {
 		return err
 	}
 	setDepartmentAuditFields(ctx, audit.OperationFields{
@@ -223,7 +223,7 @@ func (s *departmentService) Delete(ctx context.Context, id string) error {
 
 func (s *departmentService) List(ctx context.Context, req *DepartmentListRequest) (*PageResponse, error) {
 	filters := make(map[string]interface{})
-	depts, total, err := s.repo.List(ctx, req.Page, req.PageSize, filters)
+	depts, total, err := s.dao.List(ctx, req.Page, req.PageSize, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +244,7 @@ func (s *departmentService) List(ctx context.Context, req *DepartmentListRequest
 }
 
 func (s *departmentService) GetTree(ctx context.Context, req *DepartmentTreeRequest) ([]*DepartmentResponse, error) {
-	depts, err := s.repo.GetTree(ctx)
+	depts, err := s.dao.GetTree(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +291,7 @@ func (s *departmentService) resolveParent(ctx context.Context, deptID string, pa
 		return nil, 0, fmt.Errorf("department parent cannot be itself")
 	}
 
-	parent, err := s.repo.GetByID(ctx, parentValue)
+	parent, err := s.dao.GetByID(ctx, parentValue)
 	if err != nil {
 		return nil, 0, fmt.Errorf("parent department not found")
 	}
@@ -300,7 +300,7 @@ func (s *departmentService) resolveParent(ctx context.Context, deptID string, pa
 	}
 
 	if deptID != "" {
-		circular, err := s.repo.CheckCircularReference(ctx, deptID, parentValue)
+		circular, err := s.dao.CheckCircularReference(ctx, deptID, parentValue)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -373,7 +373,7 @@ func (s *departmentService) collectDepartmentIDs(ctx context.Context, deptID str
 		}
 		seen[currentID] = struct{}{}
 		result = append(result, currentID)
-		children, err := s.repo.GetChildren(ctx, currentID)
+		children, err := s.dao.GetChildren(ctx, currentID)
 		if err != nil {
 			return err
 		}

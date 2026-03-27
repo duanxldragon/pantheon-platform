@@ -38,21 +38,21 @@ type RoleListRequest struct {
 // ========== Service Implementation ==========
 
 type permissionService struct {
-	repo         PermissionRepository
+	dao          PermissionDAO
 	authProvider AuthorizationProvider
 	txManager    database.TransactionManager
 }
 
-func NewPermissionService(repo PermissionRepository, authProvider AuthorizationProvider, txManager database.TransactionManager) PermissionService {
+func NewPermissionService(dao PermissionDAO, authProvider AuthorizationProvider, txManager database.TransactionManager) PermissionService {
 	return &permissionService{
-		repo:         repo,
+		dao:          dao,
 		authProvider: authProvider,
 		txManager:    txManager,
 	}
 }
 
 func (s *permissionService) Create(ctx context.Context, req *PermissionRequest) (*Permission, error) {
-	if existing, _ := s.repo.GetByCode(ctx, req.Code); existing != nil {
+	if existing, _ := s.dao.GetByCode(ctx, req.Code); existing != nil {
 		return nil, fmt.Errorf("permission code exists")
 	}
 
@@ -68,12 +68,12 @@ func (s *permissionService) Create(ctx context.Context, req *PermissionRequest) 
 		TenantID:    getTenantID(ctx),
 	}
 
-	err := s.repo.Create(ctx, *perm)
+	err := s.dao.Create(ctx, *perm)
 	return perm, err
 }
 
 func (s *permissionService) GetByID(ctx context.Context, id string) (*PermissionResponse, error) {
-	perm, err := s.repo.GetByID(ctx, id)
+	perm, err := s.dao.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func (s *permissionService) GetByID(ctx context.Context, id string) (*Permission
 }
 
 func (s *permissionService) Update(ctx context.Context, id string, req *PermissionRequest) (*Permission, error) {
-	perm, err := s.repo.GetByID(ctx, id)
+	perm, err := s.dao.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (s *permissionService) Update(ctx context.Context, id string, req *Permissi
 	perm.Action = req.Action
 	perm.Status = req.Status
 
-	if err := s.repo.Update(ctx, perm); err != nil {
+	if err := s.dao.Update(ctx, perm); err != nil {
 		return nil, err
 	}
 	affectedRoles, affectedUsers, err := s.syncAffectedRolePermissions(ctx, id)
@@ -112,12 +112,12 @@ func (s *permissionService) Update(ctx context.Context, id string, req *Permissi
 
 func (s *permissionService) Delete(ctx context.Context, id string) error {
 	// Load the permission before validating tenant ownership.
-	perm, err := s.repo.GetByID(ctx, id)
+	perm, err := s.dao.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	if inUse, _ := s.repo.IsInUse(ctx, id); inUse {
+	if inUse, _ := s.dao.IsInUse(ctx, id); inUse {
 		return fmt.Errorf("permission is in use by roles")
 	}
 
@@ -127,7 +127,7 @@ func (s *permissionService) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("permission not found in current tenant")
 	}
 
-	return s.repo.Delete(ctx, id)
+	return s.dao.Delete(ctx, id)
 }
 
 func (s *permissionService) List(ctx context.Context, req *RoleListRequest) (*PageResponse, error) {
@@ -136,7 +136,7 @@ func (s *permissionService) List(ctx context.Context, req *RoleListRequest) (*Pa
 		filters["name LIKE ?"] = "%" + req.Search + "%"
 	}
 
-	perms, total, err := s.repo.List(ctx, req.Page, req.PageSize, filters)
+	perms, total, err := s.dao.List(ctx, req.Page, req.PageSize, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +157,7 @@ func (s *permissionService) List(ctx context.Context, req *RoleListRequest) (*Pa
 }
 
 func (s *permissionService) GetCodesByIDs(ctx context.Context, ids []string) ([]string, error) {
-	return s.repo.GetCodesByIDs(ctx, ids)
+	return s.dao.GetCodesByIDs(ctx, ids)
 }
 
 func getTenantID(ctx context.Context) string {
@@ -168,11 +168,11 @@ func getTenantID(ctx context.Context) string {
 }
 
 func (s *permissionService) syncAffectedRolePermissions(ctx context.Context, permissionID string) (int, int, error) {
-	if s == nil || s.repo == nil || s.authProvider == nil || permissionID == "" {
+	if s == nil || s.dao == nil || s.authProvider == nil || permissionID == "" {
 		return 0, 0, nil
 	}
 
-	roleIDs, err := s.repo.GetRoleIDsByPermission(ctx, permissionID)
+	roleIDs, err := s.dao.GetRoleIDsByPermission(ctx, permissionID)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -180,7 +180,7 @@ func (s *permissionService) syncAffectedRolePermissions(ctx context.Context, per
 		return 0, 0, nil
 	}
 
-	userIDs, err := s.repo.GetUserIDsByRoleIDs(ctx, roleIDs)
+	userIDs, err := s.dao.GetUserIDsByRoleIDs(ctx, roleIDs)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -195,7 +195,7 @@ func (s *permissionService) syncAffectedRolePermissions(ctx context.Context, per
 		}
 		seen[roleID] = struct{}{}
 
-		rules, err := s.repo.GetPermissionRulesByRole(ctx, roleID)
+		rules, err := s.dao.GetPermissionRulesByRole(ctx, roleID)
 		if err != nil {
 			return 0, 0, err
 		}

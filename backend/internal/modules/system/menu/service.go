@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
 	"pantheon-platform/backend/internal/shared/audit"
 	"pantheon-platform/backend/internal/shared/database"
 )
@@ -14,8 +15,6 @@ import (
 type AuthorizationProvider interface {
 	BumpRoleUsersAuthVersion(ctx context.Context, roleID string) error
 }
-
-// ========== 服务接口 ==========
 
 type MenuService interface {
 	Create(ctx context.Context, req *MenuRequest) (*Menu, error)
@@ -27,27 +26,25 @@ type MenuService interface {
 	GetUserTree(ctx context.Context, userID string) ([]*MenuResponse, error)
 }
 
-// ========== 服务实现 ==========
-
 type menuService struct {
-	repo         MenuRepository
+	dao          MenuDAO
 	authProvider AuthorizationProvider
 	txManager    database.TransactionManager
 }
 
-func NewMenuService(repo MenuRepository, authProvider AuthorizationProvider, txManager database.TransactionManager) MenuService {
+func NewMenuService(dao MenuDAO, authProvider AuthorizationProvider, txManager database.TransactionManager) MenuService {
 	return &menuService{
-		repo:         repo,
+		dao:          dao,
 		authProvider: authProvider,
 		txManager:    txManager,
 	}
 }
 
 func (s *menuService) Create(ctx context.Context, req *MenuRequest) (*Menu, error) {
-	if existing, _ := s.repo.GetByCode(ctx, req.Code); existing != nil {
+	if existing, _ := s.dao.GetByCode(ctx, req.Code); existing != nil {
 		return nil, fmt.Errorf("menu code exists")
 	}
-	if existing, _ := s.repo.GetByPath(ctx, req.Path); existing != nil {
+	if existing, _ := s.dao.GetByPath(ctx, req.Path); existing != nil {
 		return nil, fmt.Errorf("menu path exists")
 	}
 	if err := validateMenuRoute(req); err != nil {
@@ -64,7 +61,7 @@ func (s *menuService) Create(ctx context.Context, req *MenuRequest) (*Menu, erro
 		sort = *req.Sort
 	}
 
-	m := &Menu{
+	record := &Menu{
 		ID:         uuid.New(),
 		Name:       req.Name,
 		Code:       req.Code,
@@ -79,42 +76,47 @@ func (s *menuService) Create(ctx context.Context, req *MenuRequest) (*Menu, erro
 		TenantID:   getTenantID(ctx),
 	}
 
-	err = s.repo.Create(ctx, *m)
+	err = s.dao.Create(ctx, *record)
 	if err == nil {
 		setMenuAuditFields(ctx, audit.OperationFields{
 			Module:       "system/menus",
 			Resource:     "menu",
-			ResourceID:   m.ID.String(),
-			ResourceName: m.Name,
-			Summary:      fmt.Sprintf("创建菜单「%s」", m.Name),
-			Detail:       buildMenuAuditDetail(m.ID.String(), m.Name, map[string]string{"path": m.Path, "type": m.Type, "status": m.Status}),
+			ResourceID:   record.ID.String(),
+			ResourceName: record.Name,
+			Summary:      fmt.Sprintf("\u521b\u5efa\u83dc\u5355\u300c%s\u300d", record.Name),
+			Detail: buildMenuAuditDetail(record.ID.String(), record.Name, map[string]string{
+				"path":   record.Path,
+				"type":   record.Type,
+				"status": record.Status,
+			}),
 		})
 	}
-	return m, err
+
+	return record, err
 }
 
 func (s *menuService) GetByID(ctx context.Context, id string) (*MenuResponse, error) {
-	m, err := s.repo.GetByID(ctx, id)
+	record, err := s.dao.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	return ToMenuResponse(&m, nil), nil
+	return ToMenuResponse(&record, nil), nil
 }
 
 func (s *menuService) Update(ctx context.Context, id string, req *MenuRequest) (*Menu, error) {
-	m, err := s.repo.GetByID(ctx, id)
+	record, err := s.dao.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
 	tenantID := getTenantID(ctx)
-	if tenantID != "" && m.TenantID != tenantID {
+	if tenantID != "" && record.TenantID != tenantID {
 		return nil, fmt.Errorf("menu not found in current tenant")
 	}
-	if existing, _ := s.repo.GetByCode(ctx, req.Code); existing != nil && existing.ID != m.ID {
+	if existing, _ := s.dao.GetByCode(ctx, req.Code); existing != nil && existing.ID != record.ID {
 		return nil, fmt.Errorf("menu code exists")
 	}
-	if existing, _ := s.repo.GetByPath(ctx, req.Path); existing != nil && existing.ID != m.ID {
+	if existing, _ := s.dao.GetByPath(ctx, req.Path); existing != nil && existing.ID != record.ID {
 		return nil, fmt.Errorf("menu path exists")
 	}
 	if err := validateMenuRoute(req); err != nil {
@@ -126,79 +128,107 @@ func (s *menuService) Update(ctx context.Context, id string, req *MenuRequest) (
 		return nil, err
 	}
 
-	roleIDs, _ := s.repo.GetRoleIDsByMenu(ctx, id)
-	userIDs, _ := s.repo.GetUserIDsByRoleIDs(ctx, roleIDs)
+	roleIDs, _ := s.dao.GetRoleIDsByMenu(ctx, id)
+	userIDs, _ := s.dao.GetUserIDsByRoleIDs(ctx, roleIDs)
 
-	m.Name = req.Name
-	m.Code = req.Code
-	m.Path = req.Path
-	m.Component = strings.TrimSpace(req.Component)
-	m.Icon = req.Icon
-	m.Type = req.Type
-	m.ParentID = parentID
-	m.Status = req.Status
-	m.IsExternal = req.IsExternal
+	record.Name = req.Name
+	record.Code = req.Code
+	record.Path = req.Path
+	record.Component = strings.TrimSpace(req.Component)
+	record.Icon = req.Icon
+	record.Type = req.Type
+	record.ParentID = parentID
+	record.Status = req.Status
+	record.IsExternal = req.IsExternal
 	if req.Sort != nil {
-		m.Sort = *req.Sort
+		record.Sort = *req.Sort
 	}
 
-	err = s.repo.Update(ctx, m)
+	err = s.dao.Update(ctx, record)
 	if err != nil {
 		return nil, err
 	}
+
 	s.bumpMenuRoles(ctx, id)
 	setMenuAuditFields(ctx, audit.OperationFields{
 		Module:       "system/menus",
 		Resource:     "menu",
-		ResourceID:   m.ID.String(),
-		ResourceName: m.Name,
-		Summary:      fmt.Sprintf("更新菜单「%s」，影响 %d 个角色、%d 个用户的动态菜单权限", m.Name, len(uniqueStrings(roleIDs)), len(uniqueStrings(userIDs))),
-		Detail:       buildMenuAuditDetail(m.ID.String(), m.Name, map[string]string{"path": m.Path, "type": m.Type, "status": m.Status, "affected_roles": fmt.Sprintf("%d", len(uniqueStrings(roleIDs))), "affected_users": fmt.Sprintf("%d", len(uniqueStrings(userIDs))), "refresh_strategy": "bump_auth_version"}),
+		ResourceID:   record.ID.String(),
+		ResourceName: record.Name,
+		Summary: fmt.Sprintf(
+			"\u66f4\u65b0\u83dc\u5355\u300c%s\u300d\uff0c\u5f71\u54cd %d \u4e2a\u89d2\u8272\u3001%d \u4e2a\u7528\u6237\u7684\u52a8\u6001\u83dc\u5355\u6743\u9650",
+			record.Name,
+			len(uniqueStrings(roleIDs)),
+			len(uniqueStrings(userIDs)),
+		),
+		Detail: buildMenuAuditDetail(record.ID.String(), record.Name, map[string]string{
+			"path":             record.Path,
+			"type":             record.Type,
+			"status":           record.Status,
+			"affected_roles":   fmt.Sprintf("%d", len(uniqueStrings(roleIDs))),
+			"affected_users":   fmt.Sprintf("%d", len(uniqueStrings(userIDs))),
+			"refresh_strategy": "bump_auth_version",
+		}),
 	})
-	return &m, nil
+
+	return &record, nil
 }
 
 func (s *menuService) Delete(ctx context.Context, id string) error {
-	menu, err := s.repo.GetByID(ctx, id)
+	record, err := s.dao.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	if has, _ := s.repo.HasChildren(ctx, id); has {
+	if has, _ := s.dao.HasChildren(ctx, id); has {
 		return fmt.Errorf("menu has children")
 	}
 
 	tenantID := getTenantID(ctx)
-	if tenantID != "" && menu.TenantID != tenantID {
+	if tenantID != "" && record.TenantID != tenantID {
 		return fmt.Errorf("menu not found in current tenant")
 	}
 
-	roleIDs, err := s.repo.GetRoleIDsByMenu(ctx, id)
+	roleIDs, err := s.dao.GetRoleIDsByMenu(ctx, id)
 	if err != nil {
 		return err
 	}
 
 	err = s.txManager.Transaction(ctx, func(txDB *gorm.DB) error {
-		repo := s.repo.WithTx(txDB).(MenuRepository)
+		txDAO := s.dao.WithTx(txDB).(MenuDAO)
 		txCtx := context.WithValue(ctx, "tenant_db", txDB)
-		if err := repo.ClearRoleRelations(txCtx, id); err != nil {
+		if err := txDAO.ClearRoleRelations(txCtx, id); err != nil {
 			return err
 		}
-		return repo.Delete(txCtx, id)
+		return txDAO.Delete(txCtx, id)
 	})
 	if err != nil {
 		return err
 	}
+
 	s.bumpRoleUsers(ctx, roleIDs)
-	userIDs, _ := s.repo.GetUserIDsByRoleIDs(ctx, roleIDs)
+	userIDs, _ := s.dao.GetUserIDsByRoleIDs(ctx, roleIDs)
 	setMenuAuditFields(ctx, audit.OperationFields{
 		Module:       "system/menus",
 		Resource:     "menu",
-		ResourceID:   menu.ID.String(),
-		ResourceName: menu.Name,
-		Summary:      fmt.Sprintf("删除菜单「%s」，影响 %d 个角色、%d 个用户的动态菜单权限", menu.Name, len(uniqueStrings(roleIDs)), len(uniqueStrings(userIDs))),
-		Detail:       buildMenuAuditDetail(menu.ID.String(), menu.Name, map[string]string{"path": menu.Path, "type": menu.Type, "status": menu.Status, "affected_roles": fmt.Sprintf("%d", len(uniqueStrings(roleIDs))), "affected_users": fmt.Sprintf("%d", len(uniqueStrings(userIDs))), "refresh_strategy": "bump_auth_version"}),
+		ResourceID:   record.ID.String(),
+		ResourceName: record.Name,
+		Summary: fmt.Sprintf(
+			"\u5220\u9664\u83dc\u5355\u300c%s\u300d\uff0c\u5f71\u54cd %d \u4e2a\u89d2\u8272\u3001%d \u4e2a\u7528\u6237\u7684\u52a8\u6001\u83dc\u5355\u6743\u9650",
+			record.Name,
+			len(uniqueStrings(roleIDs)),
+			len(uniqueStrings(userIDs)),
+		),
+		Detail: buildMenuAuditDetail(record.ID.String(), record.Name, map[string]string{
+			"path":             record.Path,
+			"type":             record.Type,
+			"status":           record.Status,
+			"affected_roles":   fmt.Sprintf("%d", len(uniqueStrings(roleIDs))),
+			"affected_users":   fmt.Sprintf("%d", len(uniqueStrings(userIDs))),
+			"refresh_strategy": "bump_auth_version",
+		}),
 	})
+
 	return nil
 }
 
@@ -208,14 +238,14 @@ func (s *menuService) List(ctx context.Context, page, pageSize int, search strin
 		filters["name LIKE ?"] = "%" + search + "%"
 	}
 
-	ms, total, err := s.repo.List(ctx, page, pageSize, filters)
+	records, total, err := s.dao.List(ctx, page, pageSize, filters)
 	if err != nil {
 		return nil, err
 	}
 
-	items := make([]*MenuResponse, len(ms))
-	for i, m := range ms {
-		items[i] = ToMenuResponse(&m, nil)
+	items := make([]*MenuResponse, len(records))
+	for i, record := range records {
+		items[i] = ToMenuResponse(&record, nil)
 	}
 
 	return &PageResponse{
@@ -229,31 +259,31 @@ func (s *menuService) List(ctx context.Context, page, pageSize int, search strin
 }
 
 func (s *menuService) GetTree(ctx context.Context, req *MenuTreeRequest) ([]*MenuResponse, error) {
-	ms, err := s.repo.GetTree(ctx)
+	records, err := s.dao.GetTree(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return buildMenuTree(ms, ""), nil
+	return buildMenuTree(records, ""), nil
 }
 
 func (s *menuService) GetUserTree(ctx context.Context, userID string) ([]*MenuResponse, error) {
-	ms, err := s.repo.GetTreeByUserID(ctx, userID)
+	records, err := s.dao.GetTreeByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	return buildMenuTree(ms, ""), nil
+	return buildMenuTree(records, ""), nil
 }
 
 func buildMenuTree(menus []*Menu, parentID string) []*MenuResponse {
 	var tree []*MenuResponse
-	for _, m := range menus {
+	for _, record := range menus {
 		pid := ""
-		if m.ParentID != nil {
-			pid = m.ParentID.String()
+		if record.ParentID != nil {
+			pid = record.ParentID.String()
 		}
 		if pid == parentID {
-			resp := ToMenuResponse(m, nil)
-			children := buildMenuTree(menus, m.ID.String())
+			resp := ToMenuResponse(record, nil)
+			children := buildMenuTree(menus, record.ID.String())
 			for _, child := range children {
 				resp.Children = append(resp.Children, *child)
 			}
@@ -283,7 +313,7 @@ func (s *menuService) resolveParent(ctx context.Context, menuID string, parentID
 		return nil, fmt.Errorf("menu parent cannot be itself")
 	}
 
-	parent, err := s.repo.GetByID(ctx, parentValue)
+	parent, err := s.dao.GetByID(ctx, parentValue)
 	if err != nil {
 		return nil, fmt.Errorf("parent menu not found")
 	}
@@ -306,7 +336,7 @@ func (s *menuService) resolveParent(ctx context.Context, menuID string, parentID
 	}
 
 	if menuID != "" {
-		circular, err := s.repo.CheckCircularReference(ctx, menuID, parentValue)
+		circular, err := s.dao.CheckCircularReference(ctx, menuID, parentValue)
 		if err != nil {
 			return nil, err
 		}
@@ -358,10 +388,10 @@ func validateMenuRoute(req *MenuRequest) error {
 }
 
 func (s *menuService) bumpMenuRoles(ctx context.Context, menuID string) {
-	if s == nil || s.repo == nil || s.authProvider == nil || menuID == "" {
+	if s == nil || s.dao == nil || s.authProvider == nil || menuID == "" {
 		return
 	}
-	roleIDs, err := s.repo.GetRoleIDsByMenu(ctx, menuID)
+	roleIDs, err := s.dao.GetRoleIDsByMenu(ctx, menuID)
 	if err != nil {
 		return
 	}
@@ -393,15 +423,15 @@ func setMenuAuditFields(ctx context.Context, fields audit.OperationFields) {
 
 func buildMenuAuditDetail(menuID, menuName string, attrs map[string]string) string {
 	parts := []string{
-		"菜单ID=" + menuID,
-		"菜单名称=" + menuName,
+		"\u83dc\u5355ID=" + menuID,
+		"\u83dc\u5355\u540d\u79f0=" + menuName,
 	}
 	for _, key := range []string{"path", "type", "status", "affected_roles", "affected_users", "refresh_strategy"} {
 		if value := strings.TrimSpace(attrs[key]); value != "" {
 			parts = append(parts, key+"="+value)
 		}
 	}
-	return strings.Join(parts, "；")
+	return strings.Join(parts, "\uff1b")
 }
 
 func uniqueStrings(values []string) []string {

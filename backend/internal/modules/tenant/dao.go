@@ -13,8 +13,8 @@ var (
 	ErrTenantDBNotFound = errors.New("tenant database config not found")
 )
 
-// TenantRepository defines tenant persistence operations.
-type TenantRepository interface {
+// TenantDAO defines tenant persistence operations.
+type TenantDAO interface {
 	Create(ctx context.Context, tenant *Tenant) error
 	GetByID(ctx context.Context, id string) (*Tenant, error)
 	GetByCode(ctx context.Context, code string) (*Tenant, error)
@@ -23,8 +23,8 @@ type TenantRepository interface {
 	Delete(ctx context.Context, id string) error
 }
 
-// TenantDatabaseRepository defines tenant database config persistence operations.
-type TenantDatabaseRepository interface {
+// TenantDatabaseDAO defines tenant database config persistence operations.
+type TenantDatabaseDAO interface {
 	Create(ctx context.Context, config *TenantDatabaseConfig) error
 	GetByTenantID(ctx context.Context, tenantID string) (*TenantDatabaseConfig, error)
 	GetAll(ctx context.Context) ([]*TenantDatabaseConfig, error)
@@ -34,20 +34,20 @@ type TenantDatabaseRepository interface {
 	GetAllTenantConfigs(ctx context.Context) ([]*database.TenantConfigInfo, error)
 }
 
-type tenantRepository struct {
+type tenantDAO struct {
 	db *gorm.DB
 }
 
-// NewTenantRepository creates a tenant repository.
-func NewTenantRepository(db *gorm.DB) TenantRepository {
-	return &tenantRepository{db: db}
+// NewTenantDAO creates a tenant DAO.
+func NewTenantDAO(db *gorm.DB) TenantDAO {
+	return &tenantDAO{db: db}
 }
 
-func (r *tenantRepository) Create(ctx context.Context, tenant *Tenant) error {
+func (r *tenantDAO) Create(ctx context.Context, tenant *Tenant) error {
 	return r.db.WithContext(ctx).Create(tenant).Error
 }
 
-func (r *tenantRepository) GetByID(ctx context.Context, id string) (*Tenant, error) {
+func (r *tenantDAO) GetByID(ctx context.Context, id string) (*Tenant, error) {
 	var tenantRecord Tenant
 	err := r.db.WithContext(ctx).First(&tenantRecord, "id = ?", id).Error
 	if err != nil {
@@ -59,7 +59,7 @@ func (r *tenantRepository) GetByID(ctx context.Context, id string) (*Tenant, err
 	return &tenantRecord, nil
 }
 
-func (r *tenantRepository) GetByCode(ctx context.Context, code string) (*Tenant, error) {
+func (r *tenantDAO) GetByCode(ctx context.Context, code string) (*Tenant, error) {
 	var tenantRecord Tenant
 	err := r.db.WithContext(ctx).First(&tenantRecord, "code = ?", code).Error
 	if err != nil {
@@ -71,7 +71,7 @@ func (r *tenantRepository) GetByCode(ctx context.Context, code string) (*Tenant,
 	return &tenantRecord, nil
 }
 
-func (r *tenantRepository) List(ctx context.Context, page, pageSize int) ([]*Tenant, int64, error) {
+func (r *tenantDAO) List(ctx context.Context, page, pageSize int) ([]*Tenant, int64, error) {
 	var tenantRecords []*Tenant
 	var total int64
 	r.db.WithContext(ctx).Model(&Tenant{}).Count(&total)
@@ -79,25 +79,25 @@ func (r *tenantRepository) List(ctx context.Context, page, pageSize int) ([]*Ten
 	return tenantRecords, total, err
 }
 
-func (r *tenantRepository) Update(ctx context.Context, tenant *Tenant) error {
+func (r *tenantDAO) Update(ctx context.Context, tenant *Tenant) error {
 	return r.db.WithContext(ctx).Save(tenant).Error
 }
 
-func (r *tenantRepository) Delete(ctx context.Context, id string) error {
+func (r *tenantDAO) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Delete(&Tenant{}, "id = ?", id).Error
 }
 
-type tenantDatabaseRepository struct {
+type tenantDatabaseDAO struct {
 	db *gorm.DB
 }
 
-// NewTenantDatabaseRepository creates a tenant database repository.
-func NewTenantDatabaseRepository(db *gorm.DB) TenantDatabaseRepository {
-	return &tenantDatabaseRepository{db: db}
+// NewTenantDatabaseDAO creates a tenant database DAO.
+func NewTenantDatabaseDAO(db *gorm.DB) TenantDatabaseDAO {
+	return &tenantDatabaseDAO{db: db}
 }
 
 // GetAllTenantConfigs implements database.TenantConfigLoader interface
-func (r *tenantDatabaseRepository) GetAllTenantConfigs(ctx context.Context) ([]*database.TenantConfigInfo, error) {
+func (r *tenantDatabaseDAO) GetAllTenantConfigs(ctx context.Context) ([]*database.TenantConfigInfo, error) {
 	// Query all tenant database configs using GORM
 	type TenantDBWithCode struct {
 		TenantDatabaseConfig
@@ -139,11 +139,11 @@ func (r *tenantDatabaseRepository) GetAllTenantConfigs(ctx context.Context) ([]*
 	return configs, nil
 }
 
-func (r *tenantDatabaseRepository) Create(ctx context.Context, config *TenantDatabaseConfig) error {
+func (r *tenantDatabaseDAO) Create(ctx context.Context, config *TenantDatabaseConfig) error {
 	return r.db.WithContext(ctx).Create(config).Error
 }
 
-func (r *tenantDatabaseRepository) GetByTenantID(ctx context.Context, tenantID string) (*TenantDatabaseConfig, error) {
+func (r *tenantDatabaseDAO) GetByTenantID(ctx context.Context, tenantID string) (*TenantDatabaseConfig, error) {
 	var c TenantDatabaseConfig
 	err := r.db.WithContext(ctx).First(&c, "tenant_id = ?", tenantID).Error
 	if err != nil {
@@ -155,16 +155,16 @@ func (r *tenantDatabaseRepository) GetByTenantID(ctx context.Context, tenantID s
 	return &c, nil
 }
 
-func (r *tenantDatabaseRepository) GetAll(ctx context.Context) ([]*TenantDatabaseConfig, error) {
+func (r *tenantDatabaseDAO) GetAll(ctx context.Context) ([]*TenantDatabaseConfig, error) {
 	var cs []*TenantDatabaseConfig
 	err := r.db.WithContext(ctx).Find(&cs).Error
 	return cs, err
 }
 
-func (r *tenantDatabaseRepository) Update(ctx context.Context, config *TenantDatabaseConfig) error {
+func (r *tenantDatabaseDAO) Update(ctx context.Context, config *TenantDatabaseConfig) error {
 	return r.db.WithContext(ctx).Save(config).Error
 }
 
-func (r *tenantDatabaseRepository) Delete(ctx context.Context, id string) error {
+func (r *tenantDatabaseDAO) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Delete(&TenantDatabaseConfig{}, "id = ?", id).Error
 }

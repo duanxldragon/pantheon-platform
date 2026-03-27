@@ -23,7 +23,7 @@ Generated files are exceptions when the generator has a stable default, for exam
 - Keep the same responsibility under the same file name across modules.
 - Use fixed names for primary layered files.
 - Use `<subject>_<kind>.go` for supplementary files.
-- Use module-specific exported type names instead of overly generic names like `Service`, `Repository`, or `Handler`.
+- Use module-specific exported type names instead of overly generic names like `Service`, `DAO`, or `Handler`.
 
 ## Primary Layered Files
 
@@ -53,6 +53,13 @@ Do not introduce alternative names such as:
 - `repository.go`
 - `controller.go`
 - `entity.go`
+
+Exceptions:
+
+- aggregation namespaces such as `internal/modules/system/` and `internal/modules/system/container/` do not have to mirror the fixed six-file layout
+- model-only namespaces such as `internal/modules/system/model/` may intentionally keep only model-oriented files
+- runtime-only modules without persistence, such as `internal/modules/system/monitor/`, may omit `dao.go` or `model.go` when those layers would be artificial
+- legacy metadata field names may remain when required for compatibility, such as `json:"repository"` in `module_registry.go`, but that does not justify continuing `Repository` naming in code
 
 ## Supplementary Files
 
@@ -192,8 +199,14 @@ Constructors:
 
 - Keep `snake_case`.
 - Prefer capability + kind naming, such as:
+  - `cache_contract.go`
+  - `redis_client.go`
   - `base_dao.go`
   - `database_initializer.go`
+  - `platform_constants.go`
+  - `application_errors.go`
+  - `http_response.go`
+  - `request_validator.go`
   - `storage_provider.go`
   - `data_masking.go`
 
@@ -297,6 +310,12 @@ This backend normalization work has already converged several major areas:
 - shared infrastructure names were normalized, for example:
   - `base_repository.go` -> `base_dao.go`
   - `database.go` -> `database_initializer.go`
+  - `shared_cache.go` -> `cache_contract.go`
+  - `redis_cache.go` -> `redis_client.go`
+  - `shared_constants.go` -> `platform_constants.go`
+  - `shared_errors.go` -> `application_errors.go`
+  - `shared_response.go` -> `http_response.go`
+  - `shared_validator.go` -> `request_validator.go`
   - `storage.go` -> `storage_provider.go`
   - `masking.go` -> `data_masking.go`
 

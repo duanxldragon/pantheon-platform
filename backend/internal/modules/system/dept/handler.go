@@ -86,15 +86,3 @@ func (h *DepartmentHandler) Delete(c *gin.Context) {
 	}
 	response.Success(c, gin.H{"message": "ok"})
 }
-
-func (h *DepartmentHandler) RegisterRoutes(group *gin.RouterGroup) {
-	depts := group.Group("/depts")
-	{
-		depts.GET("", h.List)
-		depts.POST("", h.Create)
-		depts.GET("/tree", h.GetTree)
-		depts.GET("/:id", h.GetByID)
-		depts.PUT("/:id", h.Update)
-		depts.DELETE("/:id", h.Delete)
-	}
-}

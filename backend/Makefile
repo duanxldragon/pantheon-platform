@@ -1,8 +1,11 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 
 # Makefile for backend development and testing
 
-.PHONY: help build test lint format clean migrate
+BACKEND_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+GO_CACHE_DIR := $(BACKEND_DIR)/.gocache
+
+.PHONY: help build test lint format clean migrate naming verify
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -12,57 +15,63 @@ help: ## Show this help message
 
 build: ## Build the application
 	@echo "Building application..."
-	@cd backend && go build -v -o pantheon-server ./cmd/server
+	@cd $(BACKEND_DIR) && GOCACHE=$(GO_CACHE_DIR) go build -v -o pantheon-server ./cmd/server
+
+naming: ## Run backend naming checks
+	@echo "Running backend naming checks..."
+	@cd $(BACKEND_DIR) && GOCACHE=$(GO_CACHE_DIR) go run ./cmd/tools/check-backend-naming
 
 test: ## Run all tests
 	@echo "Running tests..."
-	@cd backend && go test -v -race -coverprofile=coverage.out ./...
+	@cd $(BACKEND_DIR) && GOCACHE=$(GO_CACHE_DIR) go test -v -race -coverprofile=coverage.out ./...
 
 test-coverage: ## Run tests with coverage report
 	@echo "Running tests with coverage..."
-	@cd backend && go test -v -coverprofile=coverage.out -covermode=atomic ./...
-	@cd backend && go tool cover -html=coverage.out -o coverage.html
+	@cd $(BACKEND_DIR) && GOCACHE=$(GO_CACHE_DIR) go test -v -coverprofile=coverage.out -covermode=atomic ./...
+	@cd $(BACKEND_DIR) && GOCACHE=$(GO_CACHE_DIR) go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: backend/coverage.html"
 
 lint: ## Run linter
 	@echo "Running linter..."
-	@cd backend && golangci-lint run --timeout 5m
+	@cd $(BACKEND_DIR) && GOCACHE=$(GO_CACHE_DIR) golangci-lint run --timeout 5m
+
+verify: naming test ## Run naming checks and tests
+	@echo "Backend verification completed."
 
 format: ## Format code
 	@echo "Formatting code..."
-	@cd backend && gofmt -w .
-	@cd backend && go vet ./...
+	@cd $(BACKEND_DIR) && gofmt -w .
+	@cd $(BACKEND_DIR) && GOCACHE=$(GO_CACHE_DIR) go vet ./...
 
 migrate: ## Run database migrations
 	@echo "Running migrations..."
-	@cd backend && go run ./cmd/server
+	@cd $(BACKEND_DIR) && GOCACHE=$(GO_CACHE_DIR) go run ./cmd/server
 
 migrate-only: ## Run migrations only and exit
 	@echo "Running migrations only..."
-	@cd backend && go run ./cmd/server --migrate-only
+	@cd $(BACKEND_DIR) && GOCACHE=$(GO_CACHE_DIR) go run ./cmd/server --migrate-only
 
 run: ## Run the application
 	@echo "Running application..."
-	@cd backend && go run ./cmd/server
+	@cd $(BACKEND_DIR) && GOCACHE=$(GO_CACHE_DIR) go run ./cmd/server
 
 clean: ## Clean build artifacts
 	@echo "Cleaning..."
-	@cd backend && rm -f pantheon-server coverage.out coverage.html
+	@cd $(BACKEND_DIR) && rm -f pantheon-server coverage.out coverage.html
 
 deps: ## Download dependencies
 	@echo "Downloading dependencies..."
-	@cd backend && go mod download
+	@cd $(BACKEND_DIR) && GOCACHE=$(GO_CACHE_DIR) go mod download
 
 deps-update: ## Update dependencies
 	@echo "Updating dependencies..."
-	@cd backend && go mod tidy
+	@cd $(BACKEND_DIR) && GOCACHE=$(GO_CACHE_DIR) go mod tidy
 
 swagger: ## Generate Swagger documentation
 	@echo "Generating Swagger documentation..."
-	@cd backend && swag init -g cmd/server/main.go -o api/swagger
+	@cd $(BACKEND_DIR) && GOCACHE=$(GO_CACHE_DIR) swag init -g cmd/server/main.go -o api/swagger
 
 install-tools: ## Install development tools
 	@echo "Installing development tools..."
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	@go install github.com/swaggo/swag/cmd/swag@latest
-

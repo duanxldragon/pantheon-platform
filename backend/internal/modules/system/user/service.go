@@ -68,7 +68,7 @@ type UserService interface {
 // ========== Service Implementation ==========
 
 type userService struct {
-	userRepo          UserRepository
+	userDAO           UserDAO
 	roleValidator     RoleValidator
 	deptValidator     DeptValidator
 	posValidator      PositionValidator
@@ -80,7 +80,7 @@ type userService struct {
 
 // NewUserService creates a user service instance.
 func NewUserService(
-	userRepo UserRepository,
+	userDAO UserDAO,
 	roleValidator RoleValidator,
 	deptValidator DeptValidator,
 	posValidator PositionValidator,
@@ -90,7 +90,7 @@ func NewUserService(
 	txManager database.TransactionManager,
 ) UserService {
 	return &userService{
-		userRepo:          userRepo,
+		userDAO:           userDAO,
 		roleValidator:     roleValidator,
 		deptValidator:     deptValidator,
 		posValidator:      posValidator,
@@ -116,7 +116,7 @@ func (s *userService) Create(ctx context.Context, req *UserRequest) (*User, erro
 		}
 	}
 
-	if existing, _ := s.userRepo.GetByUsername(ctx, req.Username); existing != nil {
+	if existing, _ := s.userDAO.GetByUsername(ctx, req.Username); existing != nil {
 		return nil, fmt.Errorf("user already exists")
 	}
 
@@ -144,21 +144,21 @@ func (s *userService) Create(ctx context.Context, req *UserRequest) (*User, erro
 		PositionID:   positionID,
 	}
 
-	err = s.userRepo.Create(ctx, *user)
+	err = s.userDAO.Create(ctx, *user)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(roleIDs) > 0 {
 		for _, rid := range roleIDs {
-			_ = s.userRepo.AssignRole(ctx, user.ID.String(), rid)
+			_ = s.userDAO.AssignRole(ctx, user.ID.String(), rid)
 		}
 		if s.authProvider != nil {
 			_ = s.authProvider.SetRolesForUser(ctx, user.ID.String(), roleIDs)
 		}
 	}
 
-	assignedRoles, _ := s.userRepo.GetRoles(ctx, user.ID.String())
+	assignedRoles, _ := s.userDAO.GetRoles(ctx, user.ID.String())
 	setUserAuditFields(ctx, audit.OperationFields{
 		Module:       "system/users",
 		Resource:     "user",
@@ -176,7 +176,7 @@ func (s *userService) Create(ctx context.Context, req *UserRequest) (*User, erro
 }
 
 func (s *userService) GetByID(ctx context.Context, id string) (*UserResponse, error) {
-	u, err := s.userRepo.GetByID(ctx, id)
+	u, err := s.userDAO.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (s *userService) GetByID(ctx context.Context, id string) (*UserResponse, er
 		}
 	}
 
-	roles, _ := s.userRepo.GetRoles(ctx, id)
+	roles, _ := s.userDAO.GetRoles(ctx, id)
 	roleIDs := make([]string, 0, len(roles))
 	roleNames := make([]string, 0, len(roles))
 	for _, r := range roles {
@@ -209,7 +209,7 @@ func (s *userService) GetByID(ctx context.Context, id string) (*UserResponse, er
 	var fieldPerms map[string]string
 	currentUserID := getUserID(ctx)
 	if currentUserID != "" && s.authProvider != nil {
-		opRoles, _ := s.userRepo.GetRoles(ctx, currentUserID)
+		opRoles, _ := s.userDAO.GetRoles(ctx, currentUserID)
 		if len(opRoles) > 0 {
 			// Use the first role as the current field-permission evaluation anchor.
 			fieldPerms, _ = s.authProvider.GetFieldPermissions(ctx, opRoles[0].ID, "system_users")
@@ -220,14 +220,14 @@ func (s *userService) GetByID(ctx context.Context, id string) (*UserResponse, er
 }
 
 func (s *userService) Update(ctx context.Context, id string, req *UserUpdateRequest) (*User, error) {
-	u, err := s.userRepo.GetByID(ctx, id)
+	u, err := s.userDAO.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 	if err := s.ensureUserInTenant(ctx, &u); err != nil {
 		return nil, err
 	}
-	beforeRoles, _ := s.userRepo.GetRoles(ctx, id)
+	beforeRoles, _ := s.userDAO.GetRoles(ctx, id)
 	previousStatus := u.Status
 	beforeDepartmentName := s.getDepartmentName(ctx, u.DepartmentID)
 	beforePositionName := s.getPositionName(ctx, u.PositionID)
@@ -267,15 +267,15 @@ func (s *userService) Update(ctx context.Context, id string, req *UserUpdateRequ
 		u.PositionID = positionID
 	}
 
-	err = s.userRepo.Update(ctx, u)
+	err = s.userDAO.Update(ctx, u)
 	if err != nil {
 		return nil, err
 	}
 
 	if req.RoleIDs != nil {
-		_ = s.userRepo.ClearRoles(ctx, id)
+		_ = s.userDAO.ClearRoles(ctx, id)
 		for _, rid := range roleIDs {
-			_ = s.userRepo.AssignRole(ctx, id, rid)
+			_ = s.userDAO.AssignRole(ctx, id, rid)
 		}
 		if s.authProvider != nil {
 			_ = s.authProvider.SetRolesForUser(ctx, id, roleIDs)
@@ -285,7 +285,7 @@ func (s *userService) Update(ctx context.Context, id string, req *UserUpdateRequ
 	if req.Status != nil && *req.Status != "active" && s.authProvider != nil {
 		_ = s.authProvider.RevokeUserSessions(ctx, id)
 	}
-	afterRoles, _ := s.userRepo.GetRoles(ctx, id)
+	afterRoles, _ := s.userDAO.GetRoles(ctx, id)
 	afterDepartmentName := s.getDepartmentName(ctx, u.DepartmentID)
 	afterPositionName := s.getPositionName(ctx, u.PositionID)
 	resource := "user"
@@ -318,7 +318,7 @@ func (s *userService) Update(ctx context.Context, id string, req *UserUpdateRequ
 }
 
 func (s *userService) Delete(ctx context.Context, id string) error {
-	user, err := s.userRepo.GetByID(ctx, id)
+	user, err := s.userDAO.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -328,7 +328,7 @@ func (s *userService) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("user not found in current tenant")
 	}
 
-	err = s.userRepo.SoftDelete(ctx, id)
+	err = s.userDAO.SoftDelete(ctx, id)
 	if err == nil && tenantID != "" && s.quotaValidator != nil {
 		_ = s.quotaValidator.DecreaseUsage(ctx, tenantID, "users", 1, "system")
 	}
@@ -352,11 +352,11 @@ func (s *userService) BatchDelete(ctx context.Context, userIDs []string) error {
 	tenantID := getTenantID(ctx)
 	deletedUsers := make([]string, 0, len(userIDs))
 	for _, id := range userIDs {
-		user, err := s.userRepo.GetByID(ctx, id)
+		user, err := s.userDAO.GetByID(ctx, id)
 		if err != nil || user.TenantID != tenantID {
 			continue
 		}
-		if err := s.userRepo.SoftDelete(ctx, id); err != nil {
+		if err := s.userDAO.SoftDelete(ctx, id); err != nil {
 			continue
 		}
 		if s.authProvider != nil {
@@ -393,7 +393,7 @@ func (s *userService) List(ctx context.Context, req *UserListRequest) (*PageResp
 		}
 	}
 
-	users, total, err := s.userRepo.List(ctx, req.Page, req.PageSize, filters)
+	users, total, err := s.userDAO.List(ctx, req.Page, req.PageSize, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -401,7 +401,7 @@ func (s *userService) List(ctx context.Context, req *UserListRequest) (*PageResp
 	// Load field-level permissions for list response shaping when available.
 	var fieldPerms map[string]string
 	if userID != "" && s.authProvider != nil {
-		opRoles, _ := s.userRepo.GetRoles(ctx, userID)
+		opRoles, _ := s.userDAO.GetRoles(ctx, userID)
 		if len(opRoles) > 0 {
 			fieldPerms, _ = s.authProvider.GetFieldPermissions(ctx, opRoles[0].ID, "system_users")
 		}
@@ -409,7 +409,7 @@ func (s *userService) List(ctx context.Context, req *UserListRequest) (*PageResp
 
 	items := make([]*UserResponse, len(users))
 	for i, u := range users {
-		roles, _ := s.userRepo.GetRoles(ctx, u.ID.String())
+		roles, _ := s.userDAO.GetRoles(ctx, u.ID.String())
 		roleIDs := make([]string, 0, len(roles))
 		roleNames := make([]string, 0, len(roles))
 		for _, r := range roles {
@@ -431,11 +431,11 @@ func (s *userService) List(ctx context.Context, req *UserListRequest) (*PageResp
 }
 
 func (s *userService) GetByUsername(ctx context.Context, username string) (*User, error) {
-	return s.userRepo.GetByUsername(ctx, username)
+	return s.userDAO.GetByUsername(ctx, username)
 }
 
 func (s *userService) ChangePassword(ctx context.Context, req *PasswordUpdateRequest) error {
-	u, err := s.userRepo.GetByID(ctx, req.UserID)
+	u, err := s.userDAO.GetByID(ctx, req.UserID)
 	if err != nil {
 		return err
 	}
@@ -451,7 +451,7 @@ func (s *userService) ChangePassword(ctx context.Context, req *PasswordUpdateReq
 	}
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	u.PasswordHash = string(hashed)
-	if err := s.userRepo.Update(ctx, u); err != nil {
+	if err := s.userDAO.Update(ctx, u); err != nil {
 		return err
 	}
 	if s.authProvider != nil {
@@ -461,7 +461,7 @@ func (s *userService) ChangePassword(ctx context.Context, req *PasswordUpdateReq
 }
 
 func (s *userService) ResetPassword(ctx context.Context, userID string, newPassword string) error {
-	u, err := s.userRepo.GetByID(ctx, userID)
+	u, err := s.userDAO.GetByID(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -473,7 +473,7 @@ func (s *userService) ResetPassword(ctx context.Context, userID string, newPassw
 		return err
 	}
 	u.PasswordHash = string(hashed)
-	if err := s.userRepo.Update(ctx, u); err != nil {
+	if err := s.userDAO.Update(ctx, u); err != nil {
 		return err
 	}
 	if s.authProvider != nil {
@@ -489,25 +489,25 @@ func (s *userService) ResetPassword(ctx context.Context, userID string, newPassw
 }
 
 func (s *userService) Activate(ctx context.Context, id string) error {
-	u, err := s.userRepo.GetByID(ctx, id)
+	u, err := s.userDAO.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 	if err := s.ensureUserInTenant(ctx, &u); err != nil {
 		return err
 	}
-	return s.userRepo.UpdateStatus(ctx, id, "active")
+	return s.userDAO.UpdateStatus(ctx, id, "active")
 }
 
 func (s *userService) Deactivate(ctx context.Context, id string) error {
-	u, err := s.userRepo.GetByID(ctx, id)
+	u, err := s.userDAO.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 	if err := s.ensureUserInTenant(ctx, &u); err != nil {
 		return err
 	}
-	if err := s.userRepo.UpdateStatus(ctx, id, "inactive"); err != nil {
+	if err := s.userDAO.UpdateStatus(ctx, id, "inactive"); err != nil {
 		return err
 	}
 	if s.authProvider != nil {
@@ -520,11 +520,11 @@ func (s *userService) BatchUpdateStatus(ctx context.Context, req *UserStatusRequ
 	tenantID := getTenantID(ctx)
 	affectedUsers := make([]string, 0, len(req.UserIDs))
 	for _, id := range req.UserIDs {
-		user, err := s.userRepo.GetByID(ctx, id)
+		user, err := s.userDAO.GetByID(ctx, id)
 		if err != nil || user.TenantID != tenantID {
 			continue
 		}
-		_ = s.userRepo.UpdateStatus(ctx, id, req.Status)
+		_ = s.userDAO.UpdateStatus(ctx, id, req.Status)
 		if req.Status != "active" && s.authProvider != nil {
 			_ = s.authProvider.RevokeUserSessions(ctx, id)
 		}
@@ -543,29 +543,29 @@ func (s *userService) AssignRole(ctx context.Context, req *UserRoleRequest) erro
 		return err
 	}
 
-	u, err := s.userRepo.GetByID(ctx, req.UserID)
+	u, err := s.userDAO.GetByID(ctx, req.UserID)
 	if err != nil {
 		return err
 	}
 	if err := s.ensureUserInTenant(ctx, &u); err != nil {
 		return err
 	}
-	beforeRoles, _ := s.userRepo.GetRoles(ctx, req.UserID)
+	beforeRoles, _ := s.userDAO.GetRoles(ctx, req.UserID)
 
 	for _, rid := range roleIDs {
 		if exists, _ := s.roleValidator.CheckRoleExists(ctx, rid); !exists {
 			return fmt.Errorf("invalid role: %s", rid)
 		}
 	}
-	_ = s.userRepo.ClearRoles(ctx, req.UserID)
+	_ = s.userDAO.ClearRoles(ctx, req.UserID)
 	for _, rid := range roleIDs {
-		_ = s.userRepo.AssignRole(ctx, req.UserID, rid)
+		_ = s.userDAO.AssignRole(ctx, req.UserID, rid)
 	}
 	if s.authProvider != nil {
 		_ = s.authProvider.SetRolesForUser(ctx, req.UserID, roleIDs)
 		_ = s.authProvider.BumpUserAuthVersion(ctx, req.UserID)
 	}
-	afterRoles, _ := s.userRepo.GetRoles(ctx, req.UserID)
+	afterRoles, _ := s.userDAO.GetRoles(ctx, req.UserID)
 	setUserAuditFields(ctx, audit.OperationFields{
 		Module:       "system/users",
 		Resource:     "user_role",
@@ -578,11 +578,11 @@ func (s *userService) AssignRole(ctx context.Context, req *UserRoleRequest) erro
 }
 
 func (s *userService) CheckRoleInUse(ctx context.Context, roleID string) (bool, error) {
-	return s.userRepo.CheckRoleInUse(ctx, roleID)
+	return s.userDAO.CheckRoleInUse(ctx, roleID)
 }
 
 func (s *userService) GetRoles(ctx context.Context, userID string) ([]*UserRoleInfo, error) {
-	return s.userRepo.GetRoles(ctx, userID)
+	return s.userDAO.GetRoles(ctx, userID)
 }
 
 func getTenantID(ctx context.Context) string {

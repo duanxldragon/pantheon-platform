@@ -18,9 +18,10 @@ interface LogFiltersProps {
   onStatusChange: (val: StatusFilter) => void;
   selectedCount: number;
   onBatchDelete: () => void;
-  onImport: () => void;
+  onImport?: () => void;
   onExport: () => void;
   canBatchDelete?: boolean;
+  canImport?: boolean;
   canExport?: boolean;
 }
 
@@ -36,6 +37,7 @@ export const LogFilters: React.FC<LogFiltersProps> = ({
   onImport,
   onExport,
   canBatchDelete = true,
+  canImport = true,
   canExport = true,
 }) => {
   const { t } = useLanguageStore();
@@ -78,14 +80,16 @@ export const LogFilters: React.FC<LogFiltersProps> = ({
             </Button>
           )}
 
-          <Button
-            variant="outline"
-            onClick={onImport}
-            className="h-10 border-gray-200 rounded-xl bg-white shadow-sm hover:shadow-md transition-all"
-          >
-            <Upload className="w-4 h-4 mr-2 text-gray-400" />
-            {t.actions.import}
-          </Button>
+          {canImport && onImport ? (
+            <Button
+              variant="outline"
+              onClick={onImport}
+              className="h-10 border-gray-200 rounded-xl bg-white shadow-sm hover:shadow-md transition-all"
+            >
+              <Upload className="w-4 h-4 mr-2 text-gray-400" />
+              {t.actions.import}
+            </Button>
+          ) : null}
           {canExport ? (
             <Button
               variant="outline"

@@ -1,10 +1,8 @@
-package utils
+package masking
 
-import (
-	"strings"
-)
+import "strings"
 
-// MaskEmail 脱敏邮箱 (例如: a***b@example.com)
+// MaskEmail masks an email address, for example a***b@example.com.
 func MaskEmail(email string) string {
 	if email == "" {
 		return ""
@@ -21,7 +19,7 @@ func MaskEmail(email string) string {
 	return name[0:1] + "***" + name[len(name)-1:] + "@" + domain
 }
 
-// MaskPhone 脱敏手机号 (例如: 138****1234)
+// MaskPhone masks a phone number, for example 138****1234.
 func MaskPhone(phone string) string {
 	if len(phone) < 7 {
 		return phone
@@ -29,7 +27,7 @@ func MaskPhone(phone string) string {
 	return phone[0:3] + "****" + phone[len(phone)-4:]
 }
 
-// MaskRealName 脱敏真实姓名 (例如: 张*三 或 李*)
+// MaskRealName masks a personal name, for example 张*三 or 李*.
 func MaskRealName(name string) string {
 	runes := []rune(name)
 	if len(runes) <= 1 {

@@ -36,8 +36,8 @@ HTTP Request
   -> Middleware Chain
   -> Handler Layer
   -> Service Layer
-  -> DAO / Repository Layer
-  -> Model / Entity Layer
+  -> DAO Layer
+  -> Model Layer
 ```
 
 ### Layer Responsibilities
@@ -45,8 +45,8 @@ HTTP Request
 - **Middleware Chain**: recovery, logging, CORS, security headers, auth, tenant binding, authorization
 - **Handler Layer**: parse HTTP params, validate input, call services, build responses
 - **Service Layer**: business rules, cross-module collaboration, transaction boundaries
-- **DAO / Repository Layer**: all GORM query logic and persistence operations
-- **Model / Entity Layer**: persistence structs, table mapping, tags, indexes
+- **DAO Layer**: all GORM query logic and persistence operations
+- **Model Layer**: persistence structs, table mapping, tags, indexes
 
 ---
 
@@ -428,7 +428,7 @@ if err != nil {
 
 ```go
 // Always read DB from context in multi-tenant flows
-func (r *UserRepository) GetByID(ctx context.Context, id string) (*User, error) {
+func (r *UserDAO) GetByID(ctx context.Context, id string) (*User, error) {
     db := ctx.Value("tenant_db").(*gorm.DB)
     // ...
 }
@@ -546,7 +546,7 @@ This backend cleanup aligned naming, layering, and shared infrastructure convent
 - supplementary files use `<subject>_<kind>.go`
 - command entrypoints keep `main.go`
 - shared infrastructure prefers capability-oriented names such as `base_dao.go` and `database_initializer.go`
-- exported type names must keep module meaning instead of generic names such as `Service` or `Handler`
+- exported type names must keep module meaning instead of generic names such as `Service`, `Handler`, or `DAO`
 
 ### Normalized Modules
 
@@ -580,8 +580,15 @@ Representative renames:
 - `internal/app/app.go` -> `internal/app/app_bootstrap.go`
 - `internal/shared/database/base_repository.go` -> `internal/shared/database/base_dao.go`
 - `internal/shared/database/database.go` -> `internal/shared/database/database_initializer.go`
+- `internal/shared/cache/shared_cache.go` -> `internal/shared/cache/cache_contract.go`
+- `internal/shared/cache/redis_cache.go` -> `internal/shared/cache/redis_client.go`
+- `internal/shared/constants/shared_constants.go` -> `internal/shared/constants/platform_constants.go`
+- `internal/shared/errors/shared_errors.go` -> `internal/shared/errors/application_errors.go`
+- `internal/shared/response/shared_response.go` -> `internal/shared/response/http_response.go`
+- `internal/shared/validator/shared_validator.go` -> `internal/shared/validator/request_validator.go`
 - `internal/shared/storage/storage.go` -> `internal/shared/storage/storage_provider.go`
-- `internal/shared/utils/masking.go` -> `internal/shared/utils/data_masking.go`
+- `internal/shared/utils/masking.go` -> `internal/shared/masking/data_masking.go`
+- `cmd/tools/internal/toolenv/tool_env.go` -> `cmd/tools/internal/tool_env/tool_env.go`
 
 ### Ongoing Rule
 

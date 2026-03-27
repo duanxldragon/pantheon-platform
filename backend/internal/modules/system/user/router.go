@@ -4,7 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RegisterRoutes 注册用户模块路由
+// RegisterRoutes registers user routes.
 func (h *UserHandler) RegisterRoutes(group *gin.RouterGroup) {
 	users := group.Group("/users")
 	{

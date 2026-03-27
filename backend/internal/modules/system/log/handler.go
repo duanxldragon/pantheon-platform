@@ -17,7 +17,7 @@ func NewLogHandler(service LogService) *LogHandler {
 	return &LogHandler{service: service}
 }
 
-// parseLogFilter 从查询参数解析过滤条件
+// parseLogFilter builds a log filter from query parameters.
 func parseLogFilter(c *gin.Context) *LogFilter {
 	f := &LogFilter{
 		Username: c.Query("username"),
@@ -33,7 +33,7 @@ func parseLogFilter(c *gin.Context) *LogFilter {
 	}
 	if s := c.Query("end_date"); s != "" {
 		if t, err := time.Parse("2006-01-02", s); err == nil {
-			// 包含当天末尾 23:59:59.999999999
+			// Include the end of the selected day.
 			end := t.Add(24*time.Hour - time.Nanosecond)
 			f.EndDate = &end
 		}
@@ -62,7 +62,8 @@ func (h *LogHandler) ListOperationLogs(c *gin.Context) {
 }
 
 func (h *LogHandler) ClearOperationLogs(c *gin.Context) {
-	if err := h.service.ClearOperationLogs(c.Request.Context(), parseLogFilter(c).StartDate, parseLogFilter(c).EndDate); err != nil {
+	filter := parseLogFilter(c)
+	if err := h.service.ClearOperationLogs(c.Request.Context(), filter.StartDate, filter.EndDate); err != nil {
 		response.InternalError(c, "CLEAR_OPERATION_LOGS_FAILED", err.Error())
 		return
 	}
@@ -70,7 +71,8 @@ func (h *LogHandler) ClearOperationLogs(c *gin.Context) {
 }
 
 func (h *LogHandler) ClearLoginLogs(c *gin.Context) {
-	if err := h.service.ClearLoginLogs(c.Request.Context(), parseLogFilter(c).StartDate, parseLogFilter(c).EndDate); err != nil {
+	filter := parseLogFilter(c)
+	if err := h.service.ClearLoginLogs(c.Request.Context(), filter.StartDate, filter.EndDate); err != nil {
 		response.InternalError(c, "CLEAR_LOGIN_LOGS_FAILED", err.Error())
 		return
 	}
@@ -94,14 +96,4 @@ func (h *LogHandler) ListLoginLogs(c *gin.Context) {
 		return
 	}
 	response.Success(c, resp)
-}
-
-func (h *LogHandler) RegisterRoutes(group *gin.RouterGroup) {
-	logs := group.Group("/logs")
-	{
-		logs.GET("/operation", h.ListOperationLogs)
-		logs.DELETE("/operation", h.ClearOperationLogs)
-		logs.GET("/login", h.ListLoginLogs)
-		logs.DELETE("/login", h.ClearLoginLogs)
-	}
 }

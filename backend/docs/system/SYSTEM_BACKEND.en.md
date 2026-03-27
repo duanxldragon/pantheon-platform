@@ -46,7 +46,7 @@ The system module is mounted under the `/system` route group. A typical request 
 4. pass authorization middleware when the global auth service is enabled
 5. dispatch into the target submodule handler
 6. process business rules in the service layer
-7. access tenant-scoped data through DAO / repository logic
+7. access tenant-scoped data through DAO logic
 
 This means the core system-management capabilities run by default inside an authenticated, tenant-aware, and authorized context.
 

@@ -28,4 +28,3 @@ type Setting struct {
 func (Setting) TableName() string {
 	return "system_settings"
 }
-

@@ -1,34 +1,24 @@
-/**
- * 懒加载组件
- * @description 提供组件懒加载、路由懒加载、图片懒加载等功能
- */
-
-import React, { Suspense, ComponentType, lazy } from 'react';
-import { Skeleton } from '../../components/ui/skeleton';
-import { Alert, AlertDescription } from '../../components/ui/alert';
+import React, { ComponentType, Suspense, lazy } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 
-/**
- * 加载状态组件
- */
+import { Alert, AlertDescription } from '../../components/ui/alert';
+import { Skeleton } from '../../components/ui/skeleton';
+
 export function LoadingFallback({ message = '加载中...' }: { message?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[200px] gap-4">
+    <div className="flex min-h-[200px] flex-col items-center justify-center gap-4">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
       <p className="text-sm text-muted-foreground">{message}</p>
     </div>
   );
 }
 
-/**
- * 骨架屏加载组件
- */
 export function SkeletonFallback({ type = 'list' }: { type?: 'list' | 'card' | 'form' }) {
   if (type === 'card') {
     return (
       <div className="space-y-4">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="border rounded-lg p-6 space-y-3">
+          <div key={i} className="space-y-3 rounded-lg border p-6">
             <Skeleton className="h-6 w-3/4" />
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-5/6" />
@@ -40,7 +30,7 @@ export function SkeletonFallback({ type = 'list' }: { type?: 'list' | 'card' | '
 
   if (type === 'form') {
     return (
-      <div className="space-y-6 max-w-2xl">
+      <div className="max-w-2xl space-y-6">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="space-y-2">
             <Skeleton className="h-4 w-24" />
@@ -51,7 +41,6 @@ export function SkeletonFallback({ type = 'list' }: { type?: 'list' | 'card' | '
     );
   }
 
-  // 默认列表样式
   return (
     <div className="space-y-3">
       {Array.from({ length: 10 }).map((_, i) => (
@@ -67,9 +56,6 @@ export function SkeletonFallback({ type = 'list' }: { type?: 'list' | 'card' | '
   );
 }
 
-/**
- * 错误边界组件
- */
 interface ErrorFallbackProps {
   error: Error;
   resetError: () => void;
@@ -95,16 +81,13 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
   );
 }
 
-/**
- * 懒加载包装器
- */
 interface LazyLoadProps {
   children: React.ReactNode;
   fallback?: React.ReactNode;
   error?: React.ReactNode;
 }
 
-export function LazyLoad({ children, fallback, error }: LazyLoadProps) {
+export function LazyLoad({ children, fallback }: LazyLoadProps) {
   return (
     <Suspense fallback={fallback || <LoadingFallback />}>
       {children}
@@ -112,24 +95,9 @@ export function LazyLoad({ children, fallback, error }: LazyLoadProps) {
   );
 }
 
-/**
- * 创建懒加载组件
- * @param importFunc 动态导入函数
- * @param fallback 加载时的占位组件
- * @returns 懒加载组件
- * 
- * @example
- * const UserManagement = createLazyComponent(
- *   () => import('./modules/system/views/UserManagement')
- * );
- * 
- * function App() {
- *   return <UserManagement />;
- * }
- */
 export function createLazyComponent<T extends ComponentType<any>>(
   importFunc: () => Promise<{ default: T }>,
-  fallback?: React.ReactNode
+  fallback?: React.ReactNode,
 ) {
   const LazyComponent = lazy(importFunc);
 
@@ -142,28 +110,10 @@ export function createLazyComponent<T extends ComponentType<any>>(
   };
 }
 
-/**
- * 预加载组件
- * @param importFunc 动态导入函数
- * 
- * @example
- * const UserManagement = createLazyComponent(() => import('./UserManagement'));
- * 
- * // 鼠标悬停时预加载
- * <button
- *   onMouseEnter={() => preloadComponent(() => import('./UserManagement'))}
- *   onClick={() => navigate('/users')}
- * >
- *   用户管理
- * </button>
- */
 export function preloadComponent(importFunc: () => Promise<any>) {
   importFunc();
 }
 
-/**
- * 图片懒加载组件
- */
 interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
   alt: string;
@@ -186,6 +136,8 @@ export function LazyImage({
   const [error, setError] = React.useState(false);
   const imgRef = React.useRef<HTMLImageElement>(null);
 
+  void placeholder;
+
   React.useEffect(() => {
     if (!imgRef.current) return;
 
@@ -199,7 +151,7 @@ export function LazyImage({
           }
         });
       },
-      { rootMargin: '50px' }
+      { rootMargin: '50px' },
     );
 
     observer.observe(imgRef.current);
@@ -247,9 +199,6 @@ export function LazyImage({
   );
 }
 
-/**
- * 延迟加载组件（等待一定时间后再显示）
- */
 interface DelayedLoadProps {
   children: React.ReactNode;
   delay?: number;
@@ -274,19 +223,6 @@ export function DelayedLoad({ children, delay = 200, fallback }: DelayedLoadProp
   return <>{children}</>;
 }
 
-/**
- * 条件懒加载组件
- * @param condition 加载条件
- * @param importFunc 动态导入函数
- * @param fallback 加载时的占位组件
- * 
- * @example
- * // 只有在用户有权限时才加载组件
- * <ConditionalLazyLoad
- *   condition={hasPermission('user:view')}
- *   importFunc={() => import('./UserManagement')}
- * />
- */
 interface ConditionalLazyLoadProps<T extends ComponentType<any>> {
   condition: boolean;
   importFunc: () => Promise<{ default: T }>;
@@ -321,26 +257,9 @@ export function ConditionalLazyLoad<T extends ComponentType<any>>({
   return <Component {...(props as any)} />;
 }
 
-/**
- * 路由懒加载辅助函数
- * 
- * @example
- * import { createLazyRoute } from './LazyLoad';
- * 
- * const routes = [
- *   {
- *     path: '/users',
- *     element: createLazyRoute(() => import('./views/UserManagement')),
- *   },
- *   {
- *     path: '/roles',
- *     element: createLazyRoute(() => import('./views/RoleManagement')),
- *   },
- * ];
- */
 export function createLazyRoute(
   importFunc: () => Promise<{ default: ComponentType<any> }>,
-  fallback?: React.ReactNode
+  fallback?: React.ReactNode,
 ) {
   const LazyComponent = lazy(importFunc);
 
@@ -351,22 +270,8 @@ export function createLazyRoute(
   );
 }
 
-/**
- * 模块懒加载Hook
- * @param importFunc 动态导入函数
- * @returns [module, loading, error]
- * 
- * @example
- * const [utils, loading, error] = useLazyModule(() => import('./utils'));
- * 
- * if (loading) return <LoadingFallback />;
- * if (error) return <ErrorFallback error={error} />;
- * 
- * // 使用模块
- * utils.someFunction();
- */
 export function useLazyModule<T>(
-  importFunc: () => Promise<T>
+  importFunc: () => Promise<T>,
 ): [T | null, boolean, Error | null] {
   const [module, setModule] = React.useState<T | null>(null);
   const [loading, setLoading] = React.useState(true);

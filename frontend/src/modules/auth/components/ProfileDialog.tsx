@@ -22,6 +22,9 @@ export function ProfileDialog({ open, onOpenChange, onNavigate }: ProfileDialogP
   const { compactMode } = useProfilePreferenceSettings();
   const [activeTab, setActiveTab] = useState('personal');
   const zh = language === 'zh';
+  const description = zh
+    ? '管理您的个人信息、安全设置和偏好配置'
+    : 'Manage your personal information, security settings, and preferences';
 
   const handleGoToAccountSettings = () => {
     onOpenChange(false);
@@ -47,10 +50,11 @@ export function ProfileDialog({ open, onOpenChange, onNavigate }: ProfileDialogP
                 {t.profile.title}
               </DialogTitle>
               <DialogDescription className="mt-1 text-sm" style={{ color: theme.colors.textSecondary }}>
-                {zh ? '管理您的个人信息、安全设置和偏好配置' : 'Manage your personal information, security settings, and preferences'}
+                {description}
               </DialogDescription>
             </div>
             <button
+              type="button"
               onClick={() => onOpenChange(false)}
               className="rounded-lg p-2 transition-colors hover:bg-gray-500 hover:bg-opacity-10"
               style={{ color: theme.colors.textSecondary }}

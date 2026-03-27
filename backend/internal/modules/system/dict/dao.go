@@ -8,8 +8,8 @@ import (
 	"pantheon-platform/backend/internal/shared/database"
 )
 
-// DictTypeRepository 字典类型仓储接口
-type DictTypeRepository interface {
+// DictTypeDAO defines dictionary type DAO behavior.
+type DictTypeDAO interface {
 	database.DAO[DictType]
 	database.TenantMigrator
 	GetByCode(ctx context.Context, code string) (*DictType, error)
@@ -18,8 +18,8 @@ type DictTypeRepository interface {
 	IsInUse(ctx context.Context, id string) (bool, error)
 }
 
-// DictDataRepository 字典数据仓储接口
-type DictDataRepository interface {
+// DictDataDAO defines dictionary data DAO behavior.
+type DictDataDAO interface {
 	database.DAO[DictData]
 	database.TenantMigrator
 	GetByTypeID(ctx context.Context, typeID string, page, pageSize int) ([]*DictData, int64, error)
@@ -28,22 +28,23 @@ type DictDataRepository interface {
 	BatchDeleteByType(ctx context.Context, typeID string) error
 }
 
-// dictTypeRepository 字典类型仓储实现
-type dictTypeRepository struct {
+// dictTypeDAO implements dictionary type DAO behavior.
+type dictTypeDAO struct {
 	*database.BaseDAO[DictType]
 }
 
-func NewDictTypeRepository(db *gorm.DB) DictTypeRepository {
-	return &dictTypeRepository{
+// NewDictTypeDAO creates a dictionary type DAO.
+func NewDictTypeDAO(db *gorm.DB) DictTypeDAO {
+	return &dictTypeDAO{
 		BaseDAO: database.NewBaseDAO[DictType](db),
 	}
 }
 
-func (r *dictTypeRepository) GetTenantModels() []interface{} {
+func (r *dictTypeDAO) GetTenantModels() []interface{} {
 	return []interface{}{&DictType{}}
 }
 
-func (r *dictTypeRepository) GetByCode(ctx context.Context, code string) (*DictType, error) {
+func (r *dictTypeDAO) GetByCode(ctx context.Context, code string) (*DictType, error) {
 	var t DictType
 	err := r.GetDB(ctx).Where("code = ?", code).First(&t).Error
 	if err != nil {
@@ -55,7 +56,7 @@ func (r *dictTypeRepository) GetByCode(ctx context.Context, code string) (*DictT
 	return &t, nil
 }
 
-func (r *dictTypeRepository) GetByName(ctx context.Context, name string) (*DictType, error) {
+func (r *dictTypeDAO) GetByName(ctx context.Context, name string) (*DictType, error) {
 	var t DictType
 	err := r.GetDB(ctx).Where("name = ?", name).First(&t).Error
 	if err != nil {
@@ -67,38 +68,39 @@ func (r *dictTypeRepository) GetByName(ctx context.Context, name string) (*DictT
 	return &t, nil
 }
 
-func (r *dictTypeRepository) UpdateStatus(ctx context.Context, id string, status string) error {
+func (r *dictTypeDAO) UpdateStatus(ctx context.Context, id string, status string) error {
 	return r.GetDB(ctx).Model(&DictType{}).Where("id = ?", id).Update("status", status).Error
 }
 
-func (r *dictTypeRepository) IsInUse(ctx context.Context, id string) (bool, error) {
+func (r *dictTypeDAO) IsInUse(ctx context.Context, id string) (bool, error) {
 	var count int64
 	err := r.GetDB(ctx).Model(&DictData{}).Where("type_id = ?", id).Count(&count).Error
 	return count > 0, err
 }
 
-func (r *dictTypeRepository) WithTx(tx *gorm.DB) database.DAO[DictType] {
-	return &dictTypeRepository{
+func (r *dictTypeDAO) WithTx(tx *gorm.DB) database.DAO[DictType] {
+	return &dictTypeDAO{
 		BaseDAO: database.NewBaseDAO[DictType](tx),
 	}
 }
 
-// dictDataRepository 字典数据仓储实现
-type dictDataRepository struct {
+// dictDataDAO implements dictionary data DAO behavior.
+type dictDataDAO struct {
 	*database.BaseDAO[DictData]
 }
 
-func NewDictDataRepository(db *gorm.DB) DictDataRepository {
-	return &dictDataRepository{
+// NewDictDataDAO creates a dictionary data DAO.
+func NewDictDataDAO(db *gorm.DB) DictDataDAO {
+	return &dictDataDAO{
 		BaseDAO: database.NewBaseDAO[DictData](db),
 	}
 }
 
-func (r *dictDataRepository) GetTenantModels() []interface{} {
+func (r *dictDataDAO) GetTenantModels() []interface{} {
 	return []interface{}{&DictData{}}
 }
 
-func (r *dictDataRepository) GetByTypeID(ctx context.Context, typeID string, page, pageSize int) ([]*DictData, int64, error) {
+func (r *dictDataDAO) GetByTypeID(ctx context.Context, typeID string, page, pageSize int) ([]*DictData, int64, error) {
 	var data []*DictData
 	var total int64
 	query := r.GetDB(ctx).Where("type_id = ?", typeID)
@@ -111,7 +113,7 @@ func (r *dictDataRepository) GetByTypeID(ctx context.Context, typeID string, pag
 	return data, total, err
 }
 
-func (r *dictDataRepository) GetByValue(ctx context.Context, typeID string, value string) (*DictData, error) {
+func (r *dictDataDAO) GetByValue(ctx context.Context, typeID string, value string) (*DictData, error) {
 	var d DictData
 	err := r.GetDB(ctx).Where("type_id = ? AND value = ?", typeID, value).First(&d).Error
 	if err != nil {
@@ -123,16 +125,16 @@ func (r *dictDataRepository) GetByValue(ctx context.Context, typeID string, valu
 	return &d, nil
 }
 
-func (r *dictDataRepository) UpdateStatus(ctx context.Context, id string, status string) error {
+func (r *dictDataDAO) UpdateStatus(ctx context.Context, id string, status string) error {
 	return r.GetDB(ctx).Model(&DictData{}).Where("id = ?", id).Update("status", status).Error
 }
 
-func (r *dictDataRepository) BatchDeleteByType(ctx context.Context, typeID string) error {
+func (r *dictDataDAO) BatchDeleteByType(ctx context.Context, typeID string) error {
 	return r.GetDB(ctx).Where("type_id = ?", typeID).Delete(&DictData{}).Error
 }
 
-func (r *dictDataRepository) WithTx(tx *gorm.DB) database.DAO[DictData] {
-	return &dictDataRepository{
+func (r *dictDataDAO) WithTx(tx *gorm.DB) database.DAO[DictData] {
+	return &dictDataDAO{
 		BaseDAO: database.NewBaseDAO[DictData](tx),
 	}
 }

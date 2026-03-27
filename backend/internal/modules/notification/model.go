@@ -45,7 +45,7 @@ type Notification struct {
 	Status      NotificationStatus   `json:"status" gorm:"size:20;not null;index;default:'draft'"`
 	Priority    NotificationPriority `json:"priority" gorm:"size:20;not null;index;default:'medium'"`
 	SenderID    *uuid.UUID           `json:"senderId,omitempty" gorm:"type:char(36);index"`
-	ReceiverIDs string               `json:"receiverIds,omitempty" gorm:"type:text"` // comma-separated
+	ReceiverIDs string               `json:"receiverIds,omitempty" gorm:"type:text"`
 	TemplateID  *uuid.UUID           `json:"templateId,omitempty" gorm:"type:char(36);index"`
 	ExtraData   string               `json:"extraData,omitempty" gorm:"type:json"`
 	FailReason  string               `json:"failReason,omitempty" gorm:"size:500"`
@@ -106,7 +106,7 @@ const (
 	JobFailed     NotificationJobStatus = "failed"
 )
 
-// NotificationJob 存储发送队列状态以及失败重试信息。
+// NotificationJob stores queue state and retry metadata for notification delivery.
 type NotificationJob struct {
 	systemModel.BaseModel
 	TenantID       string                `json:"tenantId" gorm:"type:char(36);index"`

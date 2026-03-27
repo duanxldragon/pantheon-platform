@@ -12,31 +12,14 @@ import (
 	"time"
 )
 
-// TwoFactorAuth stores two-factor authentication settings.
-type TwoFactorAuth struct {
-	ID          uint   `gorm:"primaryKey"`
-	UserID      string `gorm:"size:36;not null;index" json:"user_id"`
-	TenantID    string `gorm:"size:36;not null;index" json:"tenant_id"`
-	Secret      string `gorm:"type:text;not null" json:"secret"`      // TOTP secret.
-	Enabled     bool   `gorm:"default:false;not null" json:"enabled"` // Whether 2FA is enabled.
-	BackupCodes string `gorm:"type:text" json:"backup_codes"`         // Serialized backup codes.
-	CreatedAt   int64  `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt   int64  `gorm:"autoUpdateTime" json:"updated_at"`
-}
-
-func (TwoFactorAuth) TableName() string {
-	return "two_factor_auth"
-}
-
 // GenerateTOTPSecret generates a TOTP secret.
 func GenerateTOTPSecret() (string, error) {
-	secret := make([]byte, 20) // 160-bit key
+	secret := make([]byte, 20)
 	_, err := rand.Read(secret)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate TOTP secret: %w", err)
 	}
 
-	// Encode the secret with Base32.
 	return strings.ToUpper(base32.StdEncoding.EncodeToString(secret)), nil
 }
 
@@ -49,7 +32,6 @@ func GenerateTOTPQRCode(secret, username, issuer string) (string, error) {
 		return "", fmt.Errorf("username cannot be empty")
 	}
 
-	// Generate a Google Authenticator compatible otpauth URL.
 	url := fmt.Sprintf("otpauth://totp/%s:%s?secret=%s&issuer=%s&algorithm=SHA1&digits=6&period=30",
 		issuer, username, secret, issuer)
 
@@ -62,25 +44,21 @@ func ValidateTOTPCode(secret, code string) bool {
 		return false
 	}
 
-	// The code must be a 6-digit number.
 	if len(code) != 6 {
 		return false
 	}
 
-	// Ensure every character is numeric.
 	for _, char := range code {
 		if char < '0' || char > '9' {
 			return false
 		}
 	}
 
-	// Decode the Base32 secret.
 	key, err := base32.StdEncoding.DecodeString(strings.ToUpper(secret))
 	if err != nil {
 		return false
 	}
 
-	// Allow a small drift window on both sides of the current time step.
 	now := time.Now().Unix() / 30
 	expectedCodes := make(map[string]bool)
 	for i := -1; i <= 1; i++ {
@@ -91,33 +69,26 @@ func ValidateTOTPCode(secret, code string) bool {
 	return expectedCodes[code]
 }
 
-// generateTOTP generates a TOTP code.
 func generateTOTP(key []byte, timeStep int64) string {
-	// HMAC-SHA1
 	hash := hmacSHA1(key, timeStep)
 
-	// Apply dynamic truncation.
 	offset := int(hash[len(hash)-1]) & 0x0F
 	binary := ((int(hash[offset]) & 0x7f) << 24) |
 		((int(hash[offset+1]) & 0x7f) << 16) |
 		((int(hash[offset+2]) & 0x7f) << 8) |
 		(int(hash[offset+3]) & 0x7f)
 
-	// Build the 6-digit code.
 	otp := binary % 1000000
 
 	return fmt.Sprintf("%06d", otp)
 }
 
-// hmacSHA1 computes HMAC-SHA1.
 func hmacSHA1(key []byte, data int64) []byte {
-	// Convert the counter to 8 bytes in big-endian order.
 	bytes := make([]byte, 8)
 	for i := 7; i >= 0; i-- {
 		bytes[i] = byte(data >> uint(i*8))
 	}
 
-	// Compute the HMAC-SHA1 value.
 	mac := hmac.New(sha1.New, key)
 	mac.Write(bytes)
 	return mac.Sum(nil)
@@ -131,14 +102,12 @@ func GenerateBackupCodes(count int) ([]string, error) {
 
 	codes := make([]string, count)
 	for i := 0; i < count; i++ {
-		code := generateRandomCode(8) // 8-character random code.
-		codes[i] = code
+		codes[i] = generateRandomCode(8)
 	}
 
 	return codes, nil
 }
 
-// generateRandomCode generates a random verification code.
 func generateRandomCode(length int) string {
 	const charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	code := make([]byte, length)
@@ -146,7 +115,6 @@ func generateRandomCode(length int) string {
 	for i := 0; i < length; i++ {
 		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
 		if err != nil {
-			// Fall back to a timestamp-based value.
 			code[i] = charset[time.Now().UnixNano()%int64(len(charset))]
 		} else {
 			code[i] = charset[n.Int64()]
@@ -176,7 +144,7 @@ func ParseBackupCodes(codesStr string) ([]BackupCode, error) {
 	}
 
 	codes := make([]BackupCode, len(parts))
-	expiresAt := time.Now().Add(365 * 24 * time.Hour).Unix() // Expires in one year.
+	expiresAt := time.Now().Add(365 * 24 * time.Hour).Unix()
 
 	for i, entry := range parts {
 		fields := strings.Split(entry, "|")

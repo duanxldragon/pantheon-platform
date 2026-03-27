@@ -1,32 +1,32 @@
-﻿package main
+package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
-	"pantheon-platform/backend/cmd/tools/internal/toolenv"
+	toolenv "pantheon-platform/backend/cmd/tools/internal/tool_env"
 )
 
 func main() {
 	db, err := gorm.Open(mysql.Open(toolenv.MasterDSN()), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("❌ Failed to connect to DB: %v", err)
+		log.Fatalf("failed to connect to DB: %v", err)
 	}
 
 	files := []string{
-		"scripts/demo/05_demo_menus_permissions.sql",
+		"scripts/demo/demo_menus_permissions.sql",
 	}
 
 	for _, file := range files {
-		fmt.Printf("📂 正在导入 %s ...\n", file)
-		content, err := ioutil.ReadFile(file)
+		fmt.Printf("importing %s ...\n", file)
+		content, err := os.ReadFile(file)
 		if err != nil {
-			log.Printf("⚠️ 无法读取文件 %s: %v", file, err)
+			log.Printf("unable to read %s: %v", file, err)
 			continue
 		}
 
@@ -45,8 +45,9 @@ func main() {
 				count++
 			}
 		}
-		fmt.Printf("✅ 成功执行了 %d 条 SQL 语句\n", count)
+
+		fmt.Printf("executed %d SQL statements\n", count)
 	}
 
-	fmt.Println("\n✨ SQL 导入完成。")
+	fmt.Println("\nSQL import completed.")
 }

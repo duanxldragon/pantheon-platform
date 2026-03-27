@@ -75,14 +75,3 @@ func (h *PermissionHandler) Delete(c *gin.Context) {
 	}
 	response.Success(c, gin.H{"message": "ok"})
 }
-
-func (h *PermissionHandler) RegisterRoutes(group *gin.RouterGroup) {
-	perms := group.Group("/permissions")
-	{
-		perms.GET("", h.List)
-		perms.POST("", h.Create)
-		perms.GET("/:id", h.GetByID)
-		perms.PUT("/:id", h.Update)
-		perms.DELETE("/:id", h.Delete)
-	}
-}

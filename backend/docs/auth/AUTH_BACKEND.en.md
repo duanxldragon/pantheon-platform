@@ -27,7 +27,8 @@ For business-level rules, see:
 - Route registration: `backend/internal/modules/auth/router.go`
 - DAO: `backend/internal/modules/auth/dao.go`
 - Request/response DTOs: `backend/internal/modules/auth/dto.go`
-- Two-factor support: `backend/internal/modules/auth/two_factor_auth.go`
+- Two-factor model: `backend/internal/modules/auth/model.go`
+- Two-factor security helpers: `backend/internal/modules/auth/two_factor_security.go`
 - Error translation: `backend/internal/modules/auth/error_translator.go`
 - Password validation: `backend/internal/modules/auth/password_validator.go`
 - API key middleware: `backend/internal/modules/auth/api_key_middleware.go`
@@ -45,7 +46,7 @@ The auth module now follows the unified backend pattern of fixed layered files p
 
 - primary layered files: `dao.go`, `dto.go`, `handler.go`, `model.go`, `router.go`, `service.go`
 - supplementary service files: `auth_service.go`, `session_service.go`, `api_key_service.go`, `login_attempt_service.go`, `two_factor_service.go`
-- support files: `two_factor_auth.go`, `password_validator.go`, `error_translator.go`, `api_key_middleware.go`
+- support files: `two_factor_security.go`, `password_validator.go`, `error_translator.go`, `api_key_middleware.go`
 
 This keeps the main auth flow stable while splitting login, session, API key, login security, and 2FA logic into clearer file boundaries.
 
@@ -171,7 +172,7 @@ The system module is responsible for bumping auth version or writing revoked-aft
 
 ### Two-factor authentication
 
-`two_factor_auth.go` together with the auth service handles:
+`two_factor_security.go` together with the auth service handles:
 
 - TOTP secret generation
 - QR code URL generation

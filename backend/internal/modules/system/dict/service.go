@@ -5,10 +5,9 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+
 	"pantheon-platform/backend/internal/shared/database"
 )
-
-// ========== 服务接口 ==========
 
 type DictService interface {
 	CreateType(ctx context.Context, req *DictTypeRequest) (*DictType, error)
@@ -25,22 +24,20 @@ type DictService interface {
 	GetDataByTypeCode(ctx context.Context, typeCode string) ([]*DictData, error)
 }
 
-// ========== 服务实现 ==========
-
 type dictService struct {
-	typeRepo  DictTypeRepository
-	dataRepo  DictDataRepository
+	typeDAO   DictTypeDAO
+	dataDAO   DictDataDAO
 	txManager database.TransactionManager
 }
 
 func NewDictService(
-	typeRepo DictTypeRepository,
-	dataRepo DictDataRepository,
+	typeDAO DictTypeDAO,
+	dataDAO DictDataDAO,
 	txManager database.TransactionManager,
 ) DictService {
 	return &dictService{
-		typeRepo:  typeRepo,
-		dataRepo:  dataRepo,
+		typeDAO:   typeDAO,
+		dataDAO:   dataDAO,
 		txManager: txManager,
 	}
 }
@@ -51,7 +48,7 @@ func (s *dictService) CreateData(ctx context.Context, req *DictDataRequest) (*Di
 		return nil, err
 	}
 
-	dd := &DictData{
+	record := &DictData{
 		ID:          uuid.New(),
 		TypeID:      typeID,
 		Label:       req.Label,
@@ -61,12 +58,12 @@ func (s *dictService) CreateData(ctx context.Context, req *DictDataRequest) (*Di
 		Status:      req.Status,
 		TenantID:    getTenantID(ctx),
 	}
-	err = s.dataRepo.Create(ctx, *dd)
-	return dd, err
+	err = s.dataDAO.Create(ctx, *record)
+	return record, err
 }
 
 func (s *dictService) UpdateData(ctx context.Context, id string, req *DictDataRequest) (*DictData, error) {
-	dd, err := s.dataRepo.GetByID(ctx, id)
+	record, err := s.dataDAO.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -76,25 +73,23 @@ func (s *dictService) UpdateData(ctx context.Context, id string, req *DictDataRe
 		return nil, err
 	}
 
-	dd.TypeID = typeID
-	dd.Label = req.Label
-	dd.Value = req.Value
-	dd.Description = req.Description
-	dd.Status = req.Status
+	record.TypeID = typeID
+	record.Label = req.Label
+	record.Value = req.Value
+	record.Description = req.Description
+	record.Status = req.Status
 
-	// 验证字典数据属于当前租户
 	tenantID := getTenantID(ctx)
-	if dd.TenantID != tenantID {
+	if record.TenantID != tenantID {
 		return nil, fmt.Errorf("dict data not found in current tenant")
 	}
 
-	err = s.dataRepo.Update(ctx, dd)
-	return &dd, err
+	err = s.dataDAO.Update(ctx, record)
+	return &record, err
 }
 
-
 func (s *dictService) CreateType(ctx context.Context, req *DictTypeRequest) (*DictType, error) {
-	dt := &DictType{
+	record := &DictType{
 		ID:          uuid.New(),
 		Name:        req.Name,
 		Code:        req.Code,
@@ -102,66 +97,62 @@ func (s *dictService) CreateType(ctx context.Context, req *DictTypeRequest) (*Di
 		Status:      req.Status,
 		TenantID:    getTenantID(ctx),
 	}
-	err := s.typeRepo.Create(ctx, *dt)
-	return dt, err
+	err := s.typeDAO.Create(ctx, *record)
+	return record, err
 }
 
 func (s *dictService) GetTypeByID(ctx context.Context, id string) (*DictTypeResponse, error) {
-	dt, err := s.typeRepo.GetByID(ctx, id)
+	record, err := s.typeDAO.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	return ToDictTypeResponse(&dt), nil
+	return ToDictTypeResponse(&record), nil
 }
 
 func (s *dictService) GetDataByID(ctx context.Context, id string) (*DictDataResponse, error) {
-	dd, err := s.dataRepo.GetByID(ctx, id)
+	record, err := s.dataDAO.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	return ToDictDataResponse(&dd), nil
+	return ToDictDataResponse(&record), nil
 }
 
 func (s *dictService) UpdateType(ctx context.Context, id string, req *DictTypeRequest) (*DictType, error) {
-	dt, err := s.typeRepo.GetByID(ctx, id)
+	record, err := s.typeDAO.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	dt.Name = req.Name
-	dt.Code = req.Code
-	dt.Description = req.Description
-	dt.Status = req.Status
+	record.Name = req.Name
+	record.Code = req.Code
+	record.Description = req.Description
+	record.Status = req.Status
 
-	// 验证字典类型属于当前租户
 	tenantID := getTenantID(ctx)
-	if dt.TenantID != tenantID {
+	if record.TenantID != tenantID {
 		return nil, fmt.Errorf("dict type not found in current tenant")
 	}
 
-	err = s.typeRepo.Update(ctx, dt)
-	return &dt, err
+	err = s.typeDAO.Update(ctx, record)
+	return &record, err
 }
 
 func (s *dictService) DeleteType(ctx context.Context, id string) error {
-	// 获取字典类型以验证租户所有权
-	dt, err := s.typeRepo.GetByID(ctx, id)
+	record, err := s.typeDAO.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	// 验证字典类型是否在使用中
-	if inUse, _ := s.typeRepo.IsInUse(ctx, id); inUse {
+	if inUse, _ := s.typeDAO.IsInUse(ctx, id); inUse {
 		return fmt.Errorf("dict type is in use")
 	}
 
-	// 验证字典类型属于当前租户
 	tenantID := getTenantID(ctx)
-	if dt.TenantID != tenantID {
+	if record.TenantID != tenantID {
 		return fmt.Errorf("dict type not found in current tenant")
 	}
 
-	return s.typeRepo.Delete(ctx, id)
+	return s.typeDAO.Delete(ctx, id)
 }
 
 func (s *dictService) ListTypes(ctx context.Context, page, pageSize int, search string) (*PageResponse, error) {
@@ -170,14 +161,14 @@ func (s *dictService) ListTypes(ctx context.Context, page, pageSize int, search 
 		filters["name LIKE ?"] = "%" + search + "%"
 	}
 
-	dts, total, err := s.typeRepo.List(ctx, page, pageSize, filters)
+	records, total, err := s.typeDAO.List(ctx, page, pageSize, filters)
 	if err != nil {
 		return nil, err
 	}
 
-	items := make([]*DictTypeResponse, len(dts))
-	for i, dt := range dts {
-		items[i] = ToDictTypeResponse(&dt)
+	items := make([]*DictTypeResponse, len(records))
+	for i, record := range records {
+		items[i] = ToDictTypeResponse(&record)
 	}
 
 	return &PageResponse{
@@ -187,19 +178,17 @@ func (s *dictService) ListTypes(ctx context.Context, page, pageSize int, search 
 }
 
 func (s *dictService) DeleteData(ctx context.Context, id string) error {
-	// 获取字典数据以验证租户所有权
-	dd, err := s.dataRepo.GetByID(ctx, id)
+	record, err := s.dataDAO.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	// 验证字典数据属于当前租户
 	tenantID := getTenantID(ctx)
-	if dd.TenantID != tenantID {
+	if record.TenantID != tenantID {
 		return fmt.Errorf("dict data not found in current tenant")
 	}
 
-	return s.dataRepo.Delete(ctx, id)
+	return s.dataDAO.Delete(ctx, id)
 }
 
 func (s *dictService) ListData(ctx context.Context, page, pageSize int, typeID, search string) (*PageResponse, error) {
@@ -211,14 +200,14 @@ func (s *dictService) ListData(ctx context.Context, page, pageSize int, typeID, 
 		filters["label LIKE ?"] = "%" + search + "%"
 	}
 
-	dds, total, err := s.dataRepo.List(ctx, page, pageSize, filters)
+	records, total, err := s.dataDAO.List(ctx, page, pageSize, filters)
 	if err != nil {
 		return nil, err
 	}
 
-	items := make([]*DictDataResponse, len(dds))
-	for i, v := range dds {
-		items[i] = ToDictDataResponse(&v)
+	items := make([]*DictDataResponse, len(records))
+	for i, record := range records {
+		items[i] = ToDictDataResponse(&record)
 	}
 
 	return &PageResponse{
@@ -228,11 +217,11 @@ func (s *dictService) ListData(ctx context.Context, page, pageSize int, typeID, 
 }
 
 func (s *dictService) GetDataByTypeCode(ctx context.Context, typeCode string) ([]*DictData, error) {
-	dt, err := s.typeRepo.GetByCode(ctx, typeCode)
+	record, err := s.typeDAO.GetByCode(ctx, typeCode)
 	if err != nil {
 		return nil, err
 	}
-	data, _, err := s.dataRepo.GetByTypeID(ctx, dt.ID.String(), 1, 1000)
+	data, _, err := s.dataDAO.GetByTypeID(ctx, record.ID.String(), 1, 1000)
 	return data, err
 }
 

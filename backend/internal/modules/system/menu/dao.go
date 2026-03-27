@@ -8,8 +8,8 @@ import (
 	"pantheon-platform/backend/internal/shared/database"
 )
 
-// MenuRepository 菜单仓储接口
-type MenuRepository interface {
+// MenuDAO defines menu DAO behavior.
+type MenuDAO interface {
 	database.DAO[Menu]
 	database.TenantMigrator
 	GetByCode(ctx context.Context, code string) (*Menu, error)
@@ -26,26 +26,26 @@ type MenuRepository interface {
 	ClearRoleRelations(ctx context.Context, menuID string) error
 }
 
-// menuRepository 菜单仓储实现
-type menuRepository struct {
+// menuDAO implements menu DAO behavior.
+type menuDAO struct {
 	*database.BaseDAO[Menu]
 }
 
-// NewMenuRepository 创建菜单仓储
-func NewMenuRepository(db *gorm.DB) MenuRepository {
-	return &menuRepository{
+// NewMenuDAO creates a menu DAO.
+func NewMenuDAO(db *gorm.DB) MenuDAO {
+	return &menuDAO{
 		BaseDAO: database.NewBaseDAO[Menu](db),
 	}
 }
 
-func (r *menuRepository) GetTenantModels() []interface{} {
+func (r *menuDAO) GetTenantModels() []interface{} {
 	return []interface{}{
 		&Menu{},
 		&RoleMenuRelation{},
 	}
 }
 
-func (r *menuRepository) GetByCode(ctx context.Context, code string) (*Menu, error) {
+func (r *menuDAO) GetByCode(ctx context.Context, code string) (*Menu, error) {
 	var m Menu
 	err := r.GetDB(ctx).Where("code = ?", code).First(&m).Error
 	if err != nil {
@@ -57,7 +57,7 @@ func (r *menuRepository) GetByCode(ctx context.Context, code string) (*Menu, err
 	return &m, nil
 }
 
-func (r *menuRepository) GetByPath(ctx context.Context, path string) (*Menu, error) {
+func (r *menuDAO) GetByPath(ctx context.Context, path string) (*Menu, error) {
 	var m Menu
 	err := r.GetDB(ctx).Where("path = ?", path).First(&m).Error
 	if err != nil {
@@ -69,29 +69,29 @@ func (r *menuRepository) GetByPath(ctx context.Context, path string) (*Menu, err
 	return &m, nil
 }
 
-func (r *menuRepository) UpdateStatus(ctx context.Context, id string, status string) error {
+func (r *menuDAO) UpdateStatus(ctx context.Context, id string, status string) error {
 	return r.GetDB(ctx).Model(&Menu{}).Where("id = ?", id).Update("status", status).Error
 }
 
-func (r *menuRepository) GetChildren(ctx context.Context, parentID string) ([]*Menu, error) {
+func (r *menuDAO) GetChildren(ctx context.Context, parentID string) ([]*Menu, error) {
 	var ms []*Menu
 	err := r.GetDB(ctx).Where("parent_id = ?", parentID).Find(&ms).Error
 	return ms, err
 }
 
-func (r *menuRepository) GetRoots(ctx context.Context) ([]*Menu, error) {
+func (r *menuDAO) GetRoots(ctx context.Context) ([]*Menu, error) {
 	var ms []*Menu
 	err := r.GetDB(ctx).Where("parent_id IS NULL OR parent_id = ''").Find(&ms).Error
 	return ms, err
 }
 
-func (r *menuRepository) GetTree(ctx context.Context) ([]*Menu, error) {
+func (r *menuDAO) GetTree(ctx context.Context) ([]*Menu, error) {
 	var ms []*Menu
 	err := r.GetDB(ctx).Order("sort asc").Find(&ms).Error
 	return ms, err
 }
 
-func (r *menuRepository) GetTreeByUserID(ctx context.Context, userID string) ([]*Menu, error) {
+func (r *menuDAO) GetTreeByUserID(ctx context.Context, userID string) ([]*Menu, error) {
 	if userID == "" {
 		return []*Menu{}, nil
 	}
@@ -153,13 +153,13 @@ func (r *menuRepository) GetTreeByUserID(ctx context.Context, userID string) ([]
 	return result, nil
 }
 
-func (r *menuRepository) HasChildren(ctx context.Context, id string) (bool, error) {
+func (r *menuDAO) HasChildren(ctx context.Context, id string) (bool, error) {
 	var count int64
 	err := r.GetDB(ctx).Model(&Menu{}).Where("parent_id = ?", id).Count(&count).Error
 	return count > 0, err
 }
 
-func (r *menuRepository) CheckCircularReference(ctx context.Context, id, parentID string) (bool, error) {
+func (r *menuDAO) CheckCircularReference(ctx context.Context, id, parentID string) (bool, error) {
 	if id == parentID {
 		return true, nil
 	}
@@ -181,13 +181,13 @@ func (r *menuRepository) CheckCircularReference(ctx context.Context, id, parentI
 	return false, nil
 }
 
-func (r *menuRepository) GetRoleIDsByMenu(ctx context.Context, menuID string) ([]string, error) {
+func (r *menuDAO) GetRoleIDsByMenu(ctx context.Context, menuID string) ([]string, error) {
 	var ids []string
 	err := r.GetDB(ctx).Model(&RoleMenuRelation{}).Where("menu_id = ?", menuID).Distinct().Pluck("role_id", &ids).Error
 	return ids, err
 }
 
-func (r *menuRepository) GetUserIDsByRoleIDs(ctx context.Context, roleIDs []string) ([]string, error) {
+func (r *menuDAO) GetUserIDsByRoleIDs(ctx context.Context, roleIDs []string) ([]string, error) {
 	var userIDs []string
 	if len(roleIDs) == 0 {
 		return userIDs, nil
@@ -201,12 +201,12 @@ func (r *menuRepository) GetUserIDsByRoleIDs(ctx context.Context, roleIDs []stri
 	return userIDs, err
 }
 
-func (r *menuRepository) ClearRoleRelations(ctx context.Context, menuID string) error {
+func (r *menuDAO) ClearRoleRelations(ctx context.Context, menuID string) error {
 	return r.GetDB(ctx).Where("menu_id = ?", menuID).Delete(&RoleMenuRelation{}).Error
 }
 
-func (r *menuRepository) WithTx(tx *gorm.DB) database.DAO[Menu] {
-	return &menuRepository{
+func (r *menuDAO) WithTx(tx *gorm.DB) database.DAO[Menu] {
+	return &menuDAO{
 		BaseDAO: database.NewBaseDAO[Menu](tx),
 	}
 }

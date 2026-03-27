@@ -38,7 +38,7 @@ type PositionService interface {
 // ========== Service Implementation ==========
 
 type positionService struct {
-	repo          PositionRepository
+	dao           PositionDAO
 	deptValidator DeptValidator
 	userDirectory UserDirectory
 	authProvider  AuthorizationProvider
@@ -47,14 +47,14 @@ type positionService struct {
 
 // NewPositionService creates a position service instance.
 func NewPositionService(
-	repo PositionRepository,
+	dao PositionDAO,
 	deptValidator DeptValidator,
 	userDirectory UserDirectory,
 	authProvider AuthorizationProvider,
 	txManager database.TransactionManager,
 ) PositionService {
 	return &positionService{
-		repo:          repo,
+		dao:           dao,
 		deptValidator: deptValidator,
 		userDirectory: userDirectory,
 		authProvider:  authProvider,
@@ -92,7 +92,7 @@ func (s *positionService) Create(ctx context.Context, req *PositionRequest) (*Po
 		TenantID:         getTenantID(ctx),
 	}
 
-	err = s.repo.Create(ctx, *pos)
+	err = s.dao.Create(ctx, *pos)
 	if err == nil {
 		setPositionAuditFields(ctx, audit.OperationFields{
 			Module:       "system/positions",
@@ -110,7 +110,7 @@ func (s *positionService) Create(ctx context.Context, req *PositionRequest) (*Po
 }
 
 func (s *positionService) GetByID(ctx context.Context, id string) (*PositionResponse, error) {
-	pos, err := s.repo.GetByID(ctx, id)
+	pos, err := s.dao.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (s *positionService) GetByID(ctx context.Context, id string) (*PositionResp
 }
 
 func (s *positionService) Update(ctx context.Context, id string, req *PositionRequest) (*Position, error) {
-	pos, err := s.repo.GetByID(ctx, id)
+	pos, err := s.dao.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func (s *positionService) Update(ctx context.Context, id string, req *PositionRe
 		return nil, fmt.Errorf("position not found in current tenant")
 	}
 
-	err = s.repo.Update(ctx, pos)
+	err = s.dao.Update(ctx, pos)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func (s *positionService) Update(ctx context.Context, id string, req *PositionRe
 
 func (s *positionService) Delete(ctx context.Context, id string) error {
 	// Load the position before validating tenant ownership.
-	pos, err := s.repo.GetByID(ctx, id)
+	pos, err := s.dao.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -199,7 +199,7 @@ func (s *positionService) Delete(ctx context.Context, id string) error {
 	}
 
 	userIDs, _ := s.userDirectory.ListUserIDsByPositionID(ctx, id)
-	if err := s.repo.Delete(ctx, id); err != nil {
+	if err := s.dao.Delete(ctx, id); err != nil {
 		return err
 	}
 	userIDs = uniquePositionUserIDs(userIDs)
@@ -223,7 +223,7 @@ func (s *positionService) Delete(ctx context.Context, id string) error {
 
 func (s *positionService) List(ctx context.Context, req *PositionListRequest) (*PageResponse, error) {
 	filters := make(map[string]interface{})
-	poss, total, err := s.repo.List(ctx, req.Page, req.PageSize, filters)
+	poss, total, err := s.dao.List(ctx, req.Page, req.PageSize, filters)
 	if err != nil {
 		return nil, err
 	}

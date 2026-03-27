@@ -1,4 +1,4 @@
-﻿package main
+package main
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
-	"pantheon-platform/backend/cmd/tools/internal/toolenv"
+	toolenv "pantheon-platform/backend/cmd/tools/internal/tool_env"
 	"pantheon-platform/backend/internal/modules/system/model"
 )
 

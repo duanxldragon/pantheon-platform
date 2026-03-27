@@ -1,7 +1,5 @@
 package constants
 
-// ============ Tenant ============
-
 // TenantStatus represents tenant lifecycle state.
 type TenantStatus string
 
@@ -48,8 +46,6 @@ const (
 	TenantBackupTypeDifferential TenantBackupType = "differential"
 )
 
-// ============ User ============
-
 // UserStatus represents user account state.
 type UserStatus string
 
@@ -67,8 +63,6 @@ const (
 	UserRoleTypeCustom UserRoleType = "custom"
 )
 
-// ============ Role ============
-
 // RoleType represents built-in versus custom role ownership.
 type RoleType string
 
@@ -76,8 +70,6 @@ const (
 	RoleTypeSystem RoleType = "system"
 	RoleTypeCustom RoleType = "custom"
 )
-
-// ============ Data Scope ============
 
 // DataScope represents row-level data scope strategies.
 type DataScope string
@@ -90,15 +82,11 @@ const (
 	DataScopeSelf       DataScope = "self"
 )
 
-// ============ Field Permission ============
-
 const (
 	FieldPermissionRead  = "read"
 	FieldPermissionWrite = "write"
 	FieldPermissionHide  = "hide"
 )
-
-// ============ Setting ============
 
 // SettingCategory groups system settings by domain.
 type SettingCategory string
@@ -120,8 +108,6 @@ const (
 	SettingScopeUser   SettingScope = "user"
 )
 
-// ============ Logging ============
-
 // LogType represents log categories.
 type LogType string
 
@@ -142,8 +128,6 @@ const (
 	LogLevelError LogLevel = "error"
 )
 
-// ============ Authentication ============
-
 // TokenType represents token purpose.
 type TokenType string
 
@@ -152,8 +136,6 @@ const (
 	TokenTypeRefresh  TokenType = "refresh"
 	TokenTypeRecovery TokenType = "recovery"
 )
-
-// ============ Notification ============
 
 // NotificationType represents notification delivery channels.
 type NotificationType string
@@ -165,8 +147,6 @@ const (
 	NotificationTypePush   NotificationType = "push"
 	NotificationTypeWechat NotificationType = "wechat"
 )
-
-// ============ Dictionary ============
 
 // DictTypeCategory represents dictionary ownership categories.
 type DictTypeCategory string
@@ -185,8 +165,6 @@ const (
 	DictDataTypeBoolean DictDataType = "boolean"
 	DictDataTypeDate    DictDataType = "date"
 )
-
-// ============ Common ============
 
 const DefaultPageSize = 20
 const MaxPageSize = 100
@@ -210,12 +188,8 @@ const CacheTTLLong = 3600
 const DataEncryptKeyLength = 32
 const DataEncryptIVLength = 16
 
-// ============ Paths ============
-
 const BackupDirectory = "backups"
 const UploadDirectory = "uploads"
-
-// ============ Redis Keys ============
 
 const (
 	AuthPrefix      = "auth:"
@@ -237,8 +211,6 @@ const (
 	TokenBlacklistPrefix = "token:blacklist:"
 )
 
-// ============ HTTP Status ============
-
 const HTTPStatusOK = 200
 const HTTPStatusCreated = 201
 const HTTPStatusBadRequest = 400
@@ -248,8 +220,6 @@ const HTTPStatusNotFound = 404
 const HTTPStatusConflict = 409
 const HTTPStatusInternalServerError = 500
 const HTTPStatusServiceUnavailable = 503
-
-// ============ HTTP Headers ============
 
 const (
 	HeaderContentType   = "Content-Type"

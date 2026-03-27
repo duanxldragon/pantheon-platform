@@ -8,8 +8,8 @@ import (
 	"pantheon-platform/backend/internal/shared/database"
 )
 
-// DepartmentRepository 部门仓储接口
-type DepartmentRepository interface {
+// DepartmentDAO defines department DAO behavior.
+type DepartmentDAO interface {
 	database.DAO[Department]
 	database.TenantMigrator
 	GetByCode(ctx context.Context, code string) (*Department, error)
@@ -22,25 +22,25 @@ type DepartmentRepository interface {
 	CheckCircularReference(ctx context.Context, id, parentID string) (bool, error)
 }
 
-// departmentRepository 部门仓储实现
-type departmentRepository struct {
+// departmentDAO implements department DAO behavior.
+type departmentDAO struct {
 	*database.BaseDAO[Department]
 }
 
-// NewDepartmentRepository 创建部门仓储
-func NewDepartmentRepository(db *gorm.DB) DepartmentRepository {
-	return &departmentRepository{
+// NewDepartmentDAO creates a department DAO.
+func NewDepartmentDAO(db *gorm.DB) DepartmentDAO {
+	return &departmentDAO{
 		BaseDAO: database.NewBaseDAO[Department](db),
 	}
 }
 
-func (r *departmentRepository) GetTenantModels() []interface{} {
+func (r *departmentDAO) GetTenantModels() []interface{} {
 	return []interface{}{
 		&Department{},
 	}
 }
 
-func (r *departmentRepository) GetByCode(ctx context.Context, code string) (*Department, error) {
+func (r *departmentDAO) GetByCode(ctx context.Context, code string) (*Department, error) {
 	var dept Department
 	err := r.GetDB(ctx).Where("code = ?", code).First(&dept).Error
 	if err != nil {
@@ -52,7 +52,7 @@ func (r *departmentRepository) GetByCode(ctx context.Context, code string) (*Dep
 	return &dept, nil
 }
 
-func (r *departmentRepository) GetByName(ctx context.Context, name string) (*Department, error) {
+func (r *departmentDAO) GetByName(ctx context.Context, name string) (*Department, error) {
 	var dept Department
 	err := r.GetDB(ctx).Where("name = ?", name).First(&dept).Error
 	if err != nil {
@@ -64,35 +64,35 @@ func (r *departmentRepository) GetByName(ctx context.Context, name string) (*Dep
 	return &dept, nil
 }
 
-func (r *departmentRepository) UpdateStatus(ctx context.Context, id string, status string) error {
+func (r *departmentDAO) UpdateStatus(ctx context.Context, id string, status string) error {
 	return r.GetDB(ctx).Model(&Department{}).Where("id = ?", id).Update("status", status).Error
 }
 
-func (r *departmentRepository) GetChildren(ctx context.Context, parentID string) ([]*Department, error) {
+func (r *departmentDAO) GetChildren(ctx context.Context, parentID string) ([]*Department, error) {
 	var depts []*Department
 	err := r.GetDB(ctx).Where("parent_id = ?", parentID).Find(&depts).Error
 	return depts, err
 }
 
-func (r *departmentRepository) GetRoots(ctx context.Context) ([]*Department, error) {
+func (r *departmentDAO) GetRoots(ctx context.Context) ([]*Department, error) {
 	var depts []*Department
 	err := r.GetDB(ctx).Where("parent_id IS NULL OR parent_id = ''").Find(&depts).Error
 	return depts, err
 }
 
-func (r *departmentRepository) GetTree(ctx context.Context) ([]*Department, error) {
+func (r *departmentDAO) GetTree(ctx context.Context) ([]*Department, error) {
 	var depts []*Department
 	err := r.GetDB(ctx).Order("sort asc").Find(&depts).Error
 	return depts, err
 }
 
-func (r *departmentRepository) HasChildren(ctx context.Context, id string) (bool, error) {
+func (r *departmentDAO) HasChildren(ctx context.Context, id string) (bool, error) {
 	var count int64
 	err := r.GetDB(ctx).Model(&Department{}).Where("parent_id = ?", id).Count(&count).Error
 	return count > 0, err
 }
 
-func (r *departmentRepository) CheckCircularReference(ctx context.Context, id, parentID string) (bool, error) {
+func (r *departmentDAO) CheckCircularReference(ctx context.Context, id, parentID string) (bool, error) {
 	if id == parentID {
 		return true, nil
 	}
@@ -114,8 +114,8 @@ func (r *departmentRepository) CheckCircularReference(ctx context.Context, id, p
 	return false, nil
 }
 
-func (r *departmentRepository) WithTx(tx *gorm.DB) database.DAO[Department] {
-	return &departmentRepository{
+func (r *departmentDAO) WithTx(tx *gorm.DB) database.DAO[Department] {
+	return &departmentDAO{
 		BaseDAO: database.NewBaseDAO[Department](tx),
 	}
 }

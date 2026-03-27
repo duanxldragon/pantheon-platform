@@ -11,8 +11,8 @@ import (
 )
 
 func (s *authService) CreateApiKey(ctx context.Context, userID, name, permissions string) (*ApiKeyResponse, error) {
-	if s.apiKeyRepo == nil {
-		return nil, errors.New("api key repository not initialized")
+	if s.apiKeyDAO == nil {
+		return nil, errors.New("api key DAO not initialized")
 	}
 
 	// Generate a random API key
@@ -61,8 +61,8 @@ func (s *authService) CreateApiKey(ctx context.Context, userID, name, permission
 
 // ListApiKeys returns all API keys for a user
 func (s *authService) ListApiKeys(ctx context.Context, userID string) (*ApiKeyListResponse, error) {
-	if s.apiKeyRepo == nil {
-		return nil, errors.New("api key repository not initialized")
+	if s.apiKeyDAO == nil {
+		return nil, errors.New("api key DAO not initialized")
 	}
 
 	// Get the appropriate database
@@ -100,8 +100,8 @@ func (s *authService) ListApiKeys(ctx context.Context, userID string) (*ApiKeyLi
 
 // DeleteApiKey deletes an API key
 func (s *authService) DeleteApiKey(ctx context.Context, userID, keyID string) error {
-	if s.apiKeyRepo == nil {
-		return errors.New("api key repository not initialized")
+	if s.apiKeyDAO == nil {
+		return errors.New("api key DAO not initialized")
 	}
 
 	// Get the appropriate database
@@ -133,8 +133,8 @@ func (s *authService) DeleteApiKey(ctx context.Context, userID, keyID string) er
 
 // UpdateApiKey updates an API key
 func (s *authService) UpdateApiKey(ctx context.Context, userID, keyID, name, permissions string) error {
-	if s.apiKeyRepo == nil {
-		return errors.New("api key repository not initialized")
+	if s.apiKeyDAO == nil {
+		return errors.New("api key DAO not initialized")
 	}
 
 	// Get the appropriate database
@@ -176,8 +176,8 @@ func (s *authService) UpdateApiKey(ctx context.Context, userID, keyID, name, per
 
 // ValidateApiKey validates an API key and returns the user ID
 func (s *authService) ValidateApiKey(ctx context.Context, apiKey string) (string, error) {
-	if s.apiKeyRepo == nil {
-		return "", errors.New("api key repository not initialized")
+	if s.apiKeyDAO == nil {
+		return "", errors.New("api key DAO not initialized")
 	}
 
 	// Get the appropriate database
@@ -210,7 +210,7 @@ func (s *authService) ValidateApiKey(ctx context.Context, apiKey string) (string
 	for _, key := range keys {
 		if err := bcrypt.CompareHashAndPassword([]byte(key.Key), []byte(apiKey)); err == nil {
 			// Update last used time
-			_ = s.apiKeyRepo.UpdateLastUsed(ctx, key.ID.String())
+			_ = s.apiKeyDAO.UpdateLastUsed(ctx, key.ID.String())
 			return key.UserID, nil
 		}
 	}

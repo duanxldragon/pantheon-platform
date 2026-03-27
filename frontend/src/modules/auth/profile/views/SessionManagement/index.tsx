@@ -74,16 +74,31 @@ export function SessionManagement() {
   const { language } = useLanguageStore();
   const { compactMode } = useProfilePreferenceSettings();
   const zh = language === 'zh';
+  const copy = {
+    sessionRevoked: zh ? '会话已终止' : 'Session revoked',
+    allRevoked: zh ? '其他会话已全部终止' : 'All other sessions revoked',
+    activeSessions: zh ? '活动会话' : 'Active Sessions',
+    activeSessionsDesc: zh ? '查看当前账号所有在线会话，并及时终止可疑设备。' : 'Review all active sessions and revoke suspicious devices.',
+    revokeOthers: zh ? '终止其他会话' : 'Revoke Others',
+    currentSession: zh ? '当前会话' : 'Current',
+    otherSession: zh ? '其他会话' : 'Other',
+    revoke: zh ? '终止' : 'Revoke',
+    securityTips: zh ? '安全建议' : 'Security Tips',
+    noUnknownDevices: zh ? '定期检查活动会话，确认没有陌生设备在线。' : 'Review active sessions regularly for unknown devices.',
+    signOutShared: zh ? '在共享或公共设备上使用后，请及时退出登录。' : 'Sign out after using shared or public devices.',
+    revokeSuspicious: zh ? '发现异常会话时，请立即终止并同步修改密码。' : 'Revoke suspicious sessions and change your password immediately.',
+  };
+
   const [sessions, setSessions] = useState<SessionItem[]>(() => buildMockSessions());
 
   const revokeSession = (id: string) => {
     setSessions((current) => current.filter((item) => item.id !== id));
-    systemNotification.success(zh ? '会话已终止' : 'Session revoked');
+    systemNotification.success(copy.sessionRevoked);
   };
 
   const revokeAll = () => {
     setSessions((current) => current.filter((item) => item.isCurrent));
-    systemNotification.success(zh ? '其他会话已全部终止' : 'All other sessions revoked');
+    systemNotification.success(copy.allRevoked);
   };
 
   return (
@@ -95,16 +110,14 @@ export function SessionManagement() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="text-lg" style={{ color: theme.colors.text }}>
-              {zh ? '活动会话' : 'Active Sessions'}
+              {copy.activeSessions}
             </h3>
             <p className="text-sm" style={{ color: theme.colors.textSecondary }}>
-              {zh
-                ? '查看当前账号所有在线会话，并及时终止可疑设备。'
-                : 'Review all active sessions and revoke suspicious devices.'}
+              {copy.activeSessionsDesc}
             </p>
           </div>
           <Button variant="outline" onClick={revokeAll}>
-            {zh ? '终止其他会话' : 'Revoke Others'}
+            {copy.revokeOthers}
           </Button>
         </div>
       </Card>
@@ -142,12 +155,12 @@ export function SessionManagement() {
                 </div>
                 <div className="flex items-center gap-3">
                   <Badge variant={session.isCurrent ? 'default' : 'outline'}>
-                    {session.isCurrent ? (zh ? '当前会话' : 'Current') : zh ? '其他会话' : 'Other'}
+                    {session.isCurrent ? copy.currentSession : copy.otherSession}
                   </Badge>
                   {!session.isCurrent ? (
                     <Button variant="outline" size="sm" onClick={() => revokeSession(session.id)}>
                       <LogOut className="mr-2 h-4 w-4" />
-                      {zh ? '终止' : 'Revoke'}
+                      {copy.revoke}
                     </Button>
                   ) : null}
                 </div>
@@ -162,12 +175,12 @@ export function SessionManagement() {
         style={{ backgroundColor: theme.colors.surface, borderColor: theme.colors.border }}
       >
         <div className="text-sm font-medium" style={{ color: theme.colors.text }}>
-          {zh ? '安全建议' : 'Security Tips'}
+          {copy.securityTips}
         </div>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm" style={{ color: theme.colors.textSecondary }}>
-          <li>{zh ? '定期检查活动会话，确认没有陌生设备在线。' : 'Review active sessions regularly for unknown devices.'}</li>
-          <li>{zh ? '在共享或公共设备上使用后，请及时退出登录。' : 'Sign out after using shared or public devices.'}</li>
-          <li>{zh ? '发现异常会话时，请立即终止并同步修改密码。' : 'Revoke suspicious sessions and change your password immediately.'}</li>
+          <li>{copy.noUnknownDevices}</li>
+          <li>{copy.signOutShared}</li>
+          <li>{copy.revokeSuspicious}</li>
         </ul>
       </Card>
     </div>

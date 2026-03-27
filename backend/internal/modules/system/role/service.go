@@ -13,7 +13,7 @@ import (
 	"pantheon-platform/backend/internal/shared/database"
 )
 
-// ========== 澶栭儴渚濊禆鎺ュ彛 ==========
+// External dependency interfaces.
 
 type PermissionValidator interface {
 	CheckPermissionExists(ctx context.Context, id string) (bool, error)
@@ -44,7 +44,7 @@ type AuthorizationProvider interface {
 	RemoveRole(ctx context.Context, roleID string) error
 }
 
-// ========== 鏈嶅姟鎺ュ彛 ==========
+// Role service interface.
 
 type RoleService interface {
 	Create(ctx context.Context, req *RoleRequest) (*Role, error)
@@ -57,11 +57,11 @@ type RoleService interface {
 	AssignMenus(ctx context.Context, roleID string, menuIDs []string) error
 }
 
-// ========== 鏈嶅姟瀹炵幇 ==========
+// roleService implements role business logic.
 
 type roleService struct {
-	repo           RoleRepository
-	menuRepo       menu.MenuRepository
+	dao            RoleDAO
+	menuDAO        menu.MenuDAO
 	permValidator  PermissionValidator
 	userValidator  UserValidator
 	quotaValidator QuotaValidator
@@ -70,8 +70,8 @@ type roleService struct {
 }
 
 func NewRoleService(
-	repo RoleRepository,
-	menuRepo menu.MenuRepository,
+	dao RoleDAO,
+	menuDAO menu.MenuDAO,
 	permValidator PermissionValidator,
 	userValidator UserValidator,
 	quotaValidator QuotaValidator,
@@ -79,8 +79,8 @@ func NewRoleService(
 	txManager database.TransactionManager,
 ) RoleService {
 	return &roleService{
-		repo:           repo,
-		menuRepo:       menuRepo,
+		dao:            dao,
+		menuDAO:        menuDAO,
 		permValidator:  permValidator,
 		userValidator:  userValidator,
 		quotaValidator: quotaValidator,
@@ -97,7 +97,7 @@ func (s *roleService) Create(ctx context.Context, req *RoleRequest) (*Role, erro
 		}
 	}
 
-	if existing, _ := s.repo.GetByCode(ctx, req.Code); existing != nil {
+	if existing, _ := s.dao.GetByCode(ctx, req.Code); existing != nil {
 		return nil, fmt.Errorf("role code exists")
 	}
 
@@ -111,7 +111,7 @@ func (s *roleService) Create(ctx context.Context, req *RoleRequest) (*Role, erro
 		TenantID:    tenantID,
 	}
 
-	err := s.repo.Create(ctx, *role)
+	err := s.dao.Create(ctx, *role)
 	if err == nil && tenantID != "" && s.quotaValidator != nil {
 		_ = s.quotaValidator.IncreaseUsage(ctx, tenantID, "roles", 1, "system")
 	}
@@ -119,18 +119,18 @@ func (s *roleService) Create(ctx context.Context, req *RoleRequest) (*Role, erro
 }
 
 func (s *roleService) GetByID(ctx context.Context, id string) (*RoleResponse, error) {
-	role, err := s.repo.GetByID(ctx, id)
+	role, err := s.dao.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	perms, _ := s.repo.GetPermissions(ctx, id)
-	menuIDs, _ := s.repo.GetMenuIDs(ctx, id)
+	perms, _ := s.dao.GetPermissions(ctx, id)
+	menuIDs, _ := s.dao.GetMenuIDs(ctx, id)
 	return ToRoleResponse(&role, s.convertPerms(perms), menuIDs), nil
 }
 
 func (s *roleService) Update(ctx context.Context, id string, req *RoleUpdateRequest) (*Role, error) {
-	role, err := s.repo.GetByID(ctx, id)
+	role, err := s.dao.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func (s *roleService) Update(ctx context.Context, id string, req *RoleUpdateRequ
 		return nil, fmt.Errorf("role not found in current tenant")
 	}
 
-	if err := s.repo.Update(ctx, role); err != nil {
+	if err := s.dao.Update(ctx, role); err != nil {
 		return nil, err
 	}
 	if req.Status != nil && previousStatus != role.Status {
@@ -170,7 +170,7 @@ func (s *roleService) Update(ctx context.Context, id string, req *RoleUpdateRequ
 }
 
 func (s *roleService) Delete(ctx context.Context, id string) error {
-	role, err := s.repo.GetByID(ctx, id)
+	role, err := s.dao.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -186,12 +186,12 @@ func (s *roleService) Delete(ctx context.Context, id string) error {
 	}
 
 	err = s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
-		repo := s.repo.WithTx(tx).(RoleRepository)
-		_ = repo.ClearPermissions(ctx, id)
+		txDAO := s.dao.WithTx(tx).(RoleDAO)
+		_ = txDAO.ClearPermissions(ctx, id)
 		if s.authProvider != nil {
 			_ = s.authProvider.RemoveRole(ctx, role.ID.String())
 		}
-		return repo.Delete(ctx, id)
+		return txDAO.Delete(ctx, id)
 	})
 
 	if err == nil && tenantID != "" && s.quotaValidator != nil {
@@ -207,7 +207,7 @@ func (s *roleService) List(ctx context.Context, req *RoleListRequest) (*PageResp
 		filters["status"] = req.Status
 	}
 
-	roles, total, err := s.repo.List(ctx, req.Page, req.PageSize, filters)
+	roles, total, err := s.dao.List(ctx, req.Page, req.PageSize, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +228,7 @@ func (s *roleService) List(ctx context.Context, req *RoleListRequest) (*PageResp
 }
 
 func (s *roleService) AssignPermissions(ctx context.Context, req *RolePermissionRequest) error {
-	role, err := s.repo.GetByID(ctx, req.RoleID)
+	role, err := s.dao.GetByID(ctx, req.RoleID)
 	if err != nil {
 		return err
 	}
@@ -239,10 +239,10 @@ func (s *roleService) AssignPermissions(ctx context.Context, req *RolePermission
 	}
 
 	if err := s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
-		repo := s.repo.WithTx(tx).(RoleRepository)
-		_ = repo.ClearPermissions(ctx, req.RoleID)
+		txDAO := s.dao.WithTx(tx).(RoleDAO)
+		_ = txDAO.ClearPermissions(ctx, req.RoleID)
 		for _, pid := range req.PermissionIDs {
-			_ = repo.AddPermission(ctx, req.RoleID, pid)
+			_ = txDAO.AddPermission(ctx, req.RoleID, pid)
 		}
 		if s.authProvider != nil {
 			if role.Status == "active" {
@@ -257,7 +257,7 @@ func (s *roleService) AssignPermissions(ctx context.Context, req *RolePermission
 	if s.authProvider != nil {
 		_ = s.authProvider.BumpRoleUsersAuthVersion(ctx, role.ID.String())
 	}
-	userIDs, _ := s.repo.GetUserIDsByRole(ctx, role.ID.String())
+	userIDs, _ := s.dao.GetUserIDsByRole(ctx, role.ID.String())
 	setOperationAuditFields(ctx, audit.OperationFields{
 		Module:       "system/roles",
 		Resource:     "role_permission",
@@ -270,7 +270,7 @@ func (s *roleService) AssignPermissions(ctx context.Context, req *RolePermission
 }
 
 func (s *roleService) AssignMenus(ctx context.Context, roleID string, menuIDs []string) error {
-	role, err := s.repo.GetByID(ctx, roleID)
+	role, err := s.dao.GetByID(ctx, roleID)
 	if err != nil {
 		return err
 	}
@@ -280,10 +280,10 @@ func (s *roleService) AssignMenus(ctx context.Context, roleID string, menuIDs []
 	}
 
 	for _, menuID := range menuIDs {
-		if s.menuRepo == nil {
-			return fmt.Errorf("menu repository not configured")
+		if s.menuDAO == nil {
+			return fmt.Errorf("menu DAO not configured")
 		}
-		record, err := s.menuRepo.GetByID(ctx, menuID)
+		record, err := s.menuDAO.GetByID(ctx, menuID)
 		if err != nil {
 			return fmt.Errorf("menu not found")
 		}
@@ -292,13 +292,13 @@ func (s *roleService) AssignMenus(ctx context.Context, roleID string, menuIDs []
 		}
 	}
 
-	if err := s.repo.AssignMenus(ctx, roleID, menuIDs); err != nil {
+	if err := s.dao.AssignMenus(ctx, roleID, menuIDs); err != nil {
 		return err
 	}
 	if s.authProvider != nil {
 		_ = s.authProvider.BumpRoleUsersAuthVersion(ctx, roleID)
 	}
-	userIDs, _ := s.repo.GetUserIDsByRole(ctx, roleID)
+	userIDs, _ := s.dao.GetUserIDsByRole(ctx, roleID)
 	setOperationAuditFields(ctx, audit.OperationFields{
 		Module:       "system/roles",
 		Resource:     "role_menu",
@@ -330,7 +330,7 @@ func (s *roleService) handleRoleStatusChange(ctx context.Context, role Role) err
 		return nil
 	}
 
-	userIDs, err := s.repo.GetUserIDsByRole(ctx, role.ID.String())
+	userIDs, err := s.dao.GetUserIDsByRole(ctx, role.ID.String())
 	if err != nil {
 		return err
 	}
@@ -376,7 +376,7 @@ func (s *roleService) restoreRoleAuthorization(ctx context.Context, roleID strin
 		return nil
 	}
 
-	perms, err := s.repo.GetPermissions(ctx, roleID)
+	perms, err := s.dao.GetPermissions(ctx, roleID)
 	if err != nil {
 		return err
 	}

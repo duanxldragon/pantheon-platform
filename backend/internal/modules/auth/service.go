@@ -43,10 +43,10 @@ type authService struct {
 	masterDB    *gorm.DB
 	dbManager   *database.Manager
 	userService user.UserService
-	tenantRepo  tenant.TenantRepository
+	tenantDAO   tenant.TenantDAO
 	logService  systemlog.LogService
 	redisClient *cache.RedisClient
-	apiKeyRepo  ApiKeyRepository
+	apiKeyDAO   ApiKeyDAO
 	jwtSecret   []byte
 	expiresIn   int
 	config      *config.Config
@@ -57,11 +57,11 @@ func NewAuthService(
 	masterDB *gorm.DB,
 	dbManager *database.Manager,
 	userService user.UserService,
-	tenantRepo tenant.TenantRepository,
+	tenantDAO tenant.TenantDAO,
 	logService systemlog.LogService,
 	redisClient *cache.RedisClient,
 	cfg *config.Config,
-	apiKeyRepo ApiKeyRepository,
+	apiKeyDAO ApiKeyDAO,
 ) AuthService {
 	secret := cfg.JWTSecret
 	if secret == "" {
@@ -75,10 +75,10 @@ func NewAuthService(
 		masterDB:    masterDB,
 		dbManager:   dbManager,
 		userService: userService,
-		tenantRepo:  tenantRepo,
+		tenantDAO:   tenantDAO,
 		logService:  logService,
 		redisClient: redisClient,
-		apiKeyRepo:  apiKeyRepo,
+		apiKeyDAO:   apiKeyDAO,
 		jwtSecret:   []byte(secret),
 		expiresIn:   exp,
 		config:      cfg,

@@ -43,16 +43,16 @@ type NotificationService interface {
 }
 
 type notificationService struct {
-	repo             NotificationRepository
+	dao              NotificationDAO
 	emailSrv         EmailService
 	smsSrv           SMSService
 	maxSendAttempts  int
 	retryBaseBackoff time.Duration
 }
 
-func NewNotificationService(repo NotificationRepository, emailSrv EmailService, smsSrv SMSService) NotificationService {
+func NewNotificationService(dao NotificationDAO, emailSrv EmailService, smsSrv SMSService) NotificationService {
 	return &notificationService{
-		repo:             repo,
+		dao:              dao,
 		emailSrv:         emailSrv,
 		smsSrv:           smsSrv,
 		maxSendAttempts:  defaultSendMaxAttempts,
@@ -70,7 +70,7 @@ func (s *notificationService) CreateNotification(ctx context.Context, n *Notific
 	if n.Channel == "" {
 		n.Channel = ChannelSystem
 	}
-	if err := s.repo.Create(ctx, n); err != nil {
+	if err := s.dao.Create(ctx, n); err != nil {
 		return err
 	}
 
@@ -83,7 +83,7 @@ func (s *notificationService) CreateNotification(ctx context.Context, n *Notific
 	for _, rid := range receiverIDs {
 		uid, err := uuid.Parse(rid)
 		if err != nil {
-			// For email/sms channels, receiverIds may not be UUIDs; skip inbox creation.
+			// For email and SMS channels, receiver IDs may not be UUIDs, so inbox rows are skipped.
 			continue
 		}
 		inbox := &NotificationInbox{
@@ -93,80 +93,80 @@ func (s *notificationService) CreateNotification(ctx context.Context, n *Notific
 			IsRead:         false,
 			IsDeleted:      false,
 		}
-		_ = s.repo.CreateInbox(ctx, inbox)
+		_ = s.dao.CreateInbox(ctx, inbox)
 	}
 	return nil
 }
 
 func (s *notificationService) GetNotification(ctx context.Context, id string) (*Notification, error) {
-	return s.repo.GetByID(ctx, id)
+	return s.dao.GetByID(ctx, id)
 }
 
 func (s *notificationService) ListNotifications(ctx context.Context, req *NotificationListRequest) ([]*Notification, int64, error) {
-	return s.repo.List(ctx, req)
+	return s.dao.List(ctx, req)
 }
 
 func (s *notificationService) UpdateNotification(ctx context.Context, id string, n *Notification) error {
-	return s.repo.Update(ctx, id, n)
+	return s.dao.Update(ctx, id, n)
 }
 
 func (s *notificationService) DeleteNotification(ctx context.Context, id string) error {
-	return s.repo.Delete(ctx, id)
+	return s.dao.Delete(ctx, id)
 }
 
 func (s *notificationService) ListInbox(ctx context.Context, receiverID string, req *InboxListRequest) ([]*NotificationInbox, int64, error) {
-	return s.repo.ListInbox(ctx, receiverID, req)
+	return s.dao.ListInbox(ctx, receiverID, req)
 }
 
 func (s *notificationService) GetInbox(ctx context.Context, id string) (*NotificationInbox, error) {
-	return s.repo.GetInbox(ctx, id)
+	return s.dao.GetInbox(ctx, id)
 }
 
 func (s *notificationService) DeleteInbox(ctx context.Context, id string) error {
-	return s.repo.DeleteInbox(ctx, id)
+	return s.dao.DeleteInbox(ctx, id)
 }
 
 func (s *notificationService) MarkAsRead(ctx context.Context, receiverID string, ids []string) error {
-	return s.repo.MarkAsRead(ctx, receiverID, ids)
+	return s.dao.MarkAsRead(ctx, receiverID, ids)
 }
 
 func (s *notificationService) MarkAllAsRead(ctx context.Context, receiverID string) error {
-	return s.repo.MarkAllAsRead(ctx, receiverID)
+	return s.dao.MarkAllAsRead(ctx, receiverID)
 }
 
 func (s *notificationService) GetUnreadCount(ctx context.Context, receiverID string) (int64, error) {
-	return s.repo.GetUnreadCount(ctx, receiverID)
+	return s.dao.GetUnreadCount(ctx, receiverID)
 }
 
 func (s *notificationService) CreateTemplate(ctx context.Context, t *NotificationTemplate) error {
 	if t.IsActive == false {
 		t.IsActive = true
 	}
-	return s.repo.CreateTemplate(ctx, t)
+	return s.dao.CreateTemplate(ctx, t)
 }
 
 func (s *notificationService) GetTemplate(ctx context.Context, id string) (*NotificationTemplate, error) {
-	return s.repo.GetTemplateByID(ctx, id)
+	return s.dao.GetTemplateByID(ctx, id)
 }
 
 func (s *notificationService) ListTemplates(ctx context.Context, req *TemplateListRequest) ([]*NotificationTemplate, int64, error) {
-	return s.repo.ListTemplates(ctx, req)
+	return s.dao.ListTemplates(ctx, req)
 }
 
 func (s *notificationService) UpdateTemplate(ctx context.Context, id string, t *NotificationTemplate) error {
-	return s.repo.UpdateTemplate(ctx, id, t)
+	return s.dao.UpdateTemplate(ctx, id, t)
 }
 
 func (s *notificationService) DeleteTemplate(ctx context.Context, id string) error {
-	return s.repo.DeleteTemplate(ctx, id)
+	return s.dao.DeleteTemplate(ctx, id)
 }
 
 func (s *notificationService) GetStats(ctx context.Context, receiverID string) (*NotificationStats, error) {
-	return s.repo.GetStats(ctx, receiverID)
+	return s.dao.GetStats(ctx, receiverID)
 }
 
 func (s *notificationService) SendFromTemplate(ctx context.Context, req *SendNotificationRequest) (*Notification, error) {
-	tmpl, err := s.repo.GetTemplateByID(ctx, req.TemplateID)
+	tmpl, err := s.dao.GetTemplateByID(ctx, req.TemplateID)
 	if err != nil {
 		return nil, err
 	}
@@ -224,13 +224,13 @@ func (s *notificationService) Send(ctx context.Context, n *Notification) error {
 	if s.maxSendAttempts <= 0 {
 		s.maxSendAttempts = defaultSendMaxAttempts
 	}
-	if err := s.repo.UpdateNotificationFields(ctx, n.ID.String(), map[string]interface{}{
+	if err := s.dao.UpdateNotificationFields(ctx, n.ID.String(), map[string]interface{}{
 		"status":      StatusQueued,
 		"fail_reason": "",
 	}); err != nil {
 		return err
 	}
-	job, err := s.repo.EnqueueJob(ctx, n, s.maxSendAttempts, 0)
+	job, err := s.dao.EnqueueJob(ctx, n, s.maxSendAttempts, 0)
 	if err != nil {
 		return err
 	}
@@ -239,18 +239,20 @@ func (s *notificationService) Send(ctx context.Context, n *Notification) error {
 }
 
 func (s *notificationService) ProcessPendingJobs(ctx context.Context, limit int) ([]*NotificationJob, error) {
-	jobs, err := s.repo.FetchDueJobs(ctx, limit)
+	jobs, err := s.dao.FetchDueJobs(ctx, limit)
 	if err != nil {
 		return nil, err
 	}
+
 	results := make([]*NotificationJob, 0, len(jobs))
 	for _, job := range jobs {
 		updated, procErr := s.processJob(ctx, job)
 		if procErr != nil {
-			// 继续处理其他任务，错误在响应中通过 job 状态反映
+			// Continue processing the remaining jobs; callers can inspect each job status.
 		}
 		results = append(results, updated)
 	}
+
 	return results, nil
 }
 
@@ -276,28 +278,27 @@ func (s *notificationService) processJob(ctx context.Context, job *NotificationJ
 	if job == nil {
 		return nil, fmt.Errorf("job is nil")
 	}
-	ok, err := s.repo.MarkJobProcessing(ctx, job.ID)
+	ok, err := s.dao.MarkJobProcessing(ctx, job.ID)
 	if err != nil {
 		return job, err
 	}
 	if !ok {
-		// already taken by another worker
 		return job, nil
 	}
 	now := time.Now()
 	job.Status = JobProcessing
 	job.LastAttemptAt = &now
 
-	notif, err := s.repo.GetByID(ctx, job.NotificationID.String())
+	notif, err := s.dao.GetByID(ctx, job.NotificationID.String())
 	if err != nil {
 		job.Attempts++
 		job.Status = JobFailed
 		job.LastError = err.Error()
-		_ = s.repo.MarkJobFailed(ctx, job.ID, job.Attempts, err.Error())
+		_ = s.dao.MarkJobFailed(ctx, job.ID, job.Attempts, err.Error())
 		return job, err
 	}
 
-	_ = s.repo.UpdateNotificationFields(ctx, notif.ID.String(), map[string]interface{}{
+	_ = s.dao.UpdateNotificationFields(ctx, notif.ID.String(), map[string]interface{}{
 		"status":      StatusProcessing,
 		"fail_reason": "",
 	})
@@ -308,8 +309,8 @@ func (s *notificationService) processJob(ctx context.Context, job *NotificationJ
 		job.LastError = dispatchErr.Error()
 		if job.Attempts >= job.MaxAttempts {
 			job.Status = JobFailed
-			_ = s.repo.MarkJobFailed(ctx, job.ID, job.Attempts, dispatchErr.Error())
-			_ = s.repo.UpdateNotificationFields(ctx, notif.ID.String(), map[string]interface{}{
+			_ = s.dao.MarkJobFailed(ctx, job.ID, job.Attempts, dispatchErr.Error())
+			_ = s.dao.UpdateNotificationFields(ctx, notif.ID.String(), map[string]interface{}{
 				"status":      StatusFailed,
 				"fail_reason": dispatchErr.Error(),
 			})
@@ -318,15 +319,15 @@ func (s *notificationService) processJob(ctx context.Context, job *NotificationJ
 		if s.retryBaseBackoff <= 0 {
 			s.retryBaseBackoff = defaultRetryDelay
 		}
-		// 指数退避: base * 2^(attempts-1)
+		// Exponential backoff: base * 2^(attempts-1)
 		backoffMultiplier := int64(1) << (uint(job.Attempts) - 1)
 		delay := s.retryBaseBackoff * time.Duration(backoffMultiplier)
 		next := time.Now().Add(delay)
-		
+
 		job.Status = JobPending
 		job.NextRetryAt = &next
-		_ = s.repo.RescheduleJob(ctx, job.ID, job.Attempts, next, dispatchErr.Error())
-		_ = s.repo.UpdateNotificationFields(ctx, notif.ID.String(), map[string]interface{}{
+		_ = s.dao.RescheduleJob(ctx, job.ID, job.Attempts, next, dispatchErr.Error())
+		_ = s.dao.UpdateNotificationFields(ctx, notif.ID.String(), map[string]interface{}{
 			"status":      StatusQueued,
 			"fail_reason": dispatchErr.Error(),
 		})
@@ -336,10 +337,10 @@ func (s *notificationService) processJob(ctx context.Context, job *NotificationJ
 	job.Status = JobSucceeded
 	job.LastError = ""
 	job.NextRetryAt = nil
-	_ = s.repo.MarkJobSucceeded(ctx, job.ID)
+	_ = s.dao.MarkJobSucceeded(ctx, job.ID)
 
 	sentAt := time.Now()
-	_ = s.repo.UpdateNotificationFields(ctx, notif.ID.String(), map[string]interface{}{
+	_ = s.dao.UpdateNotificationFields(ctx, notif.ID.String(), map[string]interface{}{
 		"status":      StatusSent,
 		"sent_at":     sentAt,
 		"fail_reason": "",

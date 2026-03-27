@@ -22,6 +22,21 @@ export function ApiKeyManagement() {
   const { language } = useLanguageStore();
   const { compactMode } = useProfilePreferenceSettings();
   const zh = language === 'zh';
+  const copy = {
+    securityNotice: zh ? '安全提示' : 'Security Notice',
+    securityDesc: zh
+      ? 'API 密钥仅在创建时展示完整内容，请立即复制并妥善保存；如怀疑泄露，请及时删除并重新生成。'
+      : 'A full API key is only shown once when created. Copy and store it securely.',
+    keyName: zh ? '密钥名称' : 'Key Name',
+    keyNamePlaceholder: zh ? '例如：生产环境只读密钥' : 'For example: production read-only key',
+    createKey: zh ? '创建密钥' : 'Create Key',
+    cancel: zh ? '取消' : 'Cancel',
+    createNewKey: zh ? '创建新密钥' : 'Create New Key',
+    refresh: zh ? '刷新' : 'Refresh',
+    createdAt: zh ? '创建时间' : 'Created',
+    lastUsed: zh ? '最近使用' : 'Last used',
+    noKeys: zh ? '暂无 API 密钥' : 'No API keys yet',
+  };
 
   const {
     creating,
@@ -41,12 +56,8 @@ export function ApiKeyManagement() {
   return (
     <div className={compactMode ? 'space-y-3' : 'space-y-4'}>
       <Card className="border-orange-200 bg-orange-50 p-4">
-        <p className="text-sm font-medium text-orange-900">{zh ? '安全提示' : 'Security Notice'}</p>
-        <p className="mt-1 text-xs text-orange-700">
-          {zh
-            ? 'API 密钥仅在创建时展示完整内容，请立即复制并妥善保存；如怀疑泄露，请及时删除并重新生成。'
-            : 'A full API key is only shown once when created. Copy and store it securely.'}
-        </p>
+        <p className="text-sm font-medium text-orange-900">{copy.securityNotice}</p>
+        <p className="mt-1 text-xs text-orange-700">{copy.securityDesc}</p>
       </Card>
 
       {creating ? (
@@ -56,20 +67,20 @@ export function ApiKeyManagement() {
         >
           <div className="space-y-3">
             <div>
-              <Label style={{ color: theme.colors.text }}>{zh ? '密钥名称' : 'Key Name'}</Label>
+              <Label style={{ color: theme.colors.text }}>{copy.keyName}</Label>
               <Input
                 value={newKeyName}
                 onChange={(event) => setNewKeyName(event.target.value)}
-                placeholder={zh ? '例如：生产环境只读密钥' : 'For example: production read-only key'}
+                placeholder={copy.keyNamePlaceholder}
                 className="mt-2"
               />
             </div>
             <div className="flex gap-2">
               <Button onClick={createKey} disabled={loading}>
-                {zh ? '创建密钥' : 'Create Key'}
+                {copy.createKey}
               </Button>
               <Button variant="outline" onClick={() => setCreating(false)} disabled={loading}>
-                {zh ? '取消' : 'Cancel'}
+                {copy.cancel}
               </Button>
             </div>
           </div>
@@ -78,11 +89,11 @@ export function ApiKeyManagement() {
         <div className="flex gap-2">
           <Button onClick={() => setCreating(true)} className="gap-2">
             <Plus className="h-4 w-4" />
-            {zh ? '创建新密钥' : 'Create New Key'}
+            {copy.createNewKey}
           </Button>
           <Button variant="outline" onClick={loadApiKeys} disabled={loading} className="gap-2">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            {zh ? '刷新' : 'Refresh'}
+            {copy.refresh}
           </Button>
         </div>
       )}
@@ -111,8 +122,8 @@ export function ApiKeyManagement() {
                       {item.name}
                     </div>
                     <div className="mt-1 text-xs" style={{ color: theme.colors.textSecondary }}>
-                      {zh ? '创建时间' : 'Created'}: {item.created_at}
-                      {item.last_used ? ` · ${zh ? '最近使用' : 'Last used'}: ${item.last_used}` : ''}
+                      {copy.createdAt}: {item.created_at}
+                      {item.last_used ? ` · ${copy.lastUsed}: ${item.last_used}` : ''}
                     </div>
                   </div>
                 </div>
@@ -160,7 +171,7 @@ export function ApiKeyManagement() {
               color: theme.colors.textSecondary,
             }}
           >
-            {zh ? '暂无 API 密钥' : 'No API keys yet'}
+            {copy.noKeys}
           </Card>
         ) : null}
       </div>

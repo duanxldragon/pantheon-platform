@@ -51,17 +51,17 @@ type Container interface {
 	GetMonitorService() monitor.MonitorService
 	SetRedisClient(rc *cache.RedisClient)
 
-	GetUserRepository() user.UserRepository
-	GetRoleRepository() role.RoleRepository
-	GetPermissionRepository() permission.PermissionRepository
-	GetDepartmentRepository() dept.DepartmentRepository
-	GetPositionRepository() position.PositionRepository
-	GetMenuRepository() menu.MenuRepository
-	GetDictTypeRepository() dict.DictTypeRepository
-	GetDictDataRepository() dict.DictDataRepository
-	GetOperationLogRepository() log.OperationLogRepository
-	GetLoginLogRepository() log.LoginLogRepository
-	GetSettingRepository() setting.SettingRepository
+	GetUserDAO() user.UserDAO
+	GetRoleDAO() role.RoleDAO
+	GetPermissionDAO() permission.PermissionDAO
+	GetDepartmentDAO() dept.DepartmentDAO
+	GetPositionDAO() position.PositionDAO
+	GetMenuDAO() menu.MenuDAO
+	GetDictTypeDAO() dict.DictTypeDAO
+	GetDictDataDAO() dict.DictDataDAO
+	GetOperationLogDAO() log.OperationLogDAO
+	GetLoginLogDAO() log.LoginLogDAO
+	GetSettingDAO() setting.SettingDAO
 	GetTransactionManager() database.TransactionManager
 }
 
@@ -97,17 +97,17 @@ type container struct {
 	settingHandler    *setting.SettingHandler
 	monitorHandler    *monitor.MonitorHandler
 
-	userRepo     user.UserRepository
-	roleRepo     role.RoleRepository
-	permRepo     permission.PermissionRepository
-	deptRepo     dept.DepartmentRepository
-	posRepo      position.PositionRepository
-	menuRepo     menu.MenuRepository
-	dictTypeRepo dict.DictTypeRepository
-	dictDataRepo dict.DictDataRepository
-	opLogRepo    log.OperationLogRepository
-	loginLogRepo log.LoginLogRepository
-	settingRepo  setting.SettingRepository
+	userDAO     user.UserDAO
+	roleDAO     role.RoleDAO
+	permDAO     permission.PermissionDAO
+	deptDAO     dept.DepartmentDAO
+	posDAO      position.PositionDAO
+	menuDAO     menu.MenuDAO
+	dictTypeDAO dict.DictTypeDAO
+	dictDataDAO dict.DictDataDAO
+	opLogDAO    log.OperationLogDAO
+	loginLogDAO log.LoginLogDAO
+	settingDAO  setting.SettingDAO
 }
 
 func NewContainer(
@@ -127,50 +127,50 @@ func NewContainer(
 		storageProvider: storageProvider,
 	}
 
-	c.initRepositories()
+	c.initDAOs()
 	c.initServices()
 	c.initHandlers()
 
 	return c
 }
 
-func (c *container) initRepositories() {
-	c.userRepo = user.NewUserRepository(c.db)
-	c.roleRepo = role.NewRoleRepository(c.db)
-	c.permRepo = permission.NewPermissionRepository(c.db)
-	c.deptRepo = dept.NewDepartmentRepository(c.db)
-	c.posRepo = position.NewPositionRepository(c.db)
-	c.menuRepo = menu.NewMenuRepository(c.db)
-	c.dictTypeRepo = dict.NewDictTypeRepository(c.db)
-	c.dictDataRepo = dict.NewDictDataRepository(c.db)
-	c.opLogRepo = log.NewOperationLogRepository(c.db)
-	c.loginLogRepo = log.NewLoginLogRepository(c.db)
-	c.settingRepo = setting.NewSettingRepository(c.db)
+func (c *container) initDAOs() {
+	c.userDAO = user.NewUserDAO(c.db)
+	c.roleDAO = role.NewRoleDAO(c.db)
+	c.permDAO = permission.NewPermissionDAO(c.db)
+	c.deptDAO = dept.NewDepartmentDAO(c.db)
+	c.posDAO = position.NewPositionDAO(c.db)
+	c.menuDAO = menu.NewMenuDAO(c.db)
+	c.dictTypeDAO = dict.NewDictTypeDAO(c.db)
+	c.dictDataDAO = dict.NewDictDataDAO(c.db)
+	c.opLogDAO = log.NewOperationLogDAO(c.db)
+	c.loginLogDAO = log.NewLoginLogDAO(c.db)
+	c.settingDAO = setting.NewSettingDAO(c.db)
 }
 
 func (c *container) initServices() {
 	txManager := database.NewTransactionManager(c.db, c.dbManager)
 	quotaValidator := &quotaValidatorAdapter{svc: c.quotaSvc}
-	userDirectory := &userDirectoryAdapter{repo: c.userRepo}
-	deptValidator := &departmentValidatorAdapter{repo: c.deptRepo}
-	positionValidator := &positionValidatorAdapter{repo: c.posRepo}
-	roleValidator := &roleValidatorAdapter{repo: c.roleRepo}
-	permissionValidator := &permissionValidatorAdapter{repo: c.permRepo}
+	userDirectory := &userDirectoryAdapter{dao: c.userDAO}
+	deptValidator := &departmentValidatorAdapter{dao: c.deptDAO}
+	positionValidator := &positionValidatorAdapter{dao: c.posDAO}
+	roleValidator := &roleValidatorAdapter{dao: c.roleDAO}
+	permissionValidator := &permissionValidatorAdapter{dao: c.permDAO}
 	authProvider := &authorizationAdapter{svc: c.authz}
 	passwordValidator := &passwordPolicyAdapter{}
 
-	c.logService = log.NewLogService(c.opLogRepo, c.loginLogRepo, c.monitorDB)
-	c.departmentService = dept.NewDepartmentService(c.deptRepo, userDirectory, authProvider, txManager)
-	c.positionService = position.NewPositionService(c.posRepo, deptValidator, userDirectory, authProvider, txManager)
-	c.menuService = menu.NewMenuService(c.menuRepo, authProvider, txManager)
-	c.dictService = dict.NewDictService(c.dictTypeRepo, c.dictDataRepo, txManager)
-	c.permissionService = permission.NewPermissionService(c.permRepo, authProvider, txManager)
-	c.settingService = setting.NewSettingService(c.settingRepo)
+	c.logService = log.NewLogService(c.opLogDAO, c.loginLogDAO, c.monitorDB)
+	c.departmentService = dept.NewDepartmentService(c.deptDAO, userDirectory, authProvider, txManager)
+	c.positionService = position.NewPositionService(c.posDAO, deptValidator, userDirectory, authProvider, txManager)
+	c.menuService = menu.NewMenuService(c.menuDAO, authProvider, txManager)
+	c.dictService = dict.NewDictService(c.dictTypeDAO, c.dictDataDAO, txManager)
+	c.permissionService = permission.NewPermissionService(c.permDAO, authProvider, txManager)
+	c.settingService = setting.NewSettingService(c.settingDAO)
 	c.monitorService = monitor.NewMonitorService(c.db, c.monitorDB, nil)
 
 	c.roleService = role.NewRoleService(
-		c.roleRepo,
-		c.menuRepo,
+		c.roleDAO,
+		c.menuDAO,
 		permissionValidator,
 		userDirectory,
 		quotaValidator,
@@ -179,7 +179,7 @@ func (c *container) initServices() {
 	)
 
 	c.userService = user.NewUserService(
-		c.userRepo,
+		c.userDAO,
 		roleValidator,
 		deptValidator,
 		positionValidator,
@@ -232,17 +232,17 @@ func (c *container) SetRedisClient(rc *cache.RedisClient) {
 	c.monitorHandler = monitor.NewMonitorHandler(c.monitorService)
 }
 
-func (c *container) GetUserRepository() user.UserRepository                   { return c.userRepo }
-func (c *container) GetRoleRepository() role.RoleRepository                   { return c.roleRepo }
-func (c *container) GetPermissionRepository() permission.PermissionRepository { return c.permRepo }
-func (c *container) GetDepartmentRepository() dept.DepartmentRepository       { return c.deptRepo }
-func (c *container) GetPositionRepository() position.PositionRepository       { return c.posRepo }
-func (c *container) GetMenuRepository() menu.MenuRepository                   { return c.menuRepo }
-func (c *container) GetDictTypeRepository() dict.DictTypeRepository           { return c.dictTypeRepo }
-func (c *container) GetDictDataRepository() dict.DictDataRepository           { return c.dictDataRepo }
-func (c *container) GetOperationLogRepository() log.OperationLogRepository    { return c.opLogRepo }
-func (c *container) GetLoginLogRepository() log.LoginLogRepository            { return c.loginLogRepo }
-func (c *container) GetSettingRepository() setting.SettingRepository          { return c.settingRepo }
+func (c *container) GetUserDAO() user.UserDAO                   { return c.userDAO }
+func (c *container) GetRoleDAO() role.RoleDAO                   { return c.roleDAO }
+func (c *container) GetPermissionDAO() permission.PermissionDAO { return c.permDAO }
+func (c *container) GetDepartmentDAO() dept.DepartmentDAO       { return c.deptDAO }
+func (c *container) GetPositionDAO() position.PositionDAO       { return c.posDAO }
+func (c *container) GetMenuDAO() menu.MenuDAO                   { return c.menuDAO }
+func (c *container) GetDictTypeDAO() dict.DictTypeDAO           { return c.dictTypeDAO }
+func (c *container) GetDictDataDAO() dict.DictDataDAO           { return c.dictDataDAO }
+func (c *container) GetOperationLogDAO() log.OperationLogDAO    { return c.opLogDAO }
+func (c *container) GetLoginLogDAO() log.LoginLogDAO            { return c.loginLogDAO }
+func (c *container) GetSettingDAO() setting.SettingDAO          { return c.settingDAO }
 func (c *container) GetTransactionManager() database.TransactionManager {
 	return database.NewTransactionManager(c.db, c.dbManager)
 }
@@ -258,14 +258,14 @@ func (a *passwordPolicyAdapter) ValidatePassword(password, username, email strin
 }
 
 type roleValidatorAdapter struct {
-	repo role.RoleRepository
+	dao role.RoleDAO
 }
 
 func (a *roleValidatorAdapter) CheckRoleExists(ctx context.Context, id string) (bool, error) {
-	if a == nil || a.repo == nil {
+	if a == nil || a.dao == nil {
 		return false, nil
 	}
-	_, err := a.repo.GetByID(ctx, id)
+	_, err := a.dao.GetByID(ctx, id)
 	if err == nil {
 		return true, nil
 	}
@@ -276,14 +276,14 @@ func (a *roleValidatorAdapter) CheckRoleExists(ctx context.Context, id string) (
 }
 
 type departmentValidatorAdapter struct {
-	repo dept.DepartmentRepository
+	dao dept.DepartmentDAO
 }
 
 func (a *departmentValidatorAdapter) GetDeptName(ctx context.Context, id string) (string, error) {
-	if a == nil || a.repo == nil || id == "" {
+	if a == nil || a.dao == nil || id == "" {
 		return "", nil
 	}
-	record, err := a.repo.GetByID(ctx, id)
+	record, err := a.dao.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", nil
@@ -294,10 +294,10 @@ func (a *departmentValidatorAdapter) GetDeptName(ctx context.Context, id string)
 }
 
 func (a *departmentValidatorAdapter) CheckDeptExists(ctx context.Context, id string) (bool, error) {
-	if a == nil || a.repo == nil || id == "" {
+	if a == nil || a.dao == nil || id == "" {
 		return false, nil
 	}
-	record, err := a.repo.GetByID(ctx, id)
+	record, err := a.dao.GetByID(ctx, id)
 	if err == nil {
 		return record.Status == "active", nil
 	}
@@ -312,14 +312,14 @@ func (a *departmentValidatorAdapter) CheckDeptValid(ctx context.Context, id stri
 }
 
 type positionValidatorAdapter struct {
-	repo position.PositionRepository
+	dao position.PositionDAO
 }
 
 func (a *positionValidatorAdapter) GetPositionName(ctx context.Context, id string) (string, error) {
-	if a == nil || a.repo == nil || id == "" {
+	if a == nil || a.dao == nil || id == "" {
 		return "", nil
 	}
-	record, err := a.repo.GetByID(ctx, id)
+	record, err := a.dao.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", nil
@@ -330,10 +330,10 @@ func (a *positionValidatorAdapter) GetPositionName(ctx context.Context, id strin
 }
 
 func (a *positionValidatorAdapter) CheckPositionValid(ctx context.Context, id string) (bool, error) {
-	if a == nil || a.repo == nil || id == "" {
+	if a == nil || a.dao == nil || id == "" {
 		return false, nil
 	}
-	record, err := a.repo.GetByID(ctx, id)
+	record, err := a.dao.GetByID(ctx, id)
 	if err == nil {
 		return record.Status == "active", nil
 	}
@@ -344,14 +344,14 @@ func (a *positionValidatorAdapter) CheckPositionValid(ctx context.Context, id st
 }
 
 type userDirectoryAdapter struct {
-	repo user.UserRepository
+	dao user.UserDAO
 }
 
 func (a *userDirectoryAdapter) GetUserName(ctx context.Context, id string) (string, error) {
-	if a == nil || a.repo == nil || id == "" {
+	if a == nil || a.dao == nil || id == "" {
 		return "", nil
 	}
-	record, err := a.repo.GetByID(ctx, id)
+	record, err := a.dao.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", nil
@@ -365,10 +365,10 @@ func (a *userDirectoryAdapter) GetUserName(ctx context.Context, id string) (stri
 }
 
 func (a *userDirectoryAdapter) CheckUserExists(ctx context.Context, id string) (bool, error) {
-	if a == nil || a.repo == nil || id == "" {
+	if a == nil || a.dao == nil || id == "" {
 		return false, nil
 	}
-	_, err := a.repo.GetByID(ctx, id)
+	_, err := a.dao.GetByID(ctx, id)
 	if err == nil {
 		return true, nil
 	}
@@ -379,10 +379,10 @@ func (a *userDirectoryAdapter) CheckUserExists(ctx context.Context, id string) (
 }
 
 func (a *userDirectoryAdapter) HasUsersInDept(ctx context.Context, deptID string) (bool, error) {
-	if a == nil || a.repo == nil || deptID == "" {
+	if a == nil || a.dao == nil || deptID == "" {
 		return false, nil
 	}
-	count, err := a.repo.Count(ctx, map[string]interface{}{"department_id": deptID})
+	count, err := a.dao.Count(ctx, map[string]interface{}{"department_id": deptID})
 	if err != nil {
 		return false, err
 	}
@@ -390,35 +390,35 @@ func (a *userDirectoryAdapter) HasUsersInDept(ctx context.Context, deptID string
 }
 
 func (a *userDirectoryAdapter) ListUserIDsByDepartmentIDs(ctx context.Context, departmentIDs []string) ([]string, error) {
-	if a == nil || a.repo == nil {
+	if a == nil || a.dao == nil {
 		return []string{}, nil
 	}
-	return a.repo.ListUserIDsByDepartmentIDs(ctx, departmentIDs)
+	return a.dao.ListUserIDsByDepartmentIDs(ctx, departmentIDs)
 }
 
 func (a *userDirectoryAdapter) ListUserIDsByPositionID(ctx context.Context, positionID string) ([]string, error) {
-	if a == nil || a.repo == nil {
+	if a == nil || a.dao == nil {
 		return []string{}, nil
 	}
-	return a.repo.ListUserIDsByPositionID(ctx, positionID)
+	return a.dao.ListUserIDsByPositionID(ctx, positionID)
 }
 
 func (a *userDirectoryAdapter) CheckRoleInUse(ctx context.Context, roleID string) (bool, error) {
-	if a == nil || a.repo == nil || roleID == "" {
+	if a == nil || a.dao == nil || roleID == "" {
 		return false, nil
 	}
-	return a.repo.CheckRoleInUse(ctx, roleID)
+	return a.dao.CheckRoleInUse(ctx, roleID)
 }
 
 type permissionValidatorAdapter struct {
-	repo permission.PermissionRepository
+	dao permission.PermissionDAO
 }
 
 func (a *permissionValidatorAdapter) CheckPermissionExists(ctx context.Context, id string) (bool, error) {
-	if a == nil || a.repo == nil || id == "" {
+	if a == nil || a.dao == nil || id == "" {
 		return false, nil
 	}
-	_, err := a.repo.GetByID(ctx, id)
+	_, err := a.dao.GetByID(ctx, id)
 	if err == nil {
 		return true, nil
 	}
@@ -430,11 +430,11 @@ func (a *permissionValidatorAdapter) CheckPermissionExists(ctx context.Context, 
 
 func (a *permissionValidatorAdapter) GetPermissionRules(ctx context.Context, ids []string) ([]role.PermissionRule, error) {
 	rules := make([]role.PermissionRule, 0, len(ids))
-	if a == nil || a.repo == nil {
+	if a == nil || a.dao == nil {
 		return rules, nil
 	}
 	for _, id := range ids {
-		record, err := a.repo.GetByID(ctx, id)
+		record, err := a.dao.GetByID(ctx, id)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, errors.New("permission not found")

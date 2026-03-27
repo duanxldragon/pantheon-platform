@@ -64,6 +64,23 @@ func (ApiKey) TableName() string {
 	return "api_keys"
 }
 
+// TwoFactorAuth stores two-factor authentication settings.
+type TwoFactorAuth struct {
+	ID          uint   `gorm:"primaryKey"`
+	UserID      string `gorm:"size:36;not null;index" json:"user_id"`
+	TenantID    string `gorm:"size:36;not null;index" json:"tenant_id"`
+	Secret      string `gorm:"type:text;not null" json:"secret"`
+	Enabled     bool   `gorm:"default:false;not null" json:"enabled"`
+	BackupCodes string `gorm:"type:text" json:"backup_codes"`
+	CreatedAt   int64  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt   int64  `gorm:"autoUpdateTime" json:"updated_at"`
+}
+
+// TableName returns the table name for TwoFactorAuth.
+func (TwoFactorAuth) TableName() string {
+	return "two_factor_auth"
+}
+
 // BeforeCreate hook to set UUID before creating
 func (la *LoginAttempt) BeforeCreate(tx *gorm.DB) error {
 	if la.ID == uuid.Nil {

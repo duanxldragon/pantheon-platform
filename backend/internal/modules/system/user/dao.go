@@ -10,8 +10,8 @@ import (
 	"pantheon-platform/backend/internal/shared/database"
 )
 
-// UserRepository defines user DAO behavior.
-type UserRepository interface {
+// UserDAO defines user DAO behavior.
+type UserDAO interface {
 	database.DAO[User]
 	database.TenantMigrator
 	GetByUsername(ctx context.Context, username string) (*User, error)
@@ -41,26 +41,26 @@ type UserRoleInfo struct {
 	Name string
 }
 
-// userRepository implements user DAO behavior.
-type userRepository struct {
+// userDAO implements user DAO behavior.
+type userDAO struct {
 	*database.BaseDAO[User]
 }
 
-// NewUserRepository creates a user repository.
-func NewUserRepository(db *gorm.DB) UserRepository {
-	return &userRepository{
+// NewUserDAO creates a user DAO.
+func NewUserDAO(db *gorm.DB) UserDAO {
+	return &userDAO{
 		BaseDAO: database.NewBaseDAO[User](db),
 	}
 }
 
-func (r *userRepository) GetTenantModels() []interface{} {
+func (r *userDAO) GetTenantModels() []interface{} {
 	return []interface{}{
 		&User{},
 		&UserRole{},
 	}
 }
 
-func (r *userRepository) GetByUsername(ctx context.Context, username string) (*User, error) {
+func (r *userDAO) GetByUsername(ctx context.Context, username string) (*User, error) {
 	var u User
 	err := r.GetDB(ctx).Where("username = ?", username).First(&u).Error
 	if err != nil {
@@ -72,7 +72,7 @@ func (r *userRepository) GetByUsername(ctx context.Context, username string) (*U
 	return &u, nil
 }
 
-func (r *userRepository) GetByEmail(ctx context.Context, email string) (*User, error) {
+func (r *userDAO) GetByEmail(ctx context.Context, email string) (*User, error) {
 	var u User
 	err := r.GetDB(ctx).Where("email = ?", email).First(&u).Error
 	if err != nil {
@@ -84,7 +84,7 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*User, e
 	return &u, nil
 }
 
-func (r *userRepository) GetByPhone(ctx context.Context, phone string) (*User, error) {
+func (r *userDAO) GetByPhone(ctx context.Context, phone string) (*User, error) {
 	var u User
 	err := r.GetDB(ctx).Where("phone = ?", phone).First(&u).Error
 	if err != nil {
@@ -96,11 +96,11 @@ func (r *userRepository) GetByPhone(ctx context.Context, phone string) (*User, e
 	return &u, nil
 }
 
-func (r *userRepository) UpdateStatus(ctx context.Context, id string, status string) error {
+func (r *userDAO) UpdateStatus(ctx context.Context, id string, status string) error {
 	return r.GetDB(ctx).Model(&User{}).Where("id = ?", id).Update("status", status).Error
 }
 
-func (r *userRepository) UpdateLastLogin(ctx context.Context, id string, ip string) error {
+func (r *userDAO) UpdateLastLogin(ctx context.Context, id string, ip string) error {
 	return r.GetDB(ctx).Model(&User{}).Where("id = ?", id).
 		Updates(map[string]interface{}{
 			"last_login_at": gorm.Expr("NOW()"),
@@ -108,7 +108,7 @@ func (r *userRepository) UpdateLastLogin(ctx context.Context, id string, ip stri
 		}).Error
 }
 
-func (r *userRepository) AssignRole(ctx context.Context, userID, roleID string) error {
+func (r *userDAO) AssignRole(ctx context.Context, userID, roleID string) error {
 	uUUID, _ := uuid.Parse(userID)
 	rUUID, _ := uuid.Parse(roleID)
 	ur := &UserRole{
@@ -119,15 +119,15 @@ func (r *userRepository) AssignRole(ctx context.Context, userID, roleID string) 
 	return r.GetDB(ctx).Create(ur).Error
 }
 
-func (r *userRepository) RemoveRole(ctx context.Context, userID, roleID string) error {
+func (r *userDAO) RemoveRole(ctx context.Context, userID, roleID string) error {
 	return r.GetDB(ctx).Where("user_id = ? AND role_id = ?", userID, roleID).Delete(&UserRole{}).Error
 }
 
-func (r *userRepository) ClearRoles(ctx context.Context, userID string) error {
+func (r *userDAO) ClearRoles(ctx context.Context, userID string) error {
 	return r.GetDB(ctx).Where("user_id = ?", userID).Delete(&UserRole{}).Error
 }
 
-func (r *userRepository) GetRoles(ctx context.Context, userID string) ([]*UserRoleInfo, error) {
+func (r *userDAO) GetRoles(ctx context.Context, userID string) ([]*UserRoleInfo, error) {
 	var roles []*UserRoleInfo
 	err := r.GetDB(ctx).
 		Table("system_roles").
@@ -138,7 +138,7 @@ func (r *userRepository) GetRoles(ctx context.Context, userID string) ([]*UserRo
 	return roles, err
 }
 
-func (r *userRepository) BatchGetRoles(ctx context.Context, userIDs []string) (map[string][]*UserRoleInfo, error) {
+func (r *userDAO) BatchGetRoles(ctx context.Context, userIDs []string) (map[string][]*UserRoleInfo, error) {
 	if len(userIDs) == 0 {
 		return make(map[string][]*UserRoleInfo), nil
 	}
@@ -164,29 +164,29 @@ func (r *userRepository) BatchGetRoles(ctx context.Context, userIDs []string) (m
 	return resMap, nil
 }
 
-func (r *userRepository) AssignDepartment(ctx context.Context, userID, departmentID string) error {
+func (r *userDAO) AssignDepartment(ctx context.Context, userID, departmentID string) error {
 	return r.GetDB(ctx).Model(&User{}).Where("id = ?", userID).Update("department_id", departmentID).Error
 }
 
-func (r *userRepository) RemoveDepartment(ctx context.Context, userID string) error {
+func (r *userDAO) RemoveDepartment(ctx context.Context, userID string) error {
 	return r.GetDB(ctx).Model(&User{}).Where("id = ?", userID).Update("department_id", nil).Error
 }
 
-func (r *userRepository) AssignPosition(ctx context.Context, userID, positionID string) error {
+func (r *userDAO) AssignPosition(ctx context.Context, userID, positionID string) error {
 	return r.GetDB(ctx).Model(&User{}).Where("id = ?", userID).Update("position_id", positionID).Error
 }
 
-func (r *userRepository) RemovePosition(ctx context.Context, userID string) error {
+func (r *userDAO) RemovePosition(ctx context.Context, userID string) error {
 	return r.GetDB(ctx).Model(&User{}).Where("id = ?", userID).Update("position_id", nil).Error
 }
 
-func (r *userRepository) CheckRoleInUse(ctx context.Context, roleID string) (bool, error) {
+func (r *userDAO) CheckRoleInUse(ctx context.Context, roleID string) (bool, error) {
 	var count int64
 	err := r.GetDB(ctx).Model(&UserRole{}).Where("role_id = ?", roleID).Count(&count).Error
 	return count > 0, err
 }
 
-func (r *userRepository) ListUserIDsByDepartmentIDs(ctx context.Context, departmentIDs []string) ([]string, error) {
+func (r *userDAO) ListUserIDsByDepartmentIDs(ctx context.Context, departmentIDs []string) ([]string, error) {
 	if len(departmentIDs) == 0 {
 		return []string{}, nil
 	}
@@ -195,7 +195,7 @@ func (r *userRepository) ListUserIDsByDepartmentIDs(ctx context.Context, departm
 	return ids, err
 }
 
-func (r *userRepository) ListUserIDsByPositionID(ctx context.Context, positionID string) ([]string, error) {
+func (r *userDAO) ListUserIDsByPositionID(ctx context.Context, positionID string) ([]string, error) {
 	if positionID == "" {
 		return []string{}, nil
 	}
@@ -204,8 +204,8 @@ func (r *userRepository) ListUserIDsByPositionID(ctx context.Context, positionID
 	return ids, err
 }
 
-func (r *userRepository) WithTx(tx *gorm.DB) database.DAO[User] {
-	return &userRepository{
+func (r *userDAO) WithTx(tx *gorm.DB) database.DAO[User] {
+	return &userDAO{
 		BaseDAO: database.NewBaseDAO[User](tx),
 	}
 }

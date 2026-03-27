@@ -32,11 +32,3 @@ func (h *MonitorHandler) OnlineUsers(c *gin.Context) {
 	}
 	response.Success(c, resp)
 }
-
-func (h *MonitorHandler) RegisterRoutes(group *gin.RouterGroup) {
-	mon := group.Group("/monitor")
-	{
-		mon.GET("/overview", h.Overview)
-		mon.GET("/online-users", h.OnlineUsers)
-	}
-}
