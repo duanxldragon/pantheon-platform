@@ -17,6 +17,17 @@ export function PersonalInfo() {
   const { language, t } = useLanguageStore();
   const { compactMode } = useProfilePreferenceSettings();
   const zh = language === 'zh';
+  const copy = {
+    updateFailed: zh ? '更新失败' : 'Update failed',
+    imageOnly: zh ? '请选择图片文件' : 'Please select an image file',
+    imageTooLarge: zh ? '图片大小不能超过 2MB' : 'Image size cannot exceed 2MB',
+    avatarUpdated: zh ? '头像已更新' : 'Avatar updated',
+    avatarUploadFailed: zh ? '头像上传失败' : 'Avatar upload failed',
+    uploading: zh ? '上传中...' : 'Uploading...',
+    changeAvatar: zh ? '更换头像' : 'Change Avatar',
+    lastLoginTime: zh ? '最后登录时间' : 'Last Login Time',
+    lastLoginIp: zh ? '最后登录 IP' : 'Last Login IP',
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState(false);
@@ -56,7 +67,7 @@ export function PersonalInfo() {
       systemNotification.success(t.profile.messages.updateProfileSuccess);
       setEditing(false);
     } catch (error: any) {
-      systemNotification.error(error?.message || (zh ? '更新失败' : 'Update failed'));
+      systemNotification.error(error?.message || copy.updateFailed);
     } finally {
       setSaving(false);
     }
@@ -76,11 +87,11 @@ export function PersonalInfo() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      systemNotification.error(zh ? '请选择图片文件' : 'Please select an image file');
+      systemNotification.error(copy.imageOnly);
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      systemNotification.error(zh ? '图片大小不能超过 2MB' : 'Image size cannot exceed 2MB');
+      systemNotification.error(copy.imageTooLarge);
       return;
     }
 
@@ -90,9 +101,9 @@ export function PersonalInfo() {
       const avatarUrl = res.data.url;
       await authApi.updateProfile({ avatar: avatarUrl });
       updateUser({ avatar: avatarUrl });
-      systemNotification.success(zh ? '头像已更新' : 'Avatar updated');
+      systemNotification.success(copy.avatarUpdated);
     } catch (error: any) {
-      systemNotification.error(error?.message || (zh ? '头像上传失败' : 'Avatar upload failed'));
+      systemNotification.error(error?.message || copy.avatarUploadFailed);
     } finally {
       setUploadingAvatar(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -138,7 +149,7 @@ export function PersonalInfo() {
           <div className="text-sm" style={{ color: theme.colors.textSecondary }}>{user?.username || '-'}</div>
           <Button variant="outline" size="sm" onClick={triggerFileInput} disabled={uploadingAvatar}>
             <Camera className="mr-2 h-4 w-4" />
-            {uploadingAvatar ? (zh ? '上传中...' : 'Uploading...') : zh ? '更换头像' : 'Change Avatar'}
+            {uploadingAvatar ? copy.uploading : copy.changeAvatar}
           </Button>
         </div>
       </div>
@@ -189,11 +200,11 @@ export function PersonalInfo() {
 
       <div className={compactMode ? 'grid grid-cols-1 gap-3 border-t pt-4 md:grid-cols-2' : 'grid grid-cols-1 gap-4 border-t pt-6 md:grid-cols-2'} style={{ borderColor: theme.colors.border }}>
         <div className="space-y-2">
-          <Label>{zh ? '最后登录时间' : 'Last Login Time'}</Label>
+          <Label>{copy.lastLoginTime}</Label>
           <Input value={user?.lastLoginTime ? new Date(user.lastLoginTime).toLocaleString(zh ? 'zh-CN' : 'en-US') : '-'} disabled />
         </div>
         <div className="space-y-2">
-          <Label>{zh ? '最后登录 IP' : 'Last Login IP'}</Label>
+          <Label>{copy.lastLoginIp}</Label>
           <Input value={user?.lastLoginIp ?? '-'} disabled />
         </div>
       </div>

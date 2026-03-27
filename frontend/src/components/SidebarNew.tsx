@@ -137,7 +137,7 @@ export function SidebarNew({ onNavigate }: SidebarNewProps) {
       },
       { id: 'deploy-center', label: t.menu.deploy, icon: Send, permissions: ['deploy:view'] },
       { id: 'operations-center', label: t.menu.operations, icon: Activity, permissions: ['ops:view'] },
-      { id: 'notification-center', label: t.notification.title || '通知中心', icon: Bell },
+      { id: 'notification-center', label: t.notification.title, icon: Bell },
     ];
   }, [menus, hasPermission, t]);
 

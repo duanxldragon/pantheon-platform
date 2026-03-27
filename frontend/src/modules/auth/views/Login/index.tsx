@@ -108,7 +108,7 @@ export function Login() {
 
               {showTenantCode && (
                 <div className="space-y-2">
-                  <Label htmlFor="tenantCode">{t.login.tenantCode || '租户代码'}</Label>
+                  <Label htmlFor="tenantCode">{t.login.tenantCode}</Label>
                   <div className="relative">
                     <Server className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <Input
@@ -118,7 +118,7 @@ export function Login() {
                         setTenantCode(event.target.value);
                         clearError('tenantCode');
                       }}
-                      placeholder={t.login.tenantCodePlaceholder || '请输入租户代码'}
+                      placeholder={t.login.tenantCodePlaceholder}
                       className="pl-9"
                       disabled={isLoading}
                     />
@@ -192,7 +192,7 @@ export function Login() {
               </div>
 
               <Button type="submit" className="h-11 w-full" disabled={isLoading}>
-                {isLoading ? (isZh ? '登录中...' : 'Signing in...') : t.login.loginButton}
+                {isLoading ? t.login.loggingIn : t.login.loginButton}
               </Button>
 
               <div className="flex justify-center pt-2">
@@ -200,7 +200,7 @@ export function Login() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-2">
                       <Languages className="h-4 w-4" />
-                      {isZh ? '语言' : 'Language'}
+                      {t.topBar.language}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="center">
