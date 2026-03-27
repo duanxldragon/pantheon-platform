@@ -19,6 +19,7 @@
 ## 治理与部署
 
 - [系统检查清单](governance/SYSTEM_CHECKLIST.md)
+- [Git 提交规范](governance/GIT_COMMIT_GUIDE.md)
 - [部署说明](deploy/DEPLOYMENT.md)
 
 ## 实现视角入口
@@ -53,3 +54,4 @@
 - `backend/docs/`：后端专题实现
 - `frontend/docs/`：前端专题实现
 - `backend/api/swagger/`：接口生成产物
+
