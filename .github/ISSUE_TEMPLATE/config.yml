@@ -1,0 +1,5 @@
+﻿blank_issues_enabled: true
+contact_links:
+  - name: Project Docs
+    url: https://github.com/duanxldragon/pantheon-platform/blob/main/README.md
+    about: Read the project overview and document index before opening an issue.

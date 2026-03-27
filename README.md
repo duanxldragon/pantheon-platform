@@ -159,6 +159,7 @@ docker compose up -d
 - `docs/auth/AUTH_SESSION_STRATEGY.md`
 - `docs/tenant/TENANT_INITIALIZATION.md`
 - `docs/governance/GIT_COMMIT_GUIDE.md`
+- `docs/governance/GITHUB_REPOSITORY_GUIDE.md`
 - `docs/governance/SYSTEM_CHECKLIST.md`
 - `docs/deploy/DEPLOYMENT.md`
 
@@ -200,3 +201,4 @@ docker compose up -d
 1. 瀹氫箟鍚庣棰嗗煙妯″潡涓庢帴鍙?2. 澧炲姞鏉冮檺鐮佷笌瑙掕壊鎺堟潈鐐?3. 閰嶇疆鑿滃崟涓庡墠绔鍥炬槧灏?4. 鎺ュ叆绉熸埛涓婁笅鏂囦笌鍒濆鍖栭摼璺?5. 琛ュ厖娴嬭瘯銆佹枃妗ｅ拰閮ㄧ讲璇存槑
 
 杩欐牱鍙互鍦ㄤ笉鐮村潖骞冲彴涓婚鏋剁殑鍓嶆彁涓嬶紝鎶婃柊妯″潡鍔ㄦ€佹帴鍏ョ幇鏈夌郴缁熴€?
+
