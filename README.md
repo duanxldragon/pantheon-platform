@@ -1,4 +1,4 @@
-﻿# Pantheon Platform
+# Pantheon Platform
 
 > 面向企业内部系统与 SaaS 产品的多租户后台管理平台底座。
 
@@ -6,48 +6,67 @@
 [![React Version](https://img.shields.io/badge/React-19+-cyan.svg)](https://react.dev/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## 项目定位
+## 项目简介
 
-Pantheon Platform 不是单纯的“管理后台页面集合”，而是一套可持续扩展的后台管理系统底座，目标是同时支持：
+Pantheon Platform 不是单纯的“管理后台页面集合”，而是一套可持续扩展的后台平台底座，目标是同时支持：
 
-- 私有化单租户交付；
-- PaaS 平台化底座建设；
-- SaaS 多租户产品化运营；
-- 后续业务模块按统一规范接入与扩展。
+- 私有化单租户交付
+- PaaS 平台化底座建设
+- SaaS 多租户产品化运营
+- 后续业务模块按统一规范接入与扩展
 
-当前平台重点围绕三条主线建设：
+当前平台围绕三条主线建设：
 
-- `auth/`：登录、退出、会话安全、二次认证；
-- `tenant/`：租户开通、初始化、部署模式、生命周期；
-- `system/`：租户内系统管理核心能力。
+- `auth`：登录、退出、会话安全、2FA、API Key
+- `tenant`：租户开通、初始化、部署模式、生命周期
+- `system`：租户内系统管理核心能力
 
 ## 核心能力
 
 ### 平台底座
 
-- 多租户与可配置部署模式；
-- 多语言支持；
-- JWT + Refresh Token 会话体系；
-- 可配置二次认证（2FA / TOTP / 备份码）；
-- 权限动态初始化与会话刷新策略；
-- 动态菜单、动态路由、动态页面挂载。
+- 多租户与可配置部署模式
+- 多语言支持
+- `JWT + Refresh Token` 会话体系
+- 可配置二次认证：`2FA / TOTP / 备份码`
+- 权限动态初始化与会话刷新策略
+- 动态菜单、动态页面挂载、动态权限生效
 
 ### 系统管理模块
 
-系统管理模块是当前阶段的核心模块，覆盖：
+- 用户管理
+- 部门管理
+- 岗位管理
+- 角色管理
+- 权限管理
+- 菜单管理
+- 日志管理
+- 系统设置
+- 系统监控
+- 个人中心
 
-- 用户管理；
-- 部门管理；
-- 岗位管理；
-- 角色管理；
-- 权限管理；
-- 菜单管理；
-- 日志管理；
-- 系统设置；
-- 系统监控；
-- 个人中心。
+## 技术栈
 
-它负责租户内部“管人、管权、管菜单、管日志、管设置”，并为后续主机管理、CMDB、作业平台、流程引擎等模块提供统一接入方式。
+### 后端
+
+- `Go 1.23`
+- `Gin`
+- `GORM`
+- `Casbin`
+- `Redis`
+- `Swagger`
+
+### 前端
+
+- `React 19`
+- `TypeScript`
+- `Vite`
+- `Zustand`
+- `Tailwind CSS`
+- `shadcn/ui`
+- `i18next`
+- `Vitest`
+- `Playwright`
 
 ## 架构概览
 
@@ -77,24 +96,80 @@ Infrastructure
   |- Redis
 ```
 
-### 设计原则
+关键设计原则：
 
-- `Master DB` 保存平台级配置、租户主数据与公共元数据；
-- `Tenant DB Pool` 保存租户侧业务数据，支持隔离与扩展；
-- 登录成功后按租户上下文动态初始化用户、权限、菜单；
-- 权限、菜单、页面挂载通过统一配置链路动态生效；
-- 新业务模块尽量通过“菜单 + 路由 + 权限码 + 前端视图”方式接入，而不是改动平台主骨架。
+- `Master DB` 保存平台级配置、租户主数据与公共元数据
+- `Tenant DB` 保存租户侧业务数据，保证隔离与扩展
+- 登录成功后按租户上下文动态初始化用户、权限、菜单
+- 新业务模块优先按“菜单 + 权限码 + 前端视图注册”方式接入
 
-## 模块边界
+## 目录结构
 
-| 模块 | 作用 |
-| :--- | :--- |
-| `auth/` | 登录、退出、2FA、令牌、会话、账户安全 |
-| `tenant/` | 租户注册、初始化、部署模式、数据库接入、租户生命周期 |
-| `system/` | 用户、组织、角色、权限、菜单、日志、设置、监控、个人中心 |
-| `i18n/` | 多语言资源与翻译加载 |
-| `notification/` | 站内信、邮件、短信等通知能力 |
-| 业务扩展模块 | 如主机管理、CMDB、作业平台、流程引擎等 |
+```text
+pantheon-platform/
+├─ backend/                # 后端服务、配置、脚本、Swagger、后端文档
+├─ frontend/               # 前端应用、状态管理、前端文档
+├─ docs/                   # 平台级设计文档
+├─ .github/workflows/      # CI 配置
+├─ docker-compose.yml      # 本地 / 演示部署入口
+├─ AGENTS.md               # Codex CLI 项目规则
+└─ README.md               # 项目入口文档
+```
+
+## 快速开始
+
+### 方式一：本地开发
+
+#### 1. 环境准备
+
+- Go `1.23+`
+- Node.js `18+`
+- MySQL `8+`
+- Redis `7+`
+
+#### 2. 启动后端
+
+```bash
+cd backend
+cp config.yaml.example config.yaml
+make run
+```
+
+常用命令：
+
+```bash
+make test
+make lint
+make migrate-only
+make swagger
+```
+
+#### 3. 启动前端
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+常用命令：
+
+```bash
+npm run type-check
+npm run lint
+npm run test
+npm run build
+```
+
+### 方式二：Docker Compose
+
+适合本地联调、演示和快速验证：
+
+```bash
+docker compose up -d
+```
+
+如果是首发初始化场景，建议先执行迁移或使用迁移模式完成默认数据引导。
 
 ## 文档导航
 
@@ -113,6 +188,7 @@ Infrastructure
 - `backend/README.md`
 - `backend/BACKEND_GUIDE.md`
 - `backend/docs/BACKEND_DOCS_INDEX.md`
+- `backend/docs/BACKEND_NAMING_CONVENTIONS.md`
 - `backend/docs/system/SYSTEM_BACKEND.md`
 - `backend/docs/auth/AUTH_BACKEND.md`
 - `backend/docs/tenant/TENANT_BACKEND.md`
@@ -129,35 +205,23 @@ Infrastructure
 
 ## 推荐阅读顺序
 
-1. 先读 `README.md` 了解平台总体边界；
-2. 再读 `docs/system/SYSTEM_MANAGEMENT.md` 理解系统管理业务模型；
-3. 再读 `docs/auth/AUTH_SECURITY.md` 与 `docs/auth/AUTH_SESSION_STRATEGY.md`；
-4. 再读 `docs/tenant/TENANT_INITIALIZATION.md` 理解租户初始化与部署模式；
-5. 进入后端实现前，先读 `backend/README.md`、`backend/BACKEND_GUIDE.md` 与 `backend/docs/BACKEND_NAMING_CONVENTIONS.md`；
-6. 部署与验收时再读 `docs/deploy/DEPLOYMENT.md` 与 `docs/governance/SYSTEM_CHECKLIST.md`；
-7. 最后按实现视角进入 `backend/docs/` 与 `frontend/docs/`。
+1. 先读 `README.md`
+2. 再读 `docs/DOCS_INDEX.md`
+3. 再读 `docs/system/SYSTEM_MANAGEMENT.md`
+4. 再读 `docs/auth/AUTH_SECURITY.md` 与 `docs/auth/AUTH_SESSION_STRATEGY.md`
+5. 再读 `docs/tenant/TENANT_INITIALIZATION.md`
+6. 进入后端时先读 `backend/README.md`、`backend/BACKEND_GUIDE.md`
+7. 进入前端时先读 `frontend/FRONTEND_GUIDE.md`
+8. 部署前再读 `docs/deploy/DEPLOYMENT.md`
 
-## 快速开始
+## 扩展方式
 
-后端启动、配置、数据库与 Swagger 说明见：
+新增业务模块时，建议按以下顺序接入：
 
-- `backend/README.md`
-- `backend/BACKEND_GUIDE.md`
-- `backend/docs/BACKEND_NAMING_CONVENTIONS.md`
-- `backend/api/swagger/`
+1. 定义后端领域模块与接口
+2. 增加权限码与角色授权点
+3. 配置菜单与前端视图映射
+4. 接入租户上下文与初始化链路
+5. 补充测试、文档和部署说明
 
-前端启动、构建与开发说明见：
-
-- `frontend/FRONTEND_GUIDE.md`
-
-## 扩展路径
-
-平台后续扩展业务模块时，建议遵循统一接入方式：
-
-1. 定义后端领域模块与接口；
-2. 增加权限码与角色授权点；
-3. 配置菜单与前端路由；
-4. 在前端视图注册组件；
-5. 通过租户上下文完成隔离与初始化。
-
-这样在“主机管理”等新模块完成后，可以通过菜单挂载、路由注册和权限绑定动态接入现有平台。
+这样可以在不破坏平台主骨架的前提下，把新模块动态接入现有系统。
