@@ -1,0 +1,39 @@
+﻿# ========================================
+# Pantheon Platform - Root Ignore Rules
+# ========================================
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.iml
+
+# Logs / Temp
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+
+# Backend generated files
+backend/.gocache/
+backend/bin/
+backend/coverage.out
+backend/coverage.html
+backend/pantheon-server
+backend/config.yaml
+backend/config.yaml.backup
+
+# Frontend generated files
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+frontend/.vite/
+frontend/build.log
+
+# Test artifacts
+*.test
+
+# Local agent workspace
+.codex/

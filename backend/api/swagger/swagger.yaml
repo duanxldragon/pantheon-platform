@@ -1,0 +1,312 @@
+basePath: /api/v1
+definitions:
+  auth.ErrorResponse:
+    properties:
+      code:
+        type: string
+      data: {}
+      message:
+        type: string
+    type: object
+  auth.LoginRequest:
+    properties:
+      password:
+        type: string
+      tenant_code:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  auth.LoginResponse:
+    properties:
+      access_token:
+        type: string
+      enable_multi_tenant:
+        type: boolean
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      token_type:
+        type: string
+      user:
+        $ref: '#/definitions/auth.User'
+    type: object
+  auth.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  auth.RefreshTokenResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      token_type:
+        type: string
+    type: object
+  auth.User:
+    properties:
+      avatar:
+        type: string
+      department_id:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      phone:
+        type: string
+      position_id:
+        type: string
+      real_name:
+        type: string
+      status:
+        type: string
+      tenant_code:
+        type: string
+      tenant_id:
+        type: string
+      username:
+        type: string
+    type: object
+  tenant.CreateTenantRequest:
+    properties:
+      code:
+        type: string
+      description:
+        type: string
+      name:
+        type: string
+    required:
+    - code
+    - name
+    type: object
+  tenant.ErrorResponse:
+    properties:
+      code:
+        type: string
+      data: {}
+      message:
+        type: string
+    type: object
+  tenant.PageResponse:
+    properties:
+      items: {}
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  tenant.Tenant:
+    properties:
+      code:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      is_first_login:
+        type: boolean
+      name:
+        type: string
+      status:
+        $ref: '#/definitions/tenant.TenantStatus'
+      updated_at:
+        type: string
+    type: object
+  tenant.TenantStatus:
+    enum:
+    - pending
+    - active
+    - disabled
+    type: string
+    x-enum-varnames:
+    - TenantStatusPending
+    - TenantStatusActive
+    - TenantStatusDisabled
+host: localhost:8080
+info:
+  contact:
+    email: support@pantheon-platform.com
+    name: API Support
+    url: http://www.pantheon-platform.com/support
+  description: Enterprise multi-tenant RBAC platform API.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Pantheon Platform API
+  version: "1.0"
+paths:
+  /auth/current:
+    get:
+      consumes:
+      - application/json
+      description: Get current user information from token context
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.User'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get Current User
+      tags:
+      - User
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with credentials and return JWT tokens
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      summary: User Login
+      tags:
+      - Authentication
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Invalidate the session token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: User Logout
+      tags:
+      - Authentication
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Get a new access token using a refresh token
+      parameters:
+      - description: Refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.RefreshTokenResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      summary: Refresh Access Token
+      tags:
+      - Authentication
+  /tenants:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of registered tenants with pagination
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 20)'
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/tenant.PageResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/tenant.ErrorResponse'
+      summary: List All Tenants
+      tags:
+      - Tenant
+  /tenants/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new tenant record and initialize base configuration
+      parameters:
+      - description: Tenant registration details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/tenant.CreateTenantRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/tenant.Tenant'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/tenant.ErrorResponse'
+      summary: Register New Tenant
+      tags:
+      - Tenant
+securityDefinitions:
+  ApiKeyAuth:
+    description: Bearer token authentication
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

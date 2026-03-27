@@ -1,0 +1,264 @@
+# ========================================
+# Pantheon Platform V2 - 后端配置文件示例
+# ========================================
+# 说明：复制此文件为 config.yaml，并根据实际环境修改配置
+# ========================================
+
+# ========================================
+# 服务器配置
+# ========================================
+server:
+  port: 8080                 # 服务端口 (默认 8080)
+  mode: debug                 # 运行模式: debug/release
+  read_timeout: 60           # 读取超时(秒)
+  write_timeout: 60          # 写入超时(秒)
+
+# ========================================
+# 环境配置
+# ========================================
+environment: development      # 环境: development/staging/production
+
+# ========================================
+# 数据库配置
+# ========================================
+master_db:
+  driver: mysql               # 数据库驱动: mysql/postgresql/sqlite
+  host: localhost            # 数据库主机
+  port: 3306                 # 数据库端口
+  database: pantheon_master  # 主数据库名
+  username: root             # 数据库用户名
+  password: your_password    # 数据库密码
+  charset: utf8mb4           # 字符集
+  max_open_conns: 100        # 最大打开连接数
+  max_idle_conns: 10         # 最大空闲连接数
+  conn_max_lifetime: 3600    # 连接最大生命周期(秒)
+
+# ========================================
+# Redis配置
+# ========================================
+redis:
+  enabled: true               # 是否启用Redis
+  host: localhost            # Redis主机
+  port: 6379                 # Redis端口
+  password: ""               # Redis密码
+  db: 0                      # Redis数据库索引
+  pool_size: 100             # 连接池大小
+  min_idle_conns: 10         # 最小空闲连接数
+
+# ========================================
+# JWT配置
+# ========================================
+jwt:
+  secret: your-jwt-secret-key-change-in-production  # JWT签名密钥 (生产环境必须修改)
+  expires_in: 7200          # Access Token过期时间(秒)
+  refresh_expiry: 604800     # Refresh Token过期时间(秒)
+  issuer: pantheon-platform  # Token签发者
+
+# ========================================
+# 多租户配置
+# ========================================
+multi_tenant:
+  enabled: true              # 是否启用多租户
+  encryption_key: 32-byte-encryption-key-change-me  # 租户数据库密码加密密钥 (必须32字节)
+
+# ========================================
+# 多租户数据库配置
+# ========================================
+tenant_db:
+  # 默认连接池配置（适用于中小租户）
+  default_pool:
+    max_open_conns: 50        # 最大打开连接数
+    max_idle_conns: 5         # 最大空闲连接数
+    conn_max_lifetime: 3600    # 连接最大生命周期(秒)
+
+  # 大租户配置（通过租户ID或Code匹配）
+  large_tenants:
+    # 通配符匹配示例：匹配所有以 "enterprise-" 开头的租户
+    - tenant_code: "enterprise-*"
+      max_open_conns: 200
+      max_idle_conns: 20
+      conn_max_lifetime: 3600
+
+    # 精确匹配示例：匹配特定租户ID
+    - tenant_id: "00000000-0000-0000-0000-000000000001"
+      max_open_conns: 300
+      max_idle_conns: 30
+      conn_max_lifetime: 7200
+
+  # 小租户配置（适用于演示、测试等小型租户）
+  small_tenants:
+    - tenant_code: "demo-*"
+      max_open_conns: 10
+      max_idle_conns: 2
+      conn_max_lifetime: 1800
+
+# ========================================
+# 监控库配置 (可选)
+# ========================================
+monitor_db:
+  enabled: false             # 是否启用监控库
+  host: localhost
+  port: 3306
+  database: pantheon_monitor
+  username: root
+  password: your_password
+  enable_sync: false        # 是否启用日志双写
+
+# ========================================
+# 日志配置
+# ========================================
+log:
+  level: info                # 日志级别: debug/info/warn/error
+  filename: logs/app.log     # 日志文件路径
+  max_size: 100              # 单个日志文件最大大小(MB)
+  max_backups: 3             # 保留的备份文件数
+  max_age: 28                # 日志保留天数
+  compress: true             # 是否压缩旧日志
+
+# ========================================
+# 自动迁移配置
+# ========================================
+auto_migrate: true            # 是否自动迁移数据库表
+migrate_only: false          # 是否仅执行迁移后退出
+
+# ========================================
+# CORS配置
+# ========================================
+cors:
+  allowed_origins:
+    - http://localhost:3000
+    - http://localhost:5173
+  allowed_methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+  allowed_headers:
+    - Origin
+    - Content-Type
+    - Authorization
+    - X-Tenant-ID
+  expose_headers:
+    - Content-Length
+  allow_credentials: true
+  max_age: 86400
+
+# ========================================
+# 默认管理员配置
+# ========================================
+default_admin:
+  username: admin            # 默认管理员用户名
+  password: admin123         # 默认管理员密码
+  email: admin@example.com   # 默认管理员邮箱
+  real_name: 系统管理员      # 默认管理员真实姓名
+
+# ========================================
+# 邮件配置 (告警通知)
+# ========================================
+email:
+  enabled: false              # 是否启用邮件通知
+  provider: smtp             # 邮件提供商: smtp/sendgrid/aliyun
+  from: noreply@example.com  # 发件人邮箱
+  from_name: Pantheon        # 发件人名称
+  reply_to: support@example.com
+
+  # SMTP配置
+  smtp:
+    host: smtp.example.com   # SMTP主机
+    port: 587                # SMTP端口
+    username: your_username  # SMTP用户名
+    password: your_password  # SMTP密码
+    use_tls: true            # 是否使用TLS
+
+  # SendGrid配置
+  sendgrid_api_key: ""       # SendGrid API密钥
+
+  # 阿里云邮件配置
+  aliyun:
+    access_key_id: ""        # 阿里云AccessKey ID
+    access_key_secret: ""    # 阿里云AccessKey Secret
+    region: ""               # 区域
+
+# ========================================
+# 短信配置 (告警通知)
+# ========================================
+sms:
+  enabled: false              # 是否启用短信通知
+  provider: aliyun           # 短信提供商: aliyun/tencent/twilio
+
+  # 阿里云短信配置
+  aliyun:
+    access_key_id: ""        # 阿里云AccessKey ID
+    access_key_secret: ""    # 阿里云AccessKey Secret
+    region: ""               # 区域
+    sign_name: ""            # 短信签名
+    template_code: ""        # 短信模板代码
+
+  # 腾讯云短信配置
+  tencent:
+    secret_id: ""            # 腾讯云Secret ID
+    secret_key: ""           # 腾讯云Secret Key
+    region: ""               # 区域
+    app_id: ""               # 应用ID
+    sign_name: ""            # 短信签名
+    template_id: ""           # 短信模板ID
+
+  # Twilio短信配置
+  twilio:
+    account_sid: ""          # Twilio Account SID
+    auth_token: ""           # Twilio Auth Token
+    from_number: ""          # 发送号码
+
+# ========================================
+# Swagger文档配置
+# ========================================
+swagger:
+  enabled: true              # 是否启用Swagger文档
+  host: localhost:8080       # Swagger文档主机地址
+
+# ========================================
+# 国际化配置
+# ========================================
+i18n:
+  default: zh                # 默认语言
+  supported:                 # 支持的语言列表
+    - zh
+    - en
+    - ja
+    - ko
+
+# ========================================
+# 文件上传配置
+# ========================================
+upload:
+  max_size: 10               # 最大文件大小(MB)
+  allowed_types:             # 允许的文件类型
+    - image/jpeg
+    - image/png
+    - image/gif
+    - application/pdf
+    - application/msword
+    - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+
+# ========================================
+# 会话配置
+# ========================================
+session:
+  timeout: 3600              # 会话超时时间(秒)
+
+# ========================================
+# 安全配置
+# ========================================
+security:
+  rate_limit:
+    enabled: true            # 是否启用限流
+    requests_per_minute: 100 # 每分钟最大请求数
+    requests_per_hour: 1000  # 每小时最大请求数
+
+# ========================================
+# 性能配置
+# ========================================
+performance:
+  enable_pprof: false        # 是否启用性能分析
+  pprof_port: 6060           # 性能分析端口

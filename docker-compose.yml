@@ -1,0 +1,228 @@
+# ========================================
+# Pantheon Platform V2 - Docker Compose 配置
+# ========================================
+# 说明：使用 docker-compose up -d 启动所有服务
+# ========================================
+
+version: '3.8'
+
+services:
+  # ========================================
+  # MySQL 数据库 (主库)
+  # ========================================
+  mysql:
+    image: mysql:8.0
+    container_name: pantheon-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: pantheon_master
+      MYSQL_USER: pantheon
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-pantheon123}
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/scripts/init_main_db.sql:/docker-entrypoint-initdb.d/01_init_main_db.sql
+      - mysql_logs:/var/log/mysql
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max_connections=1000
+      - --innodb_buffer_pool_size=512M
+    networks:
+      - pantheon-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root123}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ========================================
+  # Redis 缓存
+  # ========================================
+  redis:
+    image: redis:7-alpine
+    container_name: pantheon-redis
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./scripts/redis.conf:/etc/redis/redis.conf:ro
+    command: redis-server /etc/redis/redis.conf
+    networks:
+      - pantheon-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ========================================
+  # Pantheon Backend (后端服务)
+  # ========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pantheon-backend
+    restart: unless-stopped
+    environment:
+      # 服务配置
+      GIN_MODE: release
+      SERVER_PORT: 8080
+
+      # 数据库配置
+      DB_DRIVER: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: pantheon_master
+      DB_USERNAME: pantheon
+      DB_PASSWORD: ${MYSQL_PASSWORD:-pantheon123}
+      DB_CHARSET: utf8mb4
+
+      # Redis配置
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_DB: 0
+
+      # JWT配置
+      JWT_SECRET: ${JWT_SECRET:-your-jwt-secret-key-change-in-production}
+      JWT_EXPIRES_IN: 7200
+
+      # 多租户配置
+      MULTI_TENANT_ENABLED: true
+      MULTI_TENANT_ENCRYPTION_KEY: ${TENANT_ENCRYPTION_KEY:-32-byte-encryption-key}
+
+      # 日志配置
+      LOG_LEVEL: info
+
+      # CORS配置
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:80
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend/config.yaml:/root/config.yaml:ro
+      - backend_logs:/root/logs
+      - backend_upload:/root/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - pantheon-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ========================================
+  # Pantheon Frontend (前端服务)
+  # ========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8080/api/v1
+        VITE_APP_TITLE: Pantheon Platform
+        VITE_DEFAULT_LANGUAGE: zh
+    container_name: pantheon-frontend
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    networks:
+      - pantheon-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ========================================
+  # Prometheus (监控数据收集)
+  # ========================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: pantheon-prometheus
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./scripts/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+    networks:
+      - pantheon-network
+
+  # ========================================
+  # Grafana (监控数据可视化)
+  # ========================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: pantheon-grafana
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin123}
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./scripts/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./scripts/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    networks:
+      - pantheon-network
+
+# ========================================
+# 数据卷定义
+# ========================================
+volumes:
+  mysql_data:
+    driver: local
+  mysql_logs:
+    driver: local
+  redis_data:
+    driver: local
+  backend_logs:
+    driver: local
+  backend_upload:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# ========================================
+# 网络定义
+# ========================================
+networks:
+  pantheon-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
