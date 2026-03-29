@@ -92,7 +92,7 @@ export class ApiClient {
         if (authStore.user?.tenantId) {
           config.headers = {
             ...config.headers,
-            'X-Tenant-ID': authStore.user.tenantId,
+            'X-Tenant-ID': String(authStore.user.tenantId),
           };
         }
       }
@@ -276,6 +276,21 @@ export class ApiClient {
 
   private async parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
     const textValue = await response.text();
+    if (!response.ok) {
+      try {
+        const parsed = textValue ? (JSON.parse(textValue) as ApiResponse<T>) : null;
+        if (parsed) {
+          return parsed;
+        }
+      } catch {
+        throw new ApiError(
+          response.status === 404 ? text('接口不存在', 'API endpoint not found') : response.statusText || text('请求失败', 'Request failed'),
+          response.status,
+          textValue,
+        );
+      }
+    }
+
     if (!textValue) {
       return {
         code: 0,
@@ -487,5 +502,3 @@ export const apiHelpers = {
     return response.code === 200 || response.code === 0;
   },
 };
-
-export type { RequestConfig };

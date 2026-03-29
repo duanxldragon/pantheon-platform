@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -141,8 +142,18 @@ func (m *Manager) ConnectTenant(ctx context.Context, config *DBConfig, password,
 
 	// Check if already connected and healthy
 	if conn, exists := m.tenantConnections[config.TenantID]; exists && conn.healthy {
-		conn.lastUsed = time.Now() // Update last used time
-		return nil
+		if conn.config != nil &&
+			conn.config.Type == config.Type &&
+			conn.config.DSN == config.DSN &&
+			conn.config.MaxOpenConns == config.MaxOpenConns &&
+			conn.config.MaxIdleConns == config.MaxIdleConns &&
+			conn.config.ConnMaxLifetime == config.ConnMaxLifetime {
+			conn.lastUsed = time.Now()
+			return nil
+		}
+
+		factory.Close(conn.db)
+		delete(m.tenantConnections, config.TenantID)
 	}
 
 	// Get pool configuration based on tenant size
@@ -405,7 +416,16 @@ func (m *Manager) reloadTenants() {
 
 		// Connect asynchronously to avoid blocking
 		go func(config *TenantConfigInfo) {
-			dsn, err := m.buildTenantDSN(config)
+			password, err := m.resolveTenantConfigPassword(config)
+			if err != nil {
+				log.Printf("Skipping tenant %s during reload: %v", config.TenantID, err)
+				return
+			}
+
+			configCopy := *config
+			configCopy.Password = password
+
+			dsn, err := m.buildTenantDSN(&configCopy)
 			if err != nil {
 				log.Printf("Failed to build DSN for tenant %s: %v", config.TenantID, err)
 				return
@@ -419,20 +439,43 @@ func (m *Manager) reloadTenants() {
 
 			dbConfig := &DBConfig{
 				TenantID:        tenantUUID,
-				Type:            config.DatabaseType,
+				Type:            configCopy.DatabaseType,
 				DSN:             dsn,
-				MaxOpenConns:    config.MaxOpenConns,
-				MaxIdleConns:    config.MaxIdleConns,
-				ConnMaxLifetime: config.ConnMaxLifetime,
+				MaxOpenConns:    configCopy.MaxOpenConns,
+				MaxIdleConns:    configCopy.MaxIdleConns,
+				ConnMaxLifetime: configCopy.ConnMaxLifetime,
 			}
 
-			if err := m.ConnectTenant(context.Background(), dbConfig, config.Password, config.Code); err != nil {
+			if err := m.ConnectTenant(context.Background(), dbConfig, password, configCopy.Code); err != nil {
 				log.Printf("Failed to connect tenant %s during reload: %v", config.TenantID, err)
 			} else {
 				log.Printf("Successfully connected tenant %s during reload", config.TenantID)
 			}
 		}(c)
 	}
+}
+
+func (m *Manager) resolveTenantConfigPassword(config *TenantConfigInfo) (string, error) {
+	if config == nil {
+		return "", fmt.Errorf("tenant config is nil")
+	}
+
+	switch config.DatabaseType {
+	case "sqlite":
+		return config.Password, nil
+	}
+
+	encryptedPassword := strings.TrimSpace(config.Password)
+	if encryptedPassword == "" {
+		return "", fmt.Errorf("database password is empty")
+	}
+
+	password, err := m.DecryptPassword(encryptedPassword)
+	if err != nil {
+		return "", fmt.Errorf("failed to decrypt database password: %w", err)
+	}
+
+	return password, nil
 }
 
 // buildTenantDSN builds DSN from tenant config info

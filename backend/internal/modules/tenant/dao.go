@@ -80,7 +80,18 @@ func (r *tenantDAO) List(ctx context.Context, page, pageSize int) ([]*Tenant, in
 }
 
 func (r *tenantDAO) Update(ctx context.Context, tenant *Tenant) error {
-	return r.db.WithContext(ctx).Save(tenant).Error
+	return r.db.WithContext(ctx).
+		Model(&Tenant{}).
+		Where("id = ?", tenant.ID).
+		Updates(map[string]interface{}{
+			"name":           tenant.Name,
+			"code":           tenant.Code,
+			"description":    tenant.Description,
+			"contact_person": tenant.ContactPerson,
+			"expire_at":      tenant.ExpireAt,
+			"status":         tenant.Status,
+			"is_first_login": tenant.IsFirstLogin,
+		}).Error
 }
 
 func (r *tenantDAO) Delete(ctx context.Context, id string) error {
@@ -162,7 +173,23 @@ func (r *tenantDatabaseDAO) GetAll(ctx context.Context) ([]*TenantDatabaseConfig
 }
 
 func (r *tenantDatabaseDAO) Update(ctx context.Context, config *TenantDatabaseConfig) error {
-	return r.db.WithContext(ctx).Save(config).Error
+	return r.db.WithContext(ctx).
+		Model(&TenantDatabaseConfig{}).
+		Where("id = ?", config.ID).
+		Updates(map[string]interface{}{
+			"tenant_id":           config.TenantID,
+			"database_type":       config.DatabaseType,
+			"host":                config.Host,
+			"port":                config.Port,
+			"database":            config.Database,
+			"username":            config.Username,
+			"password_encrypted":  config.PasswordEncrypted,
+			"file_path":           config.FilePath,
+			"ssl_mode":            config.SSLMode,
+			"max_open_conns":      config.MaxOpenConns,
+			"max_idle_conns":      config.MaxIdleConns,
+			"conn_max_lifetime":   config.ConnMaxLifetime,
+		}).Error
 }
 
 func (r *tenantDatabaseDAO) Delete(ctx context.Context, id string) error {

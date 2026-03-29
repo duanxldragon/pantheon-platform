@@ -18,6 +18,12 @@ export type LoginFormErrors = {
 
 const REMEMBERED_USERNAME_KEY = 'rememberedUsername';
 const REMEMBERED_TENANT_KEY = 'rememberedTenantCode';
+const EMPTY_UUID = '00000000-0000-0000-0000-000000000000';
+
+function normalizeTenantCode(value?: string | null) {
+  const trimmed = value?.trim() || '';
+  return trimmed && trimmed !== EMPTY_UUID ? trimmed : '';
+}
 
 function persistRememberedCredentials(
   remember: boolean,
@@ -33,7 +39,12 @@ function persistRememberedCredentials(
 
   localStorage.setItem(REMEMBERED_USERNAME_KEY, username);
   if (showTenantCode) {
-    localStorage.setItem(REMEMBERED_TENANT_KEY, tenantCode);
+    const normalizedTenantCode = normalizeTenantCode(tenantCode);
+    if (normalizedTenantCode) {
+      localStorage.setItem(REMEMBERED_TENANT_KEY, normalizedTenantCode);
+    } else {
+      localStorage.removeItem(REMEMBERED_TENANT_KEY);
+    }
   } else {
     localStorage.removeItem(REMEMBERED_TENANT_KEY);
   }
@@ -41,7 +52,11 @@ function persistRememberedCredentials(
 
 export function useLoginForm() {
   const rememberedUsername = localStorage.getItem(REMEMBERED_USERNAME_KEY) || '';
-  const rememberedTenantCode = localStorage.getItem(REMEMBERED_TENANT_KEY) || '';
+  const rawRememberedTenantCode = localStorage.getItem(REMEMBERED_TENANT_KEY);
+  const rememberedTenantCode = normalizeTenantCode(rawRememberedTenantCode);
+  if (rawRememberedTenantCode && !rememberedTenantCode) {
+    localStorage.removeItem(REMEMBERED_TENANT_KEY);
+  }
 
   const [username, setUsername] = useState(rememberedUsername);
   const [password, setPassword] = useState('');
@@ -91,7 +106,8 @@ export function useLoginForm() {
   }, [isLocked, lockUntil]);
 
   useEffect(() => {
-    if (!showTenantCode || !tenantCode.trim()) {
+    const normalizedTenantCode = normalizeTenantCode(tenantCode);
+    if (!showTenantCode || !normalizedTenantCode) {
       setTenantPreview(null);
       return;
     }
@@ -99,7 +115,7 @@ export function useLoginForm() {
     const timer = window.setTimeout(async () => {
       setTenantLoading(true);
       try {
-        const status = await tenantDatabaseApi.getStatus(tenantCode.trim());
+        const status = await tenantDatabaseApi.getStatus(normalizedTenantCode);
         setTenantPreview({ name: status.tenantName, status: status.status });
       } catch {
         setTenantPreview(null);
@@ -144,7 +160,8 @@ export function useLoginForm() {
     const nextErrors: LoginFormErrors = {};
     if (!username.trim()) nextErrors.username = t.login.usernameRequired;
     if (!password) nextErrors.password = t.login.passwordRequired;
-    if (showTenantCode && !tenantCode.trim()) {
+    const normalizedTenantCode = normalizeTenantCode(tenantCode);
+    if (showTenantCode && !normalizedTenantCode) {
       nextErrors.tenantCode = t.login.tenantCodeRequired || '请输入租户代码';
     }
 
@@ -161,7 +178,7 @@ export function useLoginForm() {
         username.trim(),
         password,
         remember,
-        showTenantCode ? tenantCode.trim() : undefined,
+        showTenantCode ? normalizedTenantCode : undefined,
       );
 
       if (result.success && result.requires2FA) {
@@ -170,7 +187,7 @@ export function useLoginForm() {
       }
 
       if (result.success) {
-        persistRememberedCredentials(remember, username.trim(), tenantCode.trim(), showTenantCode);
+        persistRememberedCredentials(remember, username.trim(), normalizedTenantCode, showTenantCode);
         systemNotification.loginSuccess(username.trim());
       }
     } catch (error) {
@@ -197,7 +214,7 @@ export function useLoginForm() {
         return;
       }
 
-      persistRememberedCredentials(remember, username.trim(), tenantCode.trim(), showTenantCode);
+      persistRememberedCredentials(remember, username.trim(), normalizeTenantCode(tenantCode), showTenantCode);
       systemNotification.loginSuccess(username.trim());
     } catch (error) {
       const message = error instanceof Error ? error.message : '2FA verification failed';

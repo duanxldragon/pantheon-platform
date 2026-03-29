@@ -84,7 +84,7 @@ type DeleteApiKeyRequest struct {
 type UnlockAccountRequest struct {
 	Username   string `json:"username" binding:"required"`
 	TenantCode string `json:"tenant_code"`
-	Email      string `json:"email" binding:"required,email"`
+	Email      string `json:"email,omitempty"`
 }
 
 type ApiKeyListResponse struct {

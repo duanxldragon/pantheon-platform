@@ -115,77 +115,77 @@ export interface ValidatePasswordResponse {
 }
 
 export const authApi = {
-  getPublicConfig: () => http.get<Record<string, unknown>>('/auth/config'),
+  getPublicConfig: () => http.get<Record<string, unknown>>('/v1/auth/config'),
 
   login: (data: {
     username: string;
     password: string;
     tenant_code?: string | null;
-  }) => http.post<LoginResponse>('/auth/login', data),
+  }) => http.post<LoginResponse>('/v1/auth/login', data),
 
-  logout: () => http.post('/auth/logout'),
+  logout: () => http.post('/v1/auth/logout'),
 
   refreshToken: (refresh_token: string) =>
-    http.post<{ access_token: string; refresh_token: string }>('/auth/refresh', { refresh_token }),
+    http.post<{ access_token: string; refresh_token: string }>('/v1/auth/refresh', { refresh_token }),
 
-  getCurrentUser: () => http.get<User>('/auth/current'),
+  getCurrentUser: () => http.get<User>('/v1/auth/current'),
 
   getLoginAttempts: (username: string, tenant_code?: string) =>
     http.get<{ attempts: number; locked_until?: number; remaining?: number }>(
-      `/auth/attempts?username=${encodeURIComponent(username)}${tenant_code ? `&tenant_code=${encodeURIComponent(tenant_code)}` : ''}`,
+      `/v1/auth/attempts?username=${encodeURIComponent(username)}${tenant_code ? `&tenant_code=${encodeURIComponent(tenant_code)}` : ''}`,
     ),
 
-  unlockAccount: (data: { username: string; tenant_code?: string }) => http.post('/auth/unlock', data),
+  unlockAccount: (data: { username: string; tenant_code?: string }) => http.post('/v1/auth/unlock', data),
 
   validatePassword: (data: { password: string; username?: string }) =>
-    http.post<ValidatePasswordResponse>('/auth/validate-password', data),
+    http.post<ValidatePasswordResponse>('/v1/auth/validate-password', data),
 
-  getProfile: () => http.get<Record<string, unknown>>('/user/profile'),
+  getProfile: () => http.get<Record<string, unknown>>('/v1/user/profile'),
 
-  updateProfile: (data: Record<string, unknown>) => http.put<Record<string, unknown>>('/user/profile', data),
+  updateProfile: (data: Record<string, unknown>) => http.put<Record<string, unknown>>('/v1/user/profile', data),
 
   changePassword: (data: { password: string; new_password: string }) =>
-    http.put('/user/password', data),
+    http.put('/v1/user/password', data),
 
-  getPermissions: () => http.get<string[]>('/user/permissions'),
+  getPermissions: () => http.get<string[]>('/v1/user/permissions'),
 
   getLoginHistory: (params?: { page?: number; page_size?: number }) =>
-    http.get<LoginHistoryResponse>('/auth/login-history', params),
+    http.get<LoginHistoryResponse>('/v1/auth/login-history', params),
 
-  get2FAStatus: () => http.get<TwoFactorStatusResponse>('/auth/2fa/status'),
+  get2FAStatus: () => http.get<TwoFactorStatusResponse>('/v1/auth/2fa/status'),
 
-  enable2FA: () => http.post<EnableTwoFactorResponse>('/auth/2fa/enable'),
+  enable2FA: () => http.post<EnableTwoFactorResponse>('/v1/auth/2fa/enable'),
 
-  verify2FA: (code: string) => http.post('/auth/2fa/verify', { code }),
+  verify2FA: (code: string) => http.post('/v1/auth/2fa/verify', { code }),
 
   verifyLogin2FA: (temp_token: string, code: string) =>
-    http.post<LoginResponse>('/auth/2fa/login', { temp_token, code }),
+    http.post<LoginResponse>('/v1/auth/2fa/login', { temp_token, code }),
 
-  disable2FA: (password: string) => http.post('/auth/2fa/disable', { password }),
+  disable2FA: (password: string) => http.post('/v1/auth/2fa/disable', { password }),
 
-  verifyCode: (code: string) => http.post('/auth/2fa/verify-code', { code }),
+  verifyCode: (code: string) => http.post('/v1/auth/2fa/verify-code', { code }),
 
   generateBackupCodes: (count?: number) =>
-    http.post<{ backup_codes: string[]; all_codes: string[] }>('/auth/2fa/backup-codes', { count: count || 10 }),
+    http.post<{ backup_codes: string[]; all_codes: string[] }>('/v1/auth/2fa/backup-codes', { count: count || 10 }),
 
-  listSessions: () => http.get<ActiveSessionsResponse>('/auth/sessions'),
+  listSessions: () => http.get<ActiveSessionsResponse>('/v1/auth/sessions'),
 
-  kickSession: (jti: string) => http.delete(`/auth/sessions/${jti}`),
+  kickSession: (jti: string) => http.delete(`/v1/auth/sessions/${jti}`),
 
-  listApiKeys: () => http.get<{ items: ApiKeyItem[] }>('/auth/api-keys'),
+  listApiKeys: () => http.get<{ items: ApiKeyItem[] }>('/v1/auth/api-keys'),
 
   createApiKey: (data: { name: string; permissions?: string }) =>
-    http.post<ApiKeyResponse>('/auth/api-keys', data),
+    http.post<ApiKeyResponse>('/v1/auth/api-keys', data),
 
   updateApiKey: (id: string, data: { name?: string; permissions?: string }) =>
-    http.put(`/auth/api-keys/${id}`, data),
+    http.put(`/v1/auth/api-keys/${id}`, data),
 
-  deleteApiKey: (id: string) => http.delete(`/auth/api-keys/${id}`),
+  deleteApiKey: (id: string) => http.delete(`/v1/auth/api-keys/${id}`),
 
   uploadAvatar: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    return http.post<{ url: string }>('/system/users/upload', formData, {
+    return http.post<{ url: string }>('/v1/system/users/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },

@@ -98,11 +98,13 @@ func Start() {
 		log.Fatalf("failed to initialize database manager: %v", err)
 	}
 	var redisClient *cache.RedisClient
-	redisClient, err = cache.NewRedisClient(cfg.Redis)
+	redisClient, err = cache.NewRedisClient(cfg.Redis, cfg.Environment)
 	if err != nil {
 		log.Printf("warning: failed to initialize redis: %v", err)
 	} else {
-		log.Println("redis initialized successfully")
+		if redisClient != nil {
+			log.Printf("redis initialized successfully (%s)", redisClient.Mode())
+		}
 		defer redisClient.Close()
 	}
 
@@ -323,6 +325,7 @@ func Start() {
 }
 
 func registerTenantMigrators(dbManager *database.Manager, container systemContainer.Container, notificationMigrator database.TenantMigrator) {
+	dbManager.RegisterTenantMigrator("auth", auth.NewTenantMigrator())
 	dbManager.RegisterTenantMigrator("user", container.GetUserDAO())
 	dbManager.RegisterTenantMigrator("dept", container.GetDepartmentDAO())
 	dbManager.RegisterTenantMigrator("position", container.GetPositionDAO())

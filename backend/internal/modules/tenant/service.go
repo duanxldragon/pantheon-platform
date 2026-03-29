@@ -668,7 +668,16 @@ func ensureTenantSuperAdminRole(tx *gorm.DB, tenantID string) (systemrole.Role, 
 	roleRecord.Type = "system"
 	roleRecord.TenantID = tenantID
 	roleRecord.IsSystem = true
-	if err := tx.Save(&roleRecord).Error; err != nil {
+	if err := tx.Model(&systemrole.Role{}).
+		Where("id = ?", roleRecord.ID).
+		Updates(map[string]interface{}{
+			"name":        roleRecord.Name,
+			"description": roleRecord.Description,
+			"status":      roleRecord.Status,
+			"type":        roleRecord.Type,
+			"tenant_id":   roleRecord.TenantID,
+			"is_system":   roleRecord.IsSystem,
+		}).Error; err != nil {
 		return systemrole.Role{}, false, err
 	}
 	return roleRecord, false, nil
@@ -773,7 +782,20 @@ func ensureTenantMenus(tx *gorm.DB, tenantID string, roleID uuid.UUID) ([]string
 			menuRecord.Status = "active"
 			menuRecord.IsExternal = false
 			menuRecord.TenantID = tenantID
-			if err := tx.Save(&menuRecord).Error; err != nil {
+			if err := tx.Model(&systemmenu.Menu{}).
+				Where("id = ?", menuRecord.ID).
+				Updates(map[string]interface{}{
+					"name":        menuRecord.Name,
+					"path":        menuRecord.Path,
+					"component":   menuRecord.Component,
+					"icon":        menuRecord.Icon,
+					"type":        menuRecord.Type,
+					"parent_id":   menuRecord.ParentID,
+					"sort":        menuRecord.Sort,
+					"status":      menuRecord.Status,
+					"is_external": menuRecord.IsExternal,
+					"tenant_id":   menuRecord.TenantID,
+				}).Error; err != nil {
 				return nil, createdCount, err
 			}
 		}
@@ -837,7 +859,18 @@ func ensureTenantPermissions(tx *gorm.DB, tenantID string, roleID uuid.UUID) ([]
 			permissionRecord.Status = "active"
 			permissionRecord.TenantID = tenantID
 			permissionRecord.IsSystem = true
-			if err := tx.Save(&permissionRecord).Error; err != nil {
+			if err := tx.Model(&systempermission.Permission{}).
+				Where("id = ?", permissionRecord.ID).
+				Updates(map[string]interface{}{
+					"name":        permissionRecord.Name,
+					"description": permissionRecord.Description,
+					"type":        permissionRecord.Type,
+					"resource":    permissionRecord.Resource,
+					"action":      permissionRecord.Action,
+					"status":      permissionRecord.Status,
+					"tenant_id":   permissionRecord.TenantID,
+					"is_system":   permissionRecord.IsSystem,
+				}).Error; err != nil {
 				return nil, createdCount, err
 			}
 		}

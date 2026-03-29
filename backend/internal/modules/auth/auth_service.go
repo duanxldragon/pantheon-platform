@@ -24,6 +24,7 @@ import (
 func (s *authService) Login(ctx context.Context, req *LoginRequest) (*LoginResponse, error) {
 	var clientIP, userAgent string
 	requestedTenantCode := strings.TrimSpace(req.TenantCode)
+	loginViaMasterWhenTenantDBMissing := false
 
 	if ip, ok := ctx.Value("client_ip").(string); ok {
 		clientIP = ip
@@ -80,20 +81,39 @@ func (s *authService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 
 		tenantDB := s.dbManager.GetTenantDB(tenantRecord.ID)
 		if tenantDB == nil {
-			return nil, ErrTenantDBNotConfigured
+			if s.config != nil && s.config.IsPrivateSingleTenantMode() && tenantID == s.config.DefaultTenantID {
+				loginViaMasterWhenTenantDBMissing = true
+			} else {
+				return nil, ErrTenantDBNotConfigured
+			}
 		}
 
-		tenantCtx := context.WithValue(ctx, "tenant_db", tenantDB)
-		tenantCtx = context.WithValue(tenantCtx, "tenant_id", tenantID)
-		writeCtx = tenantCtx
+		var userRecord *user.User
+		if loginViaMasterWhenTenantDBMissing {
+			masterCtx := context.WithValue(ctx, "tenant_db", s.masterDB)
+			writeCtx = masterCtx
+			record, err := s.userService.GetByUsername(masterCtx, req.Username)
+			if err != nil {
+				return nil, ErrInvalidCredentials
+			}
+			if record.TenantID != tenantID {
+				return nil, ErrInvalidCredentials
+			}
+			userRecord = record
+		} else {
+			tenantCtx := context.WithValue(ctx, "tenant_db", tenantDB)
+			tenantCtx = context.WithValue(tenantCtx, "tenant_id", tenantID)
+			writeCtx = tenantCtx
 
-		userRecord, err := s.userService.GetByUsername(tenantCtx, req.Username)
-		if err != nil {
-			return nil, ErrInvalidCredentials
-		}
+			record, err := s.userService.GetByUsername(tenantCtx, req.Username)
+			if err != nil {
+				return nil, ErrInvalidCredentials
+			}
 
-		if userRecord.TenantID != tenantID {
-			return nil, ErrInvalidCredentials
+			if record.TenantID != tenantID {
+				return nil, ErrInvalidCredentials
+			}
+			userRecord = record
 		}
 
 		userID = userRecord.ID.String()
@@ -161,22 +181,28 @@ func (s *authService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 	}
 
 	if s.config.Security.Enable2FA && tenantID != "" {
-		enabled, err := s.isTwoFactorEnabled(ctx, userID, tenantID)
-		if err != nil {
-			return nil, err
-		}
-		if enabled {
-			tempToken, err := s.issuePending2FAToken(ctx, userID, username, tenantID)
+		if tenantDB := s.GetTenantDB(tenantID); tenantDB != nil {
+			enabled, err := s.isTwoFactorEnabled(ctx, userID, tenantID)
 			if err != nil {
 				return nil, err
 			}
+			if enabled {
+				tempToken, err := s.issuePending2FAToken(ctx, userID, username, tenantID)
+				if err != nil {
+					return nil, err
+				}
 
-			return &LoginResponse{
-				Require2FA:              true,
-				TempToken:               tempToken,
-				EnableMultiTenant:       s.config.EnableMultiTenant,
-				LoginRequiresTenantCode: s.loginRequiresTenantCode(),
-			}, nil
+				return &LoginResponse{
+					Require2FA:              true,
+					TempToken:               tempToken,
+					EnableMultiTenant:       s.config.EnableMultiTenant,
+					LoginRequiresTenantCode: s.loginRequiresTenantCode(),
+				}, nil
+			}
+		} else if requestedTenantCode != "" && !loginViaMasterWhenTenantDBMissing {
+			return nil, ErrTenantDBNotConfigured
+		} else {
+			log.Printf("Skipping 2FA tenant DB check for platform admin login: tenant_id=%s username=%s", tenantID, username)
 		}
 	}
 
@@ -397,11 +423,17 @@ func (s *authService) GetCurrentUser(ctx context.Context, userID, username, tena
 
 		tenantDB := s.dbManager.GetTenantDB(tenantUUID)
 		if tenantDB == nil {
-			return nil, ErrTenantDBNotConfigured
+			if s.config != nil && s.config.DefaultAdmin.Enabled && username == s.config.DefaultAdmin.Username {
+				queryDB = s.masterDB.WithContext(ctx)
+				roleCtx = context.WithValue(roleCtx, "tenant_db", s.masterDB)
+			} else {
+				return nil, ErrTenantDBNotConfigured
+			}
+		} else {
+			queryDB = tenantDB.WithContext(ctx)
+			roleCtx = context.WithValue(roleCtx, "tenant_db", tenantDB)
+			roleCtx = context.WithValue(roleCtx, "tenant_id", tenantID)
 		}
-		queryDB = tenantDB.WithContext(ctx)
-		roleCtx = context.WithValue(roleCtx, "tenant_db", tenantDB)
-		roleCtx = context.WithValue(roleCtx, "tenant_id", tenantID)
 	}
 
 	var record user.User
@@ -456,6 +488,32 @@ func (s *authService) GetCurrentUser(ctx context.Context, userID, username, tena
 	}
 
 	return resp, nil
+}
+
+func (s *authService) GetCurrentUserLoginHistory(
+	ctx context.Context,
+	userID, tenantID string,
+	page, pageSize int,
+) (*systemlog.PageResponse, error) {
+	if userID == "" {
+		return nil, ErrInvalidToken
+	}
+
+	queryCtx := ctx
+	if tenantID != "" {
+		tenantDB := s.GetTenantDB(tenantID)
+		if tenantDB == nil {
+			return nil, ErrTenantDBNotConfigured
+		}
+		queryCtx = context.WithValue(queryCtx, "tenant_db", tenantDB)
+		queryCtx = context.WithValue(queryCtx, "tenant_id", tenantID)
+	}
+
+	filter := &systemlog.LogFilter{
+		UserID: userID,
+	}
+
+	return s.logService.ListLoginLogs(queryCtx, page, pageSize, filter)
 }
 
 func (s *authService) loginRequiresTenantCode() bool {

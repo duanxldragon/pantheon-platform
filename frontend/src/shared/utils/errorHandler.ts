@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import { notification } from './notification';
-import { ApiError } from './apiError';
+import { ApiError } from './apiClient';
+
+const ERROR_LOG_ENDPOINT = import.meta.env.VITE_ERROR_LOG_ENDPOINT?.trim() || '';
 
 // Sentry集成（需要在项目中先安装@sentry/browser）
 // To enable Sentry:
@@ -43,15 +45,16 @@ export function initSentry(dsn: string, enabled: boolean = false): void {
 }
 
 // 导出发送错误到分析服务的函数
-export const sendErrorToAnalysis = (error: ApiError): void => {
+export const sendErrorToAnalysis = (error: Error): void => {
+  const apiError = error instanceof ApiError ? error : new ApiError(error.message, 0);
   try {
     // 如果Sentry已初始化，发送到Sentry
     if (typeof window !== 'undefined' && (window as any).Sentry) {
-      console.error('[Sentry] Sending error:', error);
-      (window as any).Sentry.captureException(error, {
+      console.error('[Sentry] Sending error:', apiError);
+      (window as any).Sentry.captureException(apiError, {
         extra: {
-          code: error.code,
-          details: error.details,
+          code: apiError.code,
+          details: apiError.details,
           url: window.location.href,
           userAgent: navigator.userAgent,
           timestamp: new Date().toISOString(),
@@ -59,8 +62,10 @@ export const sendErrorToAnalysis = (error: ApiError): void => {
       });
     } else {
       // Fallback: 发送到错误日志API
-      console.warn('[Fallback] Sentry not initialized, sending to error log API...');
-      sendToErrorLogApi(error);
+      if (ERROR_LOG_ENDPOINT) {
+        console.warn('[Fallback] Sentry not initialized, sending to error log API...');
+        sendToErrorLogApi(apiError);
+      }
     }
   } catch (e) {
     console.error('Failed to send error to analysis service:', e);
@@ -69,12 +74,18 @@ export const sendErrorToAnalysis = (error: ApiError): void => {
 
 // 发送到错误日志API
 const sendToErrorLogApi = async (error: ApiError): Promise<void> => {
+  if (!ERROR_LOG_ENDPOINT) {
+    return;
+  }
+
   try {
-    const response = await fetch('/api/v1/errors', {
+    const response = await fetch(ERROR_LOG_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': localStorage.getItem('accessToken'),
+        ...(localStorage.getItem('accessToken')
+          ? { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
+          : {}),
       },
       body: JSON.stringify({
         error: error.message,

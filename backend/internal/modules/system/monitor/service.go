@@ -157,7 +157,7 @@ func (s *monitorService) countOnlineSessions(ctx context.Context) *OnlineUserSta
 	var keys []string
 	var cursor uint64
 	for {
-		batch, next, err := s.redisClient.GetClient().Scan(ctx, cursor, "auth:session:*", 100).Result()
+		batch, next, err := s.redisClient.Scan(ctx, cursor, "auth:session:*", 100)
 		if err != nil {
 			return &OnlineUserStatus{Count: 0}
 		}
@@ -210,7 +210,7 @@ func pingDB(ctx context.Context, name string, db *gorm.DB) ServiceStatus {
 
 func pingRedis(ctx context.Context, rc *cache.RedisClient) *RedisStatus {
 	start := time.Now()
-	err := rc.GetClient().Ping(ctx).Err()
+	err := rc.Ping(ctx)
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
 		return &RedisStatus{OK: false, LatencyMS: latency, Error: err.Error()}

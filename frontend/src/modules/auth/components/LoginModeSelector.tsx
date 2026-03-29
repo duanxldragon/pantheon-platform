@@ -9,6 +9,12 @@ import { useLanguageStore } from '../../../stores/languageStore';
 import { tenantDatabaseApi } from '../../tenant/api/tenantDatabaseApi';
 
 type LoginMode = 'single' | 'tenant' | 'auto';
+const EMPTY_UUID = '00000000-0000-0000-0000-000000000000';
+
+function normalizeTenantCode(value?: string | null) {
+  const trimmed = value?.trim() || '';
+  return trimmed && trimmed !== EMPTY_UUID ? trimmed : '';
+}
 
 interface ModeOption {
   id: LoginMode;
@@ -97,7 +103,8 @@ export function LoginModeSelector() {
   );
 
   const checkTenant = async () => {
-    if (!tenantCode.trim()) {
+    const normalizedTenantCode = normalizeTenantCode(tenantCode);
+    if (!normalizedTenantCode) {
       setTenantMessage(copy.checkBeforeInput);
       return;
     }
@@ -106,7 +113,7 @@ export function LoginModeSelector() {
     setTenantMessage('');
 
     try {
-      const status = await tenantDatabaseApi.getStatus(tenantCode.trim());
+      const status = await tenantDatabaseApi.getStatus(normalizedTenantCode);
       setTenantMessage(status.databaseConfigured ? copy.tenantReady : copy.tenantPending);
     } catch (error) {
       const message = error instanceof Error ? error.message : copy.tenantFailed;

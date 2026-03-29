@@ -24,15 +24,19 @@ func (s *authService) storeSessionFingerprint(ctx context.Context, userID, acces
 	key := fmt.Sprintf("auth:session:device:%s:%s", userID, claims.ID)
 	now := time.Now().Unix()
 
-	// Store as a simple JSON-like hash using individual fields
-	pipe := s.redisClient.GetClient().Pipeline()
-	pipe.HSet(ctx, key, "device_name", truncateString(userAgent, 128))
-	pipe.HSet(ctx, key, "ip", clientIP)
-	pipe.HSet(ctx, key, "login_at", fmt.Sprintf("%d", now))
-	pipe.HSet(ctx, key, "last_active", fmt.Sprintf("%d", now))
-	pipe.Expire(ctx, key, time.Duration(s.expiresIn)*time.Second)
-	_, err = pipe.Exec(ctx)
-	return err
+	if err = s.redisClient.HSet(ctx, key, "device_name", truncateString(userAgent, 128)); err != nil {
+		return err
+	}
+	if err = s.redisClient.HSet(ctx, key, "ip", clientIP); err != nil {
+		return err
+	}
+	if err = s.redisClient.HSet(ctx, key, "login_at", fmt.Sprintf("%d", now)); err != nil {
+		return err
+	}
+	if err = s.redisClient.HSet(ctx, key, "last_active", fmt.Sprintf("%d", now)); err != nil {
+		return err
+	}
+	return s.redisClient.Expire(ctx, key, time.Duration(s.expiresIn)*time.Second)
 }
 
 // ListActiveSessions returns all active sessions for a user.
@@ -49,7 +53,7 @@ func (s *authService) ListActiveSessions(ctx context.Context, userID, currentJTI
 	var keys []string
 	var cursor uint64
 	for {
-		batch, next, err := s.redisClient.GetClient().Scan(ctx, cursor, fmt.Sprintf("auth:session:device:%s:*", userID), 100).Result()
+		batch, next, err := s.redisClient.Scan(ctx, cursor, fmt.Sprintf("auth:session:device:%s:*", userID), 100)
 		if err != nil {
 			return resp, nil
 		}
@@ -61,7 +65,7 @@ func (s *authService) ListActiveSessions(ctx context.Context, userID, currentJTI
 	}
 
 	for _, key := range keys {
-		result, err := s.redisClient.GetClient().HGetAll(ctx, key).Result()
+		result, err := s.redisClient.HGetAll(ctx, key)
 		if err != nil || len(result) == 0 {
 			continue
 		}

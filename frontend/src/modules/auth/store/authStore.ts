@@ -68,20 +68,21 @@ interface AuthState {
   setTokens: (accessToken: string, refreshToken: string, expiresIn: number) => void;
   clearTokens: () => void;
   isTokenExpired: () => boolean;
-  hasPermission: (permission: string | string[]) => boolean;
-  hasRole: (role: string | string[]) => boolean;
-  hasAnyPermission: (permissions: string[]) => boolean;
-  hasAllPermissions: (permissions: string[]) => boolean;
+  hasPermission: (permission: string | readonly string[]) => boolean;
+  hasRole: (role: string | readonly string[]) => boolean;
+  hasAnyPermission: (permissions: readonly string[]) => boolean;
+  hasAllPermissions: (permissions: readonly string[]) => boolean;
   incrementLoginAttempts: () => void;
   resetLoginAttempts: () => void;
   lockAccount: () => void;
   checkTenantStatus: () => Promise<TenantSetupStatus>;
-  completeTenantSetup: (tenantId: string) => void;
+  completeTenantSetup: (tenantId: ID) => void;
   setTenantInfo: (tenant: TenantInfo) => void;
 }
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION = 30 * 60 * 1000;
+const EMPTY_UUID = '00000000-0000-0000-0000-000000000000';
 
 type PermissionTuple = { obj: string; act: string };
 
@@ -89,6 +90,11 @@ const isZh = () => useLanguageStore.getState().language === 'zh';
 
 function text(zh: string, en: string): string {
   return isZh() ? zh : en;
+}
+
+function normalizeTenantCode(value?: string | null): string | undefined {
+  const trimmed = value?.trim() || '';
+  return trimmed && trimmed !== EMPTY_UUID ? trimmed : undefined;
 }
 
 function buildAccountLockedMessage(remainingMinutes: number): string {
@@ -194,9 +200,80 @@ function buildUserInfo(apiUser: ApiUser, tenantCode?: string, currentUser?: User
     lastLoginTime: apiUser.last_login_at || currentUser?.lastLoginTime || new Date().toISOString(),
     lastLoginIp: apiUser.last_login_ip || currentUser?.lastLoginIp,
     tenantId: (apiUser.tenant_id || currentUser?.tenantId || '') as ID,
-    tenantCode: apiUser.tenant_code || tenantCode || currentUser?.tenantCode || undefined,
+    tenantCode:
+      normalizeTenantCode(apiUser.tenant_code) ||
+      normalizeTenantCode(tenantCode) ||
+      normalizeTenantCode(currentUser?.tenantCode),
   };
 }
+
+function sanitizeStoredAuthState(state: Partial<AuthState>): Partial<AuthState> {
+  const sanitizedUser = state.user
+    ? {
+        ...state.user,
+        tenantCode: normalizeTenantCode(state.user.tenantCode),
+        tenantId:
+          typeof state.user.tenantId === 'string' && state.user.tenantId.trim() === EMPTY_UUID
+            ? undefined
+            : state.user.tenantId,
+      }
+    : null;
+
+  const sanitizedTenantInfo = state.tenantInfo
+    ? {
+        ...state.tenantInfo,
+        code: normalizeTenantCode(state.tenantInfo.code) || '',
+        id:
+          typeof state.tenantInfo.id === 'string' && state.tenantInfo.id.trim() === EMPTY_UUID
+            ? ''
+            : state.tenantInfo.id,
+      }
+    : null;
+
+  return {
+    ...state,
+    user: sanitizedUser,
+    tenantInfo: sanitizedTenantInfo && sanitizedTenantInfo.code ? sanitizedTenantInfo : null,
+  };
+}
+
+function cleanupLegacyTenantState(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const rememberedTenantCode = window.localStorage.getItem('rememberedTenantCode');
+  if (rememberedTenantCode && !normalizeTenantCode(rememberedTenantCode)) {
+    window.localStorage.removeItem('rememberedTenantCode');
+  }
+
+  const persisted = window.localStorage.getItem('auth-storage');
+  if (!persisted) {
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(persisted) as { state?: Partial<AuthState>; version?: number };
+    if (!parsed?.state) {
+      return;
+    }
+
+    const sanitizedState = sanitizeStoredAuthState(parsed.state);
+    if (JSON.stringify(parsed.state) !== JSON.stringify(sanitizedState)) {
+      window.localStorage.setItem(
+        'auth-storage',
+        JSON.stringify({
+          ...parsed,
+          state: sanitizedState,
+        }),
+      );
+    }
+  } catch {
+    window.localStorage.removeItem('auth-storage');
+  }
+}
+
+cleanupLegacyTenantState();
 
 function normalizeIdArray(ids?: ID[]): string[] {
   return Array.from(new Set((ids || []).map((id) => String(id)).filter(Boolean))).sort();
@@ -291,11 +368,20 @@ export const useAuthStore = create<AuthState>()(
               set({ isLocked: false, lockUntil: null, loginAttempts: 0 });
             }
 
-            const resp = await authApi.login({
+            const payload: {
+              username: string;
+              password: string;
+              tenant_code?: string;
+            } = {
               username,
               password,
-              tenant_code: tenantCode || null,
-            });
+            };
+            const normalizedTenantCode = normalizeTenantCode(tenantCode);
+            if (normalizedTenantCode) {
+              payload.tenant_code = normalizedTenantCode;
+            }
+
+            const resp = await authApi.login(payload);
 
             if (resp.data && (resp.data as any).require_2fa) {
               const data = resp.data as any;
@@ -580,20 +666,21 @@ export const useAuthStore = create<AuthState>()(
 
         checkTenantStatus: async () => {
           const { user, enableMultiTenant } = get();
-          if (!enableMultiTenant || !user?.tenantCode) {
+          const tenantCode = normalizeTenantCode(user?.tenantCode);
+          if (!enableMultiTenant || !tenantCode) {
             const status: TenantSetupStatus = {
               isConfigured: true,
               isFirstLogin: false,
               databaseConfigured: true,
               tenantId: user?.tenantId,
-              tenantCode: user?.tenantCode,
+              tenantCode,
             };
             set({ isFirstLogin: false, tenantSetupRequired: false, tenantInfo: null });
             return status;
           }
 
           try {
-            const status = await tenantDatabaseApi.getStatus(user.tenantCode);
+            const status = await tenantDatabaseApi.getStatus(tenantCode);
             set({
               isFirstLogin: status.isFirstLogin,
               tenantSetupRequired: !status.databaseConfigured,
@@ -614,7 +701,7 @@ export const useAuthStore = create<AuthState>()(
               isFirstLogin: false,
               databaseConfigured: true,
               tenantId: user.tenantId,
-              tenantCode: user.tenantCode,
+              tenantCode,
             };
             set({ isFirstLogin: false, tenantSetupRequired: false, tenantInfo: null });
             return fallback;
@@ -654,6 +741,10 @@ export const useAuthStore = create<AuthState>()(
           isFirstLogin: state.isFirstLogin,
           tenantSetupRequired: state.tenantSetupRequired,
           tenantInfo: state.tenantInfo,
+        }),
+        merge: (persistedState, currentState) => ({
+          ...currentState,
+          ...sanitizeStoredAuthState((persistedState as Partial<AuthState>) || {}),
         }),
       },
     ),
