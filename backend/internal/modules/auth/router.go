@@ -31,6 +31,7 @@ func (r *AuthRouter) RegisterRoutes(router *gin.Engine, authMiddleware gin.Handl
 	protectedAuth.Use(authMiddleware)
 	{
 		protectedAuth.GET("/current", r.handler.GetCurrentUser)
+		protectedAuth.GET("/login-history", r.handler.GetLoginHistory)
 		protectedAuth.POST("/logout", r.handler.Logout)
 	}
 

@@ -49,6 +49,9 @@ func (r *operationLogDAO) ListLogs(ctx context.Context, page, pageSize int, filt
 	query := r.GetDB(ctx).Model(&OperationLog{})
 
 	if filter != nil {
+		if v := strings.TrimSpace(filter.UserID); v != "" {
+			query = query.Where("user_id = ?", v)
+		}
 		if v := strings.TrimSpace(filter.Username); v != "" {
 			query = query.Where("username LIKE ?", "%"+v+"%")
 		}
@@ -120,6 +123,9 @@ func (r *loginLogDAO) ListLogs(ctx context.Context, page, pageSize int, filter *
 	query := r.GetDB(ctx).Model(&LoginLog{})
 
 	if filter != nil {
+		if v := strings.TrimSpace(filter.UserID); v != "" {
+			query = query.Where("user_id = ?", v)
+		}
 		if v := strings.TrimSpace(filter.Username); v != "" {
 			query = query.Where("username LIKE ?", "%"+v+"%")
 		}

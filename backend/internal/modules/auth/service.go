@@ -37,6 +37,7 @@ type AuthService interface {
 	DisableTwoFactorAuth(ctx context.Context, userID, tenantID, password string) error
 	GenerateNewBackupCodes(ctx context.Context, userID, tenantID string, count int) (*GenerateBackupCodesResponse, error)
 	Verify2FACode(ctx context.Context, userID, tenantID, code string) (*Verify2FAResponse, error)
+	GetCurrentUserLoginHistory(ctx context.Context, userID, tenantID string, page, pageSize int) (*systemlog.PageResponse, error)
 	GetTenantDB(tenantID string) *gorm.DB
 }
 type authService struct {

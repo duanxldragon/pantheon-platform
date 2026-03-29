@@ -4,6 +4,7 @@ import "time"
 
 // LogFilter 日志查询过滤条件
 type LogFilter struct {
+	UserID    string
 	Username  string
 	Module    string
 	Action    string

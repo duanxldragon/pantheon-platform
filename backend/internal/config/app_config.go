@@ -99,21 +99,35 @@ type StorageConfig struct {
 
 // DatabaseConfig represents a database configuration
 type DatabaseConfig struct {
-	Type     string `mapstructure:"type"` // mysql, postgresql, sqlite, mssql
-	Host     string `mapstructure:"host"`
-	Port     int    `mapstructure:"port"`
-	Database string `mapstructure:"database"`
-	Username string `mapstructure:"username"`
-	Password string `mapstructure:"password"`
-	SSLMode  string `mapstructure:"ssl_mode"` // disable, require, verify-ca, verify-full
+	Type            string `mapstructure:"type"` // mysql, postgresql, sqlite, mssql
+	Host            string `mapstructure:"host"`
+	Port            int    `mapstructure:"port"`
+	Database        string `mapstructure:"database"`
+	Username        string `mapstructure:"username"`
+	Password        string `mapstructure:"password"`
+	SSLMode         string `mapstructure:"ssl_mode"` // disable, require, verify-ca, verify-full
+	MaxOpenConns    int    `mapstructure:"max_open_conns"`
+	MaxIdleConns    int    `mapstructure:"max_idle_conns"`
+	ConnMaxLifetime int    `mapstructure:"conn_max_lifetime"`
+	Timeout         int    `mapstructure:"timeout"`
+	ReadTimeout     int    `mapstructure:"read_timeout"`
+	WriteTimeout    int    `mapstructure:"write_timeout"`
+	Heartbeat       int    `mapstructure:"heartbeat"`
 }
 
 // RedisConfig represents Redis configuration
 type RedisConfig struct {
-	Host     string `mapstructure:"host"`
-	Port     int    `mapstructure:"port"`
-	Password string `mapstructure:"password"`
-	DB       int    `mapstructure:"db"`
+	Enabled             string `mapstructure:"enabled"`
+	Host                string `mapstructure:"host"`
+	Port                int    `mapstructure:"port"`
+	Password            string `mapstructure:"password"`
+	DB                  int    `mapstructure:"db"`
+	PoolSize            int    `mapstructure:"pool_size"`
+	MinIdleConns        int    `mapstructure:"min_idle_conns"`
+	PoolTimeout         int    `mapstructure:"pool_timeout"`
+	IdleTimeout         int    `mapstructure:"idle_timeout"`
+	ConnectTimeout      int    `mapstructure:"connect_timeout"`
+	HealthCheckInterval int    `mapstructure:"health_check_interval"`
 }
 
 // DefaultAdminConfig represents the default admin account configuration
@@ -194,8 +208,20 @@ type TenantOverride struct {
 func (c DatabaseConfig) DSN() string {
 	switch c.Type {
 	case "mysql":
-		return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-			c.Username, c.Password, c.Host, c.Port, c.Database)
+		timeout := c.Timeout
+		if timeout <= 0 {
+			timeout = 10
+		}
+		readTimeout := c.ReadTimeout
+		if readTimeout <= 0 {
+			readTimeout = 30
+		}
+		writeTimeout := c.WriteTimeout
+		if writeTimeout <= 0 {
+			writeTimeout = 30
+		}
+		return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=1&loc=Local&timeout=%ds&readTimeout=%ds&writeTimeout=%ds",
+			c.Username, c.Password, c.Host, c.Port, c.Database, timeout, readTimeout, writeTimeout)
 	case "postgresql":
 		return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 			c.Host, c.Port, c.Username, c.Password, c.Database, c.SSLMode)
@@ -353,17 +379,19 @@ func normalizeConfigAliases() {
 	copyIfEmpty("read_timeout", "server.read_timeout")
 	copyIfEmpty("write_timeout", "server.write_timeout")
 
+	// Master DB aliases
+	copyIfEmpty("master_db.type", "master_db.driver")
+	copyIfEmpty("master_db.max_open_conns", "master_db.max_open_conns")
+	copyIfEmpty("master_db.max_idle_conns", "master_db.max_idle_conns")
+	copyIfEmpty("master_db.conn_max_lifetime", "master_db.conn_max_lifetime")
+
 	copyIfEmpty("jwt_secret", "jwt.secret")
 	copyIfEmpty("jwt_expires_in", "jwt.expires_in")
 	copyIfEmpty("refresh_expiry", "jwt.refresh_expiry")
 
-	copyIfEmpty("monitor_db.type", "monitor_db.type")
-	copyIfEmpty("monitor_db.host", "monitor_db.host")
-	copyIfEmpty("monitor_db.port", "monitor_db.port")
-	copyIfEmpty("monitor_db.database", "monitor_db.database")
-	copyIfEmpty("monitor_db.username", "monitor_db.username")
-	copyIfEmpty("monitor_db.password", "monitor_db.password")
-	copyIfEmpty("enable_monitor_sync", "monitor_db.enable_sync")
+	// Monitor DB aliases
+	copyIfEmpty("monitor_db.type", "monitor_db.driver")
+	copyIfEmpty("monitor_db.enable_sync", "monitor_db.enabled")
 
 	copyIfEmpty("email.smtp_host", "email.smtp.host")
 	copyIfEmpty("email.smtp_port", "email.smtp.port")

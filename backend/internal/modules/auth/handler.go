@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"pantheon-platform/backend/internal/shared/response"
+	"strconv"
 )
 
 // AuthErrorResponse documents auth error responses.
@@ -113,6 +114,38 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 	}
 
 	response.Success(c, currentUser)
+}
+
+// GetLoginHistory returns the login history for the current user.
+func (h *AuthHandler) GetLoginHistory(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		response.Unauthorized(c, "UNAUTHORIZED", "auth.error.unauthorized")
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	resp, err := h.authService.GetCurrentUserLoginHistory(
+		c.Request.Context(),
+		userID,
+		c.GetString("tenant_id"),
+		page,
+		pageSize,
+	)
+	if err != nil {
+		response.InternalError(c, "GET_LOGIN_HISTORY_FAILED", err.Error())
+		return
+	}
+
+	response.Success(c, resp)
 }
 
 // GetLoginAttempts returns the login-attempt summary for an account.
