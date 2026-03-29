@@ -199,7 +199,7 @@ export function PositionForm({ data = {}, departments, onChange }: PositionFormP
         </FormField>
 
         <FormField label={copy.status} required>
-          <Select value={formData.status} onValueChange={(value) => updateField('status', value)}>
+          <Select value={formData.status} onValueChange={(value) => updateField('status', value as PositionFormData['status'])}>
             <SelectTrigger className="bg-white">
               <SelectValue />
             </SelectTrigger>

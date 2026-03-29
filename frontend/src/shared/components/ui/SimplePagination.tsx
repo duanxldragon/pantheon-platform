@@ -5,6 +5,7 @@ interface SimplePaginationProps {
   totalPages: number;
   onPageChange: (page: number) => void;
   className?: string;
+  pageSize?: number;
 }
 
 const ChevronLeft = ({ className, ...props }: React.ComponentProps<"svg">) => (

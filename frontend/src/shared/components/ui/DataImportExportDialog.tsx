@@ -19,8 +19,8 @@ interface DataImportExportDialogProps {
   mode: 'import' | 'export';
   resourceName: string; // e.g., "User", "Role"
   templateHeaders?: string[]; // Headers for the template
-  onImport?: (file: File) => Promise<void>;
-  onExport?: (options: ExportOptions) => Promise<void>;
+  onImport?: (file: File) => void | Promise<void>;
+  onExport?: (options: ExportOptions) => void | Promise<void>;
 }
 
 export interface ExportOptions {
@@ -118,6 +118,7 @@ export function DataImportExportDialog({
   onOpenChange,
   mode,
   resourceName,
+  templateHeaders,
   onImport,
   onExport,
 }: DataImportExportDialogProps) {

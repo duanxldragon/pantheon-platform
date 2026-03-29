@@ -442,7 +442,7 @@ export function TenantManagement() {
           </div>
 
           <div className="w-44">
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as typeof filterStatus)}>
               <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white">
                 <div className="flex items-center gap-2">
                   <Filter className="h-3.5 w-3.5 text-slate-400" />

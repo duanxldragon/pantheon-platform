@@ -4,8 +4,8 @@ import { usePermission } from '../../hooks/usePermission';
 import { useLanguageStore } from '../../stores/languageStore';
 
 interface PermissionGuardProps {
-  permission?: string | string[];
-  role?: string | string[];
+  permission?: string | readonly string[];
+  role?: string | readonly string[];
   mode?: 'any' | 'all';
   fallback?: ReactNode;
   children: ReactNode;
@@ -74,9 +74,9 @@ export function PermissionGuard({
   return <>{children}</>;
 }
 
-interface PermissionButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  permission?: string | string[];
-  role?: string | string[];
+interface PermissionButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'role'> {
+  permission?: string | readonly string[];
+  role?: string | readonly string[];
   mode?: 'any' | 'all';
   children: ReactNode;
 }
@@ -141,8 +141,8 @@ export function PermissionButton({
 }
 
 interface PermissionRouteProps {
-  permission?: string | string[];
-  role?: string | string[];
+  permission?: string | readonly string[];
+  role?: string | readonly string[];
   mode?: 'any' | 'all';
   fallback?: ReactNode;
   children: ReactNode;

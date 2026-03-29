@@ -51,11 +51,11 @@ export const DEFAULT_NOTIFICATION_SETTINGS: ProfileNotificationSettings = {
 
 export const PROFILE_SETTINGS_UPDATED_EVENT = 'pantheon:profile-settings-updated';
 
-function buildStorageKey(scope: 'preferences' | 'privacy' | 'notifications', userId?: string) {
+function buildStorageKey(scope: 'preferences' | 'privacy' | 'notifications', userId?: string | number) {
   return `profile:${scope}:${userId || 'anonymous'}`;
 }
 
-function loadSettings<T extends Record<string, unknown>>(scope: 'preferences' | 'privacy' | 'notifications', defaults: T, userId?: string): T {
+function loadSettings<T>(scope: 'preferences' | 'privacy' | 'notifications', defaults: T, userId?: string | number): T {
   try {
     const raw = localStorage.getItem(buildStorageKey(scope, userId));
     if (!raw) {
@@ -76,7 +76,7 @@ function loadSettings<T extends Record<string, unknown>>(scope: 'preferences' | 
   }
 }
 
-function saveSettings<T extends Record<string, unknown>>(scope: 'preferences' | 'privacy' | 'notifications', settings: T, userId?: string) {
+function saveSettings<T>(scope: 'preferences' | 'privacy' | 'notifications', settings: T, userId?: string | number) {
   localStorage.setItem(buildStorageKey(scope, userId), JSON.stringify(settings));
   window.dispatchEvent(
     new CustomEvent(PROFILE_SETTINGS_UPDATED_EVENT, {

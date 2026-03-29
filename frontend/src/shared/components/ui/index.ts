@@ -18,8 +18,8 @@ export * from './ExportDialog';
 
 // New generic dialog components
 export { ActionDialog } from './ActionDialog';
-export { FormDialogWrapper } from './FormDialogWrapper';
-export { DetailDialogWrapper } from './DetailDialogWrapper';
+export { FormDialog as FormDialogWrapper } from './FormDialogWrapper';
+export { DetailDialog as DetailDialogWrapper } from './DetailDialogWrapper';
 
 // Other existing components
 export * from './VirtualizedTable';

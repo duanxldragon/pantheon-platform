@@ -192,7 +192,7 @@ export function UserForm({
       </FormField>
 
       <FormField label={t.user.status} required>
-        <Select value={formData.status} onValueChange={(value) => updateField('status', value)}>
+        <Select value={formData.status} onValueChange={(value) => updateField('status', value as UserFormData['status'])}>
           <SelectTrigger className="bg-white">
             <SelectValue />
           </SelectTrigger>

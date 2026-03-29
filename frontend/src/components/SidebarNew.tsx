@@ -38,7 +38,7 @@ interface NavItem {
   id: string;
   label: string;
   icon: LucideIcon;
-  permissions?: string | string[];
+  permissions?: string | readonly string[];
   children?: NavItem[];
 }
 
@@ -63,7 +63,7 @@ function resolveIcon(name?: string): LucideIcon {
   return ICON_MAP[name] || Server;
 }
 
-function buildTree(menus: SystemMenu[], hasPermission: (permission: string | string[]) => boolean): NavItem[] {
+function buildTree(menus: SystemMenu[], hasPermission: (permission: string | readonly string[]) => boolean): NavItem[] {
   const visibleMenus = menus
     .filter((menu) => menu.status === 'active' && menu.visible !== false && menu.type !== 'button')
     .sort((left, right) => left.sort - right.sort);

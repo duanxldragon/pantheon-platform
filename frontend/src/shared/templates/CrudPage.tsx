@@ -1,9 +1,9 @@
 import { ReactNode, useState } from 'react';
-import { Button } from '../../../components/ui/button';
-import { Card } from '../../../components/ui/card';
-import { Download, Plus, Upload, Trash2 } from '../../../shared/components/ui/icons';
+import { Button } from '../../components/ui/button';
+import { Card } from '../../components/ui/card';
+import { Download, Plus, Upload, Trash2 } from '../components/ui/icons';
 import { ThemedSearchBar } from '../components/ui/ThemedSearchBar';
-import { PageLayout } from '../../../components/layouts/PageLayout';
+import { PageLayout } from '../../components/layouts/PageLayout';
 import { EnhancedDataTable, Column } from '../components/ui/EnhancedDataTable';
 import { DataImportExportDialog, ExportOptions } from '../components/ui/DataImportExportDialog';
 
@@ -76,9 +76,9 @@ export function CrudPage<T>({
   };
 
   const handleExport = async (options: ExportOptions) => {
-    const dataToExport = options.scope === 'selected' && selectedItems.length > 0
+    void (options.scope === 'selected' && selectedItems.length > 0
       ? selectedItems
-      : filteredData;
+      : filteredData);
     await actions?.onExport?.(options);
     setIsExportDialogOpen(false);
   };

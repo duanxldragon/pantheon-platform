@@ -181,7 +181,7 @@ export function validateSortOrder(sortOrder: number | string | null | undefined)
     return { valid: false, error: '排序值必须是数字' };
   }
 
-  if (numValue < 0 || numOrder > 9999) {
+  if (numValue < 0 || numValue > 9999) {
     return { valid: false, error: '排序值必须在0-9999之间' };
   }
 

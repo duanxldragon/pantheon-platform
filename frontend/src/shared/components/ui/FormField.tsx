@@ -7,6 +7,7 @@ interface FormFieldProps {
   error?: string;
   children: ReactNode;
   description?: string;
+  className?: string;
 }
 
 export function FormField({
@@ -15,9 +16,10 @@ export function FormField({
   error,
   children,
   description,
+  className,
 }: FormFieldProps) {
   return (
-    <div className="space-y-2">
+    <div className={`space-y-2 ${className || ''}`}>
       <Label className="text-gray-700">
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}

@@ -293,7 +293,7 @@ export function MenuForm({ data = {}, menus, onChange, isEdit = false, statusHin
         </FormField>
 
         <FormField label={copy.type} required description={copy.typeDescription}>
-          <Select value={formData.type} onValueChange={(value) => updateField('type', value)}>
+          <Select value={formData.type} onValueChange={(value) => updateField('type', value as MenuFormData['type'])}>
             <SelectTrigger className="bg-white">
               <SelectValue />
             </SelectTrigger>
@@ -309,7 +309,7 @@ export function MenuForm({ data = {}, menus, onChange, isEdit = false, statusHin
           <TreeSelect
             data={menuOptions}
             value={formData.parentId ?? null}
-            onChange={(value) => updateField('parentId', value)}
+            onChange={(value) => updateField('parentId', value == null ? null : String(value))}
             placeholder={copy.parentPlaceholder}
           />
         </FormField>
@@ -359,7 +359,7 @@ export function MenuForm({ data = {}, menus, onChange, isEdit = false, statusHin
         </FormField>
 
         <FormField label={copy.status} required description={copy.statusDescription}>
-          <Select value={formData.status} onValueChange={(value) => updateField('status', value)}>
+          <Select value={formData.status} onValueChange={(value) => updateField('status', value as MenuFormData['status'])}>
             <SelectTrigger className="bg-white">
               <SelectValue />
             </SelectTrigger>

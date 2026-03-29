@@ -392,12 +392,27 @@ export function useLockOrientation(
   useEffect(() => {
     if (typeof window === 'undefined' || !window.screen?.orientation) return;
 
+    const screenOrientation = window.screen.orientation as ScreenOrientation & {
+      lock?: (
+        orientation:
+          | 'any'
+          | 'natural'
+          | 'landscape'
+          | 'portrait'
+          | 'portrait-primary'
+          | 'portrait-secondary'
+          | 'landscape-primary'
+          | 'landscape-secondary'
+      ) => Promise<void>;
+      unlock?: () => void;
+    };
+
     const lock = async () => {
       try {
         if (orientation === 'any') {
-          await screen.orientation.unlock();
+          screenOrientation.unlock?.();
         } else {
-          await screen.orientation.lock(orientation);
+          await screenOrientation.lock?.(orientation);
         }
       } catch (error) {
         console.warn('Screen orientation lock not supported:', error);
@@ -408,7 +423,7 @@ export function useLockOrientation(
 
     return () => {
       try {
-        screen.orientation.unlock();
+        screenOrientation.unlock?.();
       } catch (error) {
         // Ignore
       }

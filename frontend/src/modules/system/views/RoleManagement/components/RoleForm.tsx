@@ -122,7 +122,7 @@ export function RoleForm({ data = {}, menus, onChange, isEdit = false }: RoleFor
         </FormField>
 
         <FormField label={copy.status} required>
-          <Select value={formData.status} onValueChange={(value) => updateField('status', value)}>
+          <Select value={formData.status} onValueChange={(value) => updateField('status', value as RoleFormData['status'])}>
             <SelectTrigger className="bg-white">
               <SelectValue />
             </SelectTrigger>

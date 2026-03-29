@@ -126,7 +126,7 @@ export function PermissionForm({ data = {}, menus = [], onChange, isEdit = false
         </FormField>
 
         <FormField label={copy.type} required>
-          <Select value={formData.type} onValueChange={(value) => updateField('type', value)}>
+          <Select value={formData.type} onValueChange={(value) => updateField('type', value as PermissionFormData['type'])}>
             <SelectTrigger>
               <SelectValue placeholder={copy.typePlaceholder} />
             </SelectTrigger>

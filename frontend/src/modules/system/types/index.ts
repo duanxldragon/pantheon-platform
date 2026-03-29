@@ -1,5 +1,5 @@
-// ID type: backend uses UUID strings; some mock data may still use numeric IDs.
-export type ID = string | number;
+// Backend entities use string IDs consistently.
+export type ID = string;
 
 export interface User {
   id: ID;

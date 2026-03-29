@@ -16,8 +16,8 @@ export interface ActionButtonConfig {
   onClick: () => void;
   variant?: 'default' | 'destructive' | 'outline' | 'ghost';
   danger?: boolean;
-  permission?: string | string[];
-  role?: string | string[];
+  permission?: string | readonly string[];
+  role?: string | readonly string[];
   hideWhenUnauthorized?: boolean;
   disabled?: boolean;
   className?: string;

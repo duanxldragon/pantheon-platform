@@ -906,7 +906,7 @@ const zhTranslations = {
   },
 };
 
-type Translations = typeof zhTranslations;
+export type Translations = Record<string, any>;
 
 const enTranslations: Translations = {
   common: {
@@ -2512,7 +2512,7 @@ const zhTranslationOverrides = {
   },
 };
 
-const zhRuntimeCleanupOverrides: Partial<Translations> = {
+const zhRuntimeCleanupOverrides: Record<string, unknown> = {
   common: {
     confirm: '确认',
     cancel: '取消',
@@ -2625,6 +2625,32 @@ const zhRuntimeCleanupOverrides: Partial<Translations> = {
     systemDictionary: '数据字典',
     systemMonitor: '系统监控',
     tenantManagement: '租户管理',
+  },
+  modules: {
+    dashboard: {
+      title: '仪表盘',
+      description: '系统概览',
+      totalHosts: '主机总数',
+      k8sClusters: 'K8s 集群数',
+      runningServices: '运行中的服务',
+      alertCount: '告警数量',
+      systemAlerts: '系统告警',
+      lastUpdate: '最后更新',
+      recentActivities: '最近活动',
+      viewAll: '查看全部',
+      comparedToYesterday: '较昨日',
+      activities: {
+        addHost: '添加主机',
+        deployApp: '部署应用',
+        scaleCluster: '扩展集群',
+        systemUpdate: '系统更新',
+      },
+      alerts: {
+        cpuWarning: 'CPU 使用率超过 80%',
+        nodeUnavailable: '节点不可用',
+        storageWarning: '存储使用率达到 70%',
+      },
+    },
   },
   systemManagement: {
     title: '系统管理',

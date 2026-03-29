@@ -129,7 +129,7 @@ export function DepartmentForm({ data = {}, departments, users, onChange }: Depa
           <TreeSelect
             data={departmentOptions}
             value={formData.parentId ?? null}
-            onChange={(value) => updateField('parentId', value)}
+            onChange={(value) => updateField('parentId', value == null ? null : String(value))}
             placeholder={copy.parentPlaceholder}
           />
         </FormField>
@@ -192,7 +192,7 @@ export function DepartmentForm({ data = {}, departments, users, onChange }: Depa
         </FormField>
 
         <FormField label={copy.status} required>
-          <Select value={formData.status} onValueChange={(value) => updateField('status', value)}>
+          <Select value={formData.status} onValueChange={(value) => updateField('status', value as DepartmentFormData['status'])}>
             <SelectTrigger className="bg-white">
               <SelectValue />
             </SelectTrigger>

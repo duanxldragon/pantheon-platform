@@ -407,7 +407,61 @@ npm install
 npm run dev
 ```
 
-### 13.2 生产构建
+如果开发环境是受限的 Windows 主机，并且浏览器报错：
+
+- `The requested module '/node_modules/react-dom/client.js?...' does not provide an export named 'createRoot'`
+- 或终端里出现 `esbuild spawn EPERM`
+
+优先按下面顺序判断：
+
+1. 这通常不是 `react-dom` 版本本身损坏，而是 **Vite 开发态依赖预构建** 没有成功；
+2. 当前仓库已经在 `vite.config.mjs` 里对开发态做了兼容：
+   - 默认会先检测当前终端能否正常使用标准 `Vite + esbuild` 链路；
+   - 如果检测通过，则直接走标准 dev 模式；
+   - 如果检测失败，再自动回退到兼容模式；
+   - 关闭受限环境下会失败的依赖扫描；
+   - 对 `react`、`react-dom/client`、`react/jsx-*`、`scheduler` 提供开发态 CJS -> ESM 兼容层；
+   - 如果你的终端环境已经恢复正常，可以切回标准链路：
+
+```bash
+cd frontend
+npm run check:esbuild
+npm run dev:standard
+```
+
+也可以显式关闭标准模式探测并强制使用兼容模式：
+
+```bash
+set PANTHEON_STANDARD_VITE=0&& npm run dev
+```
+
+3. 如果此前起过旧的 dev server，先删除 `node_modules/.vite` 缓存后再重启：
+
+```bash
+cd frontend
+rm -rf node_modules/.vite
+npm run dev
+```
+
+在 Windows PowerShell 下可使用：
+
+```powershell
+cd frontend
+if (Test-Path node_modules/.vite) { Remove-Item node_modules/.vite -Recurse -Force }
+npm run dev
+```
+
+### 13.2 Windows 受限环境说明
+
+这套兼容逻辑的根因是：
+
+- 某些 Windows 安全策略会拦截 Node 拉起 `esbuild` 子进程；
+- Vite dev server 在预构建或处理 React 相关入口时依赖该子进程；
+- 一旦预构建失败，浏览器就可能直接请求原始 CommonJS 入口，进而出现 `createRoot` 命名导出缺失。
+
+因此当前实现把“开发态可用性”放在第一优先级，但只在 `serve` 模式生效，不影响正常生产构建。
+
+### 13.3 生产构建
 
 ```bash
 cd frontend
@@ -416,7 +470,25 @@ npm run lint
 npm run build
 ```
 
-### 13.3 部署边界
+### 13.4 更优的长期方案
+
+当前仓库内置的兼容方案适合“先把开发跑起来”，但更优的长期方案仍然是**恢复 Vite + esbuild 的原生链路**。推荐顺序如下：
+
+1. **最佳方案：修复主机策略**
+   - 放开 Node 拉起 `esbuild.exe` 的权限；
+   - 或将前端开发迁移到本地开发机、WSL2、容器、Linux CI 这类不拦截子进程的环境；
+   - 验证时优先运行 `npm run check:esbuild`，确认当前终端允许 Node 以 pipe 模式拉起 `esbuild`；
+2. **次优方案：统一团队开发环境**
+   - 固定 Node 版本；
+   - 固定包管理器和锁文件；
+   - 统一 Windows 安全策略或白名单；
+3. **仓库内兜底方案：保留当前兼容层**
+   - 优点是无需改业务代码，并且现在会优先尝试标准链路；
+   - 缺点是 dev 配置更复杂，后续升级 React/Vite 时要重新验证兼容层。
+
+如果团队后面能解决 `esbuild spawn EPERM`，建议再把这层开发态兼容逻辑移除，回到更简单的标准 Vite 配置。
+
+### 13.5 部署边界
 
 前端部署说明尽量只保留：
 

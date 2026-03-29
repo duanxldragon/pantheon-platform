@@ -82,7 +82,7 @@ export const useSystemStore = create<SystemState>()(
             roles: results[2].status === 'fulfilled' ? results[2].value : [],
             menus: results[3].status === 'fulfilled' ? results[3].value : [],
             positions: results[4].status === 'fulfilled' ? results[4].value : [],
-            operationLogs: results[5].status === 'fulfilled' ? results[5].value : [],
+            operationLogs: results[5].status === 'fulfilled' ? results[5].value.items : [],
             systemSettings: results[6].status === 'fulfilled' ? results[6].value : [],
             isLoading: false,
             error: rejected.length > 0 ? 'Failed to load some system data.' : null,
@@ -94,13 +94,13 @@ export const useSystemStore = create<SystemState>()(
           set((state) => ({ users: [...state.users, user] }));
         },
         updateUser: (id, updates) => {
-          set((state) => ({ users: state.users.map((u) => (u.id === id ? { ...u, ...updates } : u)) }));
+          set((state) => ({ users: state.users.map((u) => (String(u.id) === String(id) ? { ...u, ...updates } : u)) }));
         },
         deleteUser: (id) => {
-          set((state) => ({ users: state.users.filter((u) => u.id !== id) }));
+          set((state) => ({ users: state.users.filter((u) => String(u.id) !== String(id)) }));
         },
         batchDeleteUsers: (ids) => {
-          set((state) => ({ users: state.users.filter((u) => !ids.includes(u.id)) }));
+          set((state) => ({ users: state.users.filter((u) => !ids.some((id) => String(id) === String(u.id))) }));
         },
 
         setDepartments: (departments) => set({ departments }),
@@ -109,11 +109,11 @@ export const useSystemStore = create<SystemState>()(
         },
         updateDepartment: (id, updates) => {
           set((state) => ({
-            departments: state.departments.map((d) => (d.id === id ? { ...d, ...updates } : d)),
+            departments: state.departments.map((d) => (String(d.id) === String(id) ? { ...d, ...updates } : d)),
           }));
         },
         deleteDepartment: (id) => {
-          set((state) => ({ departments: state.departments.filter((d) => d.id !== id) }));
+          set((state) => ({ departments: state.departments.filter((d) => String(d.id) !== String(id)) }));
         },
 
         setPositions: (positions) => set({ positions }),
@@ -122,11 +122,11 @@ export const useSystemStore = create<SystemState>()(
         },
         updatePosition: (id, updates) => {
           set((state) => ({
-            positions: state.positions.map((p) => (p.id === id ? { ...p, ...updates } : p)),
+            positions: state.positions.map((p) => (String(p.id) === String(id) ? { ...p, ...updates } : p)),
           }));
         },
         deletePosition: (id) => {
-          set((state) => ({ positions: state.positions.filter((p) => p.id !== id) }));
+          set((state) => ({ positions: state.positions.filter((p) => String(p.id) !== String(id)) }));
         },
 
         setRoles: (roles) => set({ roles }),
@@ -134,10 +134,10 @@ export const useSystemStore = create<SystemState>()(
           set((state) => ({ roles: [...state.roles, role] }));
         },
         updateRole: (id, updates) => {
-          set((state) => ({ roles: state.roles.map((r) => (r.id === id ? { ...r, ...updates } : r)) }));
+          set((state) => ({ roles: state.roles.map((r) => (String(r.id) === String(id) ? { ...r, ...updates } : r)) }));
         },
         deleteRole: (id) => {
-          set((state) => ({ roles: state.roles.filter((r) => r.id !== id) }));
+          set((state) => ({ roles: state.roles.filter((r) => String(r.id) !== String(id)) }));
         },
 
         setMenus: (menus) => set({ menus }),
@@ -145,10 +145,10 @@ export const useSystemStore = create<SystemState>()(
           set((state) => ({ menus: [...state.menus, menu] }));
         },
         updateMenu: (id, updates) => {
-          set((state) => ({ menus: state.menus.map((m) => (m.id === id ? { ...m, ...updates } : m)) }));
+          set((state) => ({ menus: state.menus.map((m) => (String(m.id) === String(id) ? { ...m, ...updates } : m)) }));
         },
         deleteMenu: (id) => {
-          set((state) => ({ menus: state.menus.filter((m) => m.id !== id) }));
+          set((state) => ({ menus: state.menus.filter((m) => String(m.id) !== String(id)) }));
         },
 
         addOperationLog: (log) => {

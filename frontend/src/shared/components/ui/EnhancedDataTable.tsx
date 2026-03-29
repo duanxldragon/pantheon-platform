@@ -24,14 +24,18 @@ interface EnhancedDataTableProps<T> {
   columns: Column<T>[];
   data: T[];
   rowKey: (item: T) => string | number;
+  className?: string;
   selectable?: boolean;
   selectedItems?: T[];
   onSelectionChange?: (items: T[]) => void;
   onRowClick?: (item: T) => void;
+  emptyState?: ReactNode;
+  loading?: boolean;
   pagination?: {
     currentPage: number;
     totalPages: number;
     onPageChange: (page: number) => void;
+    pageSize?: number;
   };
 }
 
@@ -39,10 +43,13 @@ export function EnhancedDataTable<T>({
   columns,
   data,
   rowKey,
+  className,
   selectable = false,
   selectedItems = [],
   onSelectionChange,
   onRowClick,
+  emptyState,
+  loading = false,
   pagination,
 }: EnhancedDataTableProps<T>) {
   const { theme } = useThemeStore();
@@ -77,7 +84,7 @@ export function EnhancedDataTable<T>({
   };
 
   return (
-    <div className="rounded-lg border" style={{ borderColor: theme.colors.border }}>
+    <div className={`rounded-lg border ${className || ''}`} style={{ borderColor: theme.colors.border }}>
       <Table>
         <TableHeader>
           <TableRow style={{ backgroundColor: theme.colors.hover }}>
@@ -106,14 +113,24 @@ export function EnhancedDataTable<T>({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.length === 0 ? (
+          {loading ? (
             <TableRow>
               <TableCell
                 colSpan={columns.length + (selectable ? 1 : 0)}
                 className="text-center py-8"
                 style={{ color: theme.colors.textSecondary }}
               >
-                {t.common.noData}
+                {t.common.loading}
+              </TableCell>
+            </TableRow>
+          ) : data.length === 0 ? (
+            <TableRow>
+              <TableCell
+                colSpan={columns.length + (selectable ? 1 : 0)}
+                className="text-center py-8"
+                style={{ color: theme.colors.textSecondary }}
+              >
+                {emptyState || t.common.noData}
               </TableCell>
             </TableRow>
           ) : (
@@ -167,6 +184,7 @@ export function EnhancedDataTable<T>({
             currentPage={pagination.currentPage}
             totalPages={pagination.totalPages}
             onPageChange={pagination.onPageChange}
+            pageSize={pagination.pageSize}
           />
         </div>
       )}

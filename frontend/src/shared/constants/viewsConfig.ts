@@ -8,8 +8,8 @@ export interface ViewConfig {
   label?: (language: string, t?: any) => string;
   breadcrumbPath?: (t?: any) => string[];
   path?: string;
-  permissions?: string | string[];
-  roles?: string | string[];
+  permissions?: string | readonly string[];
+  roles?: string | readonly string[];
 }
 
 export const VIEWS_CONFIG: ViewConfig[] = [

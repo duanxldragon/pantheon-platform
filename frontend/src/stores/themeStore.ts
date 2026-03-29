@@ -7,6 +7,7 @@ export interface Theme {
   name: string;
   colors: {
     primary: string;
+    primaryForeground: string;
     primaryLight: string;
     primaryDark: string;
     secondary: string;
@@ -17,6 +18,7 @@ export interface Theme {
     border: string;
     hover: string;
     error: string;
+    danger: string;
     warning: string;
     success: string;
     info: string;
@@ -28,6 +30,7 @@ export const themes: Record<ThemeType, Theme> = {
     name: '蓝色主题',
     colors: {
       primary: '#3b82f6',
+      primaryForeground: '#ffffff',
       primaryLight: '#dbeafe',
       primaryDark: '#1e40af',
       secondary: '#8b5cf6',
@@ -38,6 +41,7 @@ export const themes: Record<ThemeType, Theme> = {
       border: '#e2e8f0',
       hover: '#f1f5f9',
       error: '#ef4444',
+      danger: '#ef4444',
       warning: '#f59e0b',
       success: '#10b981',
       info: '#3b82f6',
@@ -47,6 +51,7 @@ export const themes: Record<ThemeType, Theme> = {
     name: '暗色主题',
     colors: {
       primary: '#60a5fa',
+      primaryForeground: '#0f172a',
       primaryLight: '#1e3a8a',
       primaryDark: '#93c5fd',
       secondary: '#a78bfa',
@@ -57,6 +62,7 @@ export const themes: Record<ThemeType, Theme> = {
       border: '#334155',
       hover: '#334155',
       error: '#f87171',
+      danger: '#f87171',
       warning: '#fbbf24',
       success: '#34d399',
       info: '#60a5fa',
@@ -66,6 +72,7 @@ export const themes: Record<ThemeType, Theme> = {
     name: '绿色主题',
     colors: {
       primary: '#10b981',
+      primaryForeground: '#ffffff',
       primaryLight: '#d1fae5',
       primaryDark: '#047857',
       secondary: '#14b8a6',
@@ -76,6 +83,7 @@ export const themes: Record<ThemeType, Theme> = {
       border: '#e2e8f0',
       hover: '#f1f5f9',
       error: '#ef4444',
+      danger: '#ef4444',
       warning: '#f59e0b',
       success: '#10b981',
       info: '#3b82f6',
@@ -85,6 +93,7 @@ export const themes: Record<ThemeType, Theme> = {
     name: '紫色主题',
     colors: {
       primary: '#8b5cf6',
+      primaryForeground: '#ffffff',
       primaryLight: '#ede9fe',
       primaryDark: '#6d28d9',
       secondary: '#ec4899',
@@ -95,6 +104,7 @@ export const themes: Record<ThemeType, Theme> = {
       border: '#e2e8f0',
       hover: '#f1f5f9',
       error: '#ef4444',
+      danger: '#ef4444',
       warning: '#f59e0b',
       success: '#10b981',
       info: '#3b82f6',
@@ -104,6 +114,7 @@ export const themes: Record<ThemeType, Theme> = {
     name: '橙色主题',
     colors: {
       primary: '#f97316',
+      primaryForeground: '#ffffff',
       primaryLight: '#ffedd5',
       primaryDark: '#c2410c',
       secondary: '#f59e0b',
@@ -114,6 +125,7 @@ export const themes: Record<ThemeType, Theme> = {
       border: '#e2e8f0',
       hover: '#f1f5f9',
       error: '#ef4444',
+      danger: '#ef4444',
       warning: '#f59e0b',
       success: '#10b981',
       info: '#3b82f6',

@@ -375,7 +375,7 @@ export function usePaginatedCache<T>(
   fetcher: (page: number, pageSize: number) => Promise<T>,
   page: number,
   pageSize: number
-): [T | null, boolean, Error | null, () => Promise<void>] {
+): [T | null, boolean, Error | null, (data: T) => void, () => Promise<void>] {
   const cacheKey = `${key}:page:${page}:size:${pageSize}`;
   
   return useCache(

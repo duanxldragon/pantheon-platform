@@ -11,7 +11,6 @@ import { TenantSetupWizard } from './modules/tenant';
 import { useAuthStore } from './modules/auth/store/authStore';
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
 import { ViewManager, useViewManager } from './shared/components/ViewManager';
-import { initializeApiInterceptor } from './shared/utils/apiInterceptor';
 import { GlobalErrorHandler } from './shared/utils/errorHandler';
 import { initializeSecurity } from './shared/utils/security';
 import { useLanguageStore } from './stores/languageStore';
@@ -34,7 +33,6 @@ function App() {
 
   useEffect(() => {
     initializeSecurity();
-    initializeApiInterceptor();
 
     GlobalErrorHandler.getInstance().register('app', (error, context) => {
       console.error(`[App Error] ${context}:`, error);

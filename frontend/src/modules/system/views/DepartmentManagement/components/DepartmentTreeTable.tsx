@@ -140,7 +140,7 @@ export const DepartmentTreeTable: React.FC<DepartmentTreeTableProps> = ({
       render: (node) => (
         <Badge variant="outline" className="gap-1 border-gray-100 bg-gray-50 text-gray-600 font-normal">
           <Users className="w-3 h-3 opacity-60" />
-          {node.memberCount || 0}
+          {node.userCount || 0}
         </Badge>
       ),
     },

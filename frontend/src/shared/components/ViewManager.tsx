@@ -45,8 +45,8 @@ function isMenuVisible(menu: Menu): boolean {
 function canAccessView(
   viewId: string,
   menus: Menu[],
-  hasPermission: (permission: string | string[]) => boolean,
-  hasRole: (role: string | string[]) => boolean,
+  hasPermission: (permission: string | readonly string[]) => boolean,
+  hasRole: (role: string | readonly string[]) => boolean,
 ): boolean {
   if (ALWAYS_ACCESSIBLE_VIEW_IDS.has(viewId)) {
     return true;
@@ -120,8 +120,8 @@ function buildTabItem(viewId: string, menus: Menu[], language: string, t: any): 
 function getFallbackViewId(
   tabs: Tab[],
   menus: Menu[],
-  hasPermission: (permission: string | string[]) => boolean,
-  hasRole: (role: string | string[]) => boolean,
+  hasPermission: (permission: string | readonly string[]) => boolean,
+  hasRole: (role: string | readonly string[]) => boolean,
 ): string {
   const tabFallback = tabs.find((tab) => canAccessView(tab.id, menus, hasPermission, hasRole));
   if (tabFallback) {

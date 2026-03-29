@@ -21,7 +21,7 @@ export function usePermission() {
    * @param permission 权限代码或权限数组
    * @returns boolean
    */
-  const hasPermission = useCallback((permission: string | string[]): boolean => {
+  const hasPermission = useCallback((permission: string | readonly string[]): boolean => {
     return checkPermission(permission);
   }, [checkPermission]);
 
@@ -30,7 +30,7 @@ export function usePermission() {
    * @param role 角色名称或角色数组
    * @returns boolean
    */
-  const hasRole = useCallback((role: string | string[]): boolean => {
+  const hasRole = useCallback((role: string | readonly string[]): boolean => {
     return checkRole(role);
   }, [checkRole]);
 
@@ -39,7 +39,7 @@ export function usePermission() {
    * @param permissions 权限数组
    * @returns boolean
    */
-  const hasAnyPermission = useCallback((permissions: string[]): boolean => {
+  const hasAnyPermission = useCallback((permissions: readonly string[]): boolean => {
     return permissions.some(p => checkPermission(p));
   }, [checkPermission]);
 
@@ -48,7 +48,7 @@ export function usePermission() {
    * @param permissions 权限数组
    * @returns boolean
    */
-  const hasAllPermissions = useCallback((permissions: string[]): boolean => {
+  const hasAllPermissions = useCallback((permissions: readonly string[]): boolean => {
     return permissions.every(p => checkPermission(p));
   }, [checkPermission]);
 
@@ -57,7 +57,7 @@ export function usePermission() {
    * @param roles 角色数组
    * @returns boolean
    */
-  const hasAnyRole = useCallback((roles: string[]): boolean => {
+  const hasAnyRole = useCallback((roles: readonly string[]): boolean => {
     return roles.some(r => checkRole(r));
   }, [checkRole]);
 
@@ -66,7 +66,7 @@ export function usePermission() {
    * @param roles 角色数组
    * @returns boolean
    */
-  const hasAllRoles = useCallback((roles: string[]): boolean => {
+  const hasAllRoles = useCallback((roles: readonly string[]): boolean => {
     return roles.every(r => checkRole(r));
   }, [checkRole]);
 

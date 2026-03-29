@@ -141,7 +141,7 @@ export function UserManagement() {
           departmentId: user.departmentId,
           positionId: user.positionId,
           roleIds: user.roleIds,
-          status: user.status,
+          status: user.status === 'locked' ? 'inactive' : user.status,
         });
         setDialogOpen('edit', true);
         break;

@@ -13,7 +13,7 @@ import { systemNotification } from '../utils/notification';
 interface QueryAccessBoundaryProps {
   viewId: string;
   title: string;
-  queryPermission: string | string[];
+  queryPermission: string | readonly string[];
   description?: string;
   notificationDescription?: string;
   autoRedirectMs?: number;
@@ -21,8 +21,8 @@ interface QueryAccessBoundaryProps {
 
 function canAccessFallbackView(
   viewId: string,
-  hasPermission: (permission: string | string[]) => boolean,
-  hasRole: (role: string | string[]) => boolean,
+  hasPermission: (permission: string | readonly string[]) => boolean,
+  hasRole: (role: string | readonly string[]) => boolean,
 ) {
   if (viewId === 'profile-center' || viewId === 'account-settings') {
     return true;

@@ -81,10 +81,13 @@ export function downloadCSV(content: string, filename: string): void {
   const BOM = '\uFEFF';
   const blob = new Blob([BOM + content], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
-  
-  if (navigator.msSaveBlob) {
+  const legacyNavigator = navigator as Navigator & {
+    msSaveBlob?: (blob: Blob, defaultName?: string) => boolean;
+  };
+
+  if (legacyNavigator.msSaveBlob) {
     // IE 10+
-    navigator.msSaveBlob(blob, filename);
+    legacyNavigator.msSaveBlob(blob, filename);
   } else {
     const url = URL.createObjectURL(blob);
     link.href = url;

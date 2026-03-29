@@ -122,7 +122,7 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
                 <span className="font-semibold text-gray-900 truncate">
                   {node.name}
                 </span>
-                {node.type === 'link' && <ExternalLink className="w-3 h-3 text-gray-400" />}
+                {node.external && <ExternalLink className="w-3 h-3 text-gray-400" />}
               </div>
               <span className="text-[10px] text-gray-400 font-mono leading-none">
                 {node.id.split('-')[0]}...

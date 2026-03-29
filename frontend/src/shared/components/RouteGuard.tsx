@@ -7,8 +7,8 @@ import { systemNotification } from '../utils/notification';
 
 interface RouteGuardProps {
   children: ReactNode;
-  requiredPermissions?: string | string[];
-  requiredRoles?: string | string[];
+  requiredPermissions?: string | readonly string[];
+  requiredRoles?: string | readonly string[];
   fallback?: ReactNode;
   onUnauthorized?: () => void;
 }
@@ -84,19 +84,19 @@ export function usePermissionCheck() {
   const hasRole = useAuthStore((state) => state.hasRole);
   const user = useAuthStore((state) => state.user);
 
-  const checkPermission = (permissions: string | string[]): boolean => {
+  const checkPermission = (permissions: string | readonly string[]): boolean => {
     if (!user) return false;
     return hasPermission(permissions);
   };
 
-  const checkRole = (roles: string | string[]): boolean => {
+  const checkRole = (roles: string | readonly string[]): boolean => {
     if (!user) return false;
     return hasRole(roles);
   };
 
   const checkAny = (
-    permissions?: string | string[],
-    roles?: string | string[],
+    permissions?: string | readonly string[],
+    roles?: string | readonly string[],
   ): boolean => {
     if (!user) return false;
 
