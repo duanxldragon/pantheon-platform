@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'list',
   webServer: {
-    command: 'node ./tests/static-server.cjs',
+    command: 'npm run build && node ./tests/static-server.cjs',
     port: 5173,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

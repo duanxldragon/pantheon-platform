@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"pantheon-platform/backend/internal/shared/audit"
 	"pantheon-platform/backend/internal/shared/database"
@@ -133,6 +134,7 @@ func (s *userService) Create(ctx context.Context, req *UserRequest) (*User, erro
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 
 	user := &User{
+		ID:           uuid.New(),
 		Username:     req.Username,
 		RealName:     req.RealName,
 		Email:        req.Email,
@@ -328,6 +330,12 @@ func (s *userService) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("user not found in current tenant")
 	}
 
+	_ = s.userDAO.ClearRoles(ctx, id)
+	if s.authProvider != nil {
+		_ = s.authProvider.SetRolesForUser(ctx, id, []string{})
+		_ = s.authProvider.BumpUserAuthVersion(ctx, id)
+	}
+
 	err = s.userDAO.SoftDelete(ctx, id)
 	if err == nil && tenantID != "" && s.quotaValidator != nil {
 		_ = s.quotaValidator.DecreaseUsage(ctx, tenantID, "users", 1, "system")
@@ -355,6 +363,11 @@ func (s *userService) BatchDelete(ctx context.Context, userIDs []string) error {
 		user, err := s.userDAO.GetByID(ctx, id)
 		if err != nil || user.TenantID != tenantID {
 			continue
+		}
+		_ = s.userDAO.ClearRoles(ctx, id)
+		if s.authProvider != nil {
+			_ = s.authProvider.SetRolesForUser(ctx, id, []string{})
+			_ = s.authProvider.BumpUserAuthVersion(ctx, id)
 		}
 		if err := s.userDAO.SoftDelete(ctx, id); err != nil {
 			continue
