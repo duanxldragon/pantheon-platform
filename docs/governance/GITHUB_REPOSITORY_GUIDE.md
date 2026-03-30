@@ -38,8 +38,15 @@
 - `Frontend CI / Lint`
 - `Frontend CI / Test`
 - `Frontend CI / Build`
+- `Text Hygiene / Check Encoding And Line Endings`
 
 如果后续新增更细的 job，可以按实际 job 名调整。
+
+其中 `Text Hygiene` 用于阻止以下问题进入主分支：
+
+- 非 `UTF-8` 文本文件
+- 带 `BOM` 的 UTF-8 文件
+- 不符合仓库约定的换行风格
 
 ## 4. 推荐协作流程
 
