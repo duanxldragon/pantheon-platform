@@ -85,7 +85,7 @@ if (-not $BackendOnly) {
     $frontendCommand = @(
         '$Host.UI.RawUI.WindowTitle = "Pantheon Frontend"',
         'Set-Location "' + $frontendDir + '"',
-        'cmd /c npm run dev:standard'
+        'cmd /c npm run dev'
     ) -join "; "
 
     Start-DevProcess `
