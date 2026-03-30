@@ -70,7 +70,7 @@ if (hasPermission('system:user:delete')) {
 # Install Dependencies
 npm install
 
-# Start Dev Server (Includes vite-wrapper for Windows compatibility)
+# Start Dev Server
 npm run dev
 
 # Build for Production
