@@ -21,6 +21,7 @@
 - [系统检查清单](governance/SYSTEM_CHECKLIST.md)
 - [Git 提交规范](governance/GIT_COMMIT_GUIDE.md)
 - [GitHub 仓库治理建议](governance/GITHUB_REPOSITORY_GUIDE.md)
+- [文档编码与换行规范](governance/ENCODING_AND_LINE_ENDINGS.md)
 - [部署说明](deploy/DEPLOYMENT.md)
 
 ## 实现视角入口
@@ -55,5 +56,6 @@
 - `backend/docs/`：后端专题实现
 - `frontend/docs/`：前端专题实现
 - `backend/api/swagger/`：接口生成产物
+
 
 
