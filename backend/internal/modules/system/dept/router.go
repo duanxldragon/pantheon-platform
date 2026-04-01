@@ -8,6 +8,8 @@ func (h *DepartmentHandler) RegisterRoutes(group *gin.RouterGroup) {
 	{
 		depts.GET("", h.List)
 		depts.POST("", h.Create)
+		depts.POST("/batch-delete", h.BatchDelete)
+		depts.PATCH("/status", h.BatchUpdateStatus)
 		depts.GET("/tree", h.GetTree)
 		depts.GET("/:id", h.GetByID)
 		depts.PUT("/:id", h.Update)

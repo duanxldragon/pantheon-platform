@@ -2,45 +2,56 @@ package menu
 
 import (
 	"time"
+
+	_ "pantheon-platform/backend/internal/shared/validator"
 )
 
 // MenuRequest 菜单请求DTO
 type MenuRequest struct {
-	Name       string  `json:"name" binding:"required,min=2,max=100"`
-	Code       string  `json:"code" binding:"required,min=2,max=50,alphanum"`
-	Path       string  `json:"path" binding:"required,max=255"`
-	Component  string  `json:"component" binding:"max=255"`
-	Icon       string  `json:"icon" binding:"max=100"`
-	Type       string  `json:"type" binding:"required,oneof=menu button directory"`
-	ParentID   *string `json:"parent_id"`
-	Sort       *int    `json:"sort"`
-	Status     string  `json:"status" binding:"omitempty,oneof=active inactive"`
-	IsExternal bool    `json:"is_external"`
+	Name       string  `json:"name" binding:"required,min=2,max=100" example:"User Management"`
+	Code       string  `json:"code" binding:"required,min=2,max=50,codefmt" example:"system_user"`
+	Path       string  `json:"path" binding:"required,max=255" example:"/system/users"`
+	Component  string  `json:"component" binding:"max=255" example:"system/UserManagement"`
+	Icon       string  `json:"icon" binding:"max=100" example:"users"`
+	Type       string  `json:"type" binding:"required,oneof=menu button directory" example:"menu"`
+	ParentID   *string `json:"parent_id" example:"menu-system"`
+	Sort       *int    `json:"sort" example:"10"`
+	Status     string  `json:"status" binding:"omitempty,oneof=active inactive" example:"active"`
+	IsExternal bool    `json:"is_external" example:"false"`
 }
 
 // MenuResponse 菜单响应DTO
 type MenuResponse struct {
-	ID         string         `json:"id"`
-	Name       string         `json:"name"`
-	Code       string         `json:"code"`
-	Path       string         `json:"path"`
-	Component  string         `json:"component,omitempty"`
-	Icon       string         `json:"icon"`
-	Type       string         `json:"type"`
-	ParentID   *string        `json:"parent_id,omitempty"`
-	ParentName *string        `json:"parent_name,omitempty"`
-	Sort       int            `json:"sort"`
-	Status     string         `json:"status"`
-	IsExternal bool           `json:"is_external"`
+	ID         string         `json:"id" example:"menu-user"`
+	Name       string         `json:"name" example:"User Management"`
+	Code       string         `json:"code" example:"system_user"`
+	Path       string         `json:"path" example:"/system/users"`
+	Component  string         `json:"component,omitempty" example:"system/UserManagement"`
+	Icon       string         `json:"icon" example:"users"`
+	Type       string         `json:"type" example:"menu"`
+	ParentID   *string        `json:"parent_id,omitempty" example:"menu-system"`
+	ParentName *string        `json:"parent_name,omitempty" example:"System Management"`
+	Sort       int            `json:"sort" example:"10"`
+	Status     string         `json:"status" example:"active"`
+	IsExternal bool           `json:"is_external" example:"false"`
 	Children   []MenuResponse `json:"children,omitempty"`
-	CreatedAt  string         `json:"created_at"`
-	UpdatedAt  string         `json:"updated_at"`
+	CreatedAt  string         `json:"created_at" example:"2026-03-30T10:00:00Z"`
+	UpdatedAt  string         `json:"updated_at" example:"2026-03-30T12:00:00Z"`
 }
 
 // MenuTreeRequest 菜单树请求DTO
 type MenuTreeRequest struct {
-	Status  string   `json:"status" form:"status"`
-	RoleIDs []string `json:"role_ids" form:"role_ids"`
+	Status  string   `json:"status" form:"status" example:"active"`
+	RoleIDs []string `json:"role_ids" form:"role_ids" example:"role-admin,role-ops"`
+}
+
+type MenuBatchDeleteRequest struct {
+	MenuIDs []string `json:"menu_ids" binding:"required,min=1" example:"menu-user,menu-role"`
+}
+
+type MenuStatusRequest struct {
+	MenuIDs []string `json:"menu_ids" binding:"required,min=1" example:"menu-user,menu-role"`
+	Status  string   `json:"status" binding:"required,oneof=active inactive" example:"inactive"`
 }
 
 // ToMenuResponse 将模型转换为Response DTO

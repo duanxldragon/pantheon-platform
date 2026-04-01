@@ -159,13 +159,13 @@ func (c *container) initServices() {
 	authProvider := &authorizationAdapter{svc: c.authz}
 	passwordValidator := &passwordPolicyAdapter{}
 
-	c.logService = log.NewLogService(c.opLogDAO, c.loginLogDAO, c.monitorDB)
+	c.logService = log.NewLogService(c.opLogDAO, c.loginLogDAO, c.monitorDB, authProvider)
 	c.departmentService = dept.NewDepartmentService(c.deptDAO, userDirectory, authProvider, txManager)
 	c.positionService = position.NewPositionService(c.posDAO, deptValidator, userDirectory, authProvider, txManager)
 	c.menuService = menu.NewMenuService(c.menuDAO, authProvider, txManager)
 	c.dictService = dict.NewDictService(c.dictTypeDAO, c.dictDataDAO, txManager)
 	c.permissionService = permission.NewPermissionService(c.permDAO, authProvider, txManager)
-	c.settingService = setting.NewSettingService(c.settingDAO)
+	c.settingService = setting.NewSettingService(c.settingDAO, txManager)
 	c.monitorService = monitor.NewMonitorService(c.db, c.monitorDB, nil)
 
 	c.roleService = role.NewRoleService(
@@ -574,6 +574,13 @@ func (a *authorizationAdapter) RemoveRole(ctx context.Context, roleID string) er
 		}
 	}
 	return a.svc.ClearPermissionsForRole(ctx, roleID)
+}
+
+func (a *authorizationAdapter) ValidateDataScope(rule string) (bool, error) {
+	if a == nil || a.svc == nil {
+		return false, nil
+	}
+	return a.svc.ParseCustomScopeRule(rule)
 }
 
 func (a *authorizationAdapter) SyncRoleUsers(ctx context.Context, roleID string, userIDs []string, enabled bool) error {

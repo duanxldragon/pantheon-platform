@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 	"pantheon-platform/backend/internal/shared/audit"
 	"pantheon-platform/backend/internal/shared/database"
 )
@@ -32,6 +33,8 @@ type PositionService interface {
 	GetByID(ctx context.Context, id string) (*PositionResponse, error)
 	Update(ctx context.Context, id string, req *PositionRequest) (*Position, error)
 	Delete(ctx context.Context, id string) error
+	BatchDelete(ctx context.Context, ids []string) error
+	BatchUpdateStatus(ctx context.Context, req *PositionStatusRequest) error
 	List(ctx context.Context, req *PositionListRequest) (*PageResponse, error)
 }
 
@@ -217,6 +220,138 @@ func (s *positionService) Delete(ctx context.Context, id string) error {
 			"affected_users":   fmt.Sprintf("%d", len(userIDs)),
 			"refresh_strategy": "bump_auth_version",
 		}),
+	})
+	return nil
+}
+
+func (s *positionService) BatchDelete(ctx context.Context, ids []string) error {
+	tenantID := getTenantID(ctx)
+	positions := make([]Position, 0, len(ids))
+	seen := make(map[string]struct{}, len(ids))
+	affectedUsers := make(map[string]struct{})
+
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+
+		pos, err := s.dao.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if pos.TenantID != tenantID {
+			return fmt.Errorf("position not found in current tenant")
+		}
+		userIDs, _ := s.userDirectory.ListUserIDsByPositionID(ctx, id)
+		for _, userID := range userIDs {
+			if userID != "" {
+				affectedUsers[userID] = struct{}{}
+			}
+		}
+		positions = append(positions, pos)
+	}
+
+	if err := s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
+		txCtx := context.WithValue(ctx, "tx_db", tx)
+		for _, pos := range positions {
+			if err := s.dao.Delete(txCtx, pos.ID.String()); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	userIDs := make([]string, 0, len(affectedUsers))
+	for userID := range affectedUsers {
+		userIDs = append(userIDs, userID)
+	}
+	s.bumpUsers(ctx, userIDs)
+
+	positionNames := make([]string, 0, len(positions))
+	for _, pos := range positions {
+		positionNames = append(positionNames, pos.Name)
+	}
+	setPositionAuditFields(ctx, audit.OperationFields{
+		Module:   "system/positions",
+		Resource: "position_batch_delete",
+		Summary:  fmt.Sprintf("Batch deleted %d positions", len(positions)),
+		Detail:   "positions=" + strings.Join(positionNames, ",") + fmt.Sprintf(";affected_users=%d", len(userIDs)),
+	})
+	return nil
+}
+
+func (s *positionService) BatchUpdateStatus(ctx context.Context, req *PositionStatusRequest) error {
+	tenantID := getTenantID(ctx)
+	positions := make([]Position, 0, len(req.PositionIDs))
+	seen := make(map[string]struct{}, len(req.PositionIDs))
+
+	for _, id := range req.PositionIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+
+		pos, err := s.dao.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if pos.TenantID != tenantID {
+			return fmt.Errorf("position not found in current tenant")
+		}
+		if pos.Status == req.Status {
+			continue
+		}
+		positions = append(positions, pos)
+	}
+
+	affectedUsers := make(map[string]struct{})
+	if err := s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
+		txCtx := context.WithValue(ctx, "tx_db", tx)
+		for _, pos := range positions {
+			if err := s.dao.UpdateStatus(txCtx, pos.ID.String(), req.Status); err != nil {
+				return err
+			}
+			userIDs, err := s.userDirectory.ListUserIDsByPositionID(txCtx, pos.ID.String())
+			if err != nil {
+				return err
+			}
+			for _, userID := range userIDs {
+				if userID != "" {
+					affectedUsers[userID] = struct{}{}
+				}
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	userIDs := make([]string, 0, len(affectedUsers))
+	for userID := range affectedUsers {
+		userIDs = append(userIDs, userID)
+	}
+	s.bumpUsers(ctx, userIDs)
+
+	positionNames := make([]string, 0, len(positions))
+	for _, pos := range positions {
+		positionNames = append(positionNames, pos.Name)
+	}
+	setPositionAuditFields(ctx, audit.OperationFields{
+		Module:   "system/positions",
+		Resource: "position_status_batch",
+		Summary:  fmt.Sprintf("Batch updated %d positions to %s", len(positions), req.Status),
+		Detail:   "positions=" + strings.Join(positionNames, ",") + ";status=" + req.Status + fmt.Sprintf(";affected_users=%d", len(userIDs)),
 	})
 	return nil
 }

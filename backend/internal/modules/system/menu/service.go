@@ -3,6 +3,7 @@ package menu
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -21,6 +22,8 @@ type MenuService interface {
 	GetByID(ctx context.Context, id string) (*MenuResponse, error)
 	Update(ctx context.Context, id string, req *MenuRequest) (*Menu, error)
 	Delete(ctx context.Context, id string) error
+	BatchDelete(ctx context.Context, ids []string) error
+	BatchUpdateStatus(ctx context.Context, req *MenuStatusRequest) error
 	List(ctx context.Context, page, pageSize int, search string) (*PageResponse, error)
 	GetTree(ctx context.Context, req *MenuTreeRequest) ([]*MenuResponse, error)
 	GetUserTree(ctx context.Context, userID string) ([]*MenuResponse, error)
@@ -196,7 +199,7 @@ func (s *menuService) Delete(ctx context.Context, id string) error {
 
 	err = s.txManager.Transaction(ctx, func(txDB *gorm.DB) error {
 		txDAO := s.dao.WithTx(txDB).(MenuDAO)
-		txCtx := context.WithValue(ctx, "tenant_db", txDB)
+		txCtx := context.WithValue(ctx, "tx_db", txDB)
 		if err := txDAO.ClearRoleRelations(txCtx, id); err != nil {
 			return err
 		}
@@ -229,6 +232,193 @@ func (s *menuService) Delete(ctx context.Context, id string) error {
 		}),
 	})
 
+	return nil
+}
+
+func (s *menuService) BatchDelete(ctx context.Context, ids []string) error {
+	tenantID := getTenantID(ctx)
+	selectedIDs := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := selectedIDs[id]; ok {
+			continue
+		}
+		selectedIDs[id] = struct{}{}
+	}
+
+	menus := make([]Menu, 0, len(selectedIDs))
+	for id := range selectedIDs {
+
+		record, err := s.dao.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if tenantID != "" && record.TenantID != tenantID {
+			return fmt.Errorf("menu not found in current tenant")
+		}
+		children, err := s.dao.GetChildren(ctx, id)
+		if err != nil {
+			return err
+		}
+		for _, child := range children {
+			if _, ok := selectedIDs[child.ID.String()]; !ok {
+				return fmt.Errorf("menu %q still has unselected child menus", record.Name)
+			}
+		}
+		menus = append(menus, record)
+	}
+
+	if len(menus) == 0 {
+		return nil
+	}
+
+	depthMemo := make(map[string]int, len(menus))
+	menuByID := make(map[string]Menu, len(menus))
+	for _, menu := range menus {
+		menuByID[menu.ID.String()] = menu
+	}
+	var depthOf func(string) int
+	depthOf = func(id string) int {
+		if depth, ok := depthMemo[id]; ok {
+			return depth
+		}
+		menu, ok := menuByID[id]
+		if !ok || menu.ParentID == nil {
+			depthMemo[id] = 0
+			return 0
+		}
+		parentID := menu.ParentID.String()
+		if _, ok := menuByID[parentID]; !ok {
+			depthMemo[id] = 0
+			return 0
+		}
+		depth := depthOf(parentID) + 1
+		depthMemo[id] = depth
+		return depth
+	}
+	sort.Slice(menus, func(i, j int) bool {
+		return depthOf(menus[i].ID.String()) > depthOf(menus[j].ID.String())
+	})
+
+	affectedRoleIDs := make(map[string]struct{})
+	for _, menu := range menus {
+		roleIDs, err := s.dao.GetRoleIDsByMenu(ctx, menu.ID.String())
+		if err != nil {
+			return err
+		}
+		for _, roleID := range roleIDs {
+			if roleID != "" {
+				affectedRoleIDs[roleID] = struct{}{}
+			}
+		}
+	}
+
+	err := s.txManager.Transaction(ctx, func(txDB *gorm.DB) error {
+		txDAO := s.dao.WithTx(txDB).(MenuDAO)
+		txCtx := context.WithValue(ctx, "tx_db", txDB)
+		for _, menu := range menus {
+			if err := txDAO.ClearRoleRelations(txCtx, menu.ID.String()); err != nil {
+				return err
+			}
+			if err := txDAO.Delete(txCtx, menu.ID.String()); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	roleIDs := make([]string, 0, len(affectedRoleIDs))
+	for roleID := range affectedRoleIDs {
+		roleIDs = append(roleIDs, roleID)
+	}
+	s.bumpRoleUsers(ctx, roleIDs)
+
+	names := make([]string, 0, len(menus))
+	for _, menu := range menus {
+		names = append(names, menu.Name)
+	}
+	setMenuAuditFields(ctx, audit.OperationFields{
+		Module:   "system/menus",
+		Resource: "menu_batch_delete",
+		Summary:  fmt.Sprintf("Batch deleted %d menus", len(menus)),
+		Detail:   buildMenuAuditDetail("", strings.Join(names, ","), map[string]string{"affected_roles": fmt.Sprintf("%d", len(roleIDs)), "refresh_strategy": "bump_auth_version"}),
+	})
+	return nil
+}
+
+func (s *menuService) BatchUpdateStatus(ctx context.Context, req *MenuStatusRequest) error {
+	tenantID := getTenantID(ctx)
+	menus := make([]Menu, 0, len(req.MenuIDs))
+	seen := make(map[string]struct{}, len(req.MenuIDs))
+	affectedRoleIDs := make(map[string]struct{})
+
+	for _, id := range req.MenuIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+
+		record, err := s.dao.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if tenantID != "" && record.TenantID != tenantID {
+			return fmt.Errorf("menu not found in current tenant")
+		}
+		if record.Status == req.Status {
+			continue
+		}
+		roleIDs, err := s.dao.GetRoleIDsByMenu(ctx, id)
+		if err != nil {
+			return err
+		}
+		for _, roleID := range roleIDs {
+			if roleID != "" {
+				affectedRoleIDs[roleID] = struct{}{}
+			}
+		}
+		menus = append(menus, record)
+	}
+
+	if err := s.txManager.Transaction(ctx, func(txDB *gorm.DB) error {
+		txDAO := s.dao.WithTx(txDB).(MenuDAO)
+		txCtx := context.WithValue(ctx, "tx_db", txDB)
+		for _, menu := range menus {
+			if err := txDAO.UpdateStatus(txCtx, menu.ID.String(), req.Status); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	roleIDs := make([]string, 0, len(affectedRoleIDs))
+	for roleID := range affectedRoleIDs {
+		roleIDs = append(roleIDs, roleID)
+	}
+	s.bumpRoleUsers(ctx, roleIDs)
+
+	names := make([]string, 0, len(menus))
+	for _, menu := range menus {
+		names = append(names, menu.Name)
+	}
+	setMenuAuditFields(ctx, audit.OperationFields{
+		Module:   "system/menus",
+		Resource: "menu_status_batch",
+		Summary:  fmt.Sprintf("Batch updated %d menus to %s", len(menus), req.Status),
+		Detail:   buildMenuAuditDetail("", strings.Join(names, ","), map[string]string{"status": req.Status, "affected_roles": fmt.Sprintf("%d", len(roleIDs)), "refresh_strategy": "bump_auth_version"}),
+	})
 	return nil
 }
 

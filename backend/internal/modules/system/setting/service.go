@@ -5,6 +5,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+
+	"pantheon-platform/backend/internal/shared/database"
 )
 
 // SettingService defines the system setting service contract.
@@ -16,11 +19,12 @@ type SettingService interface {
 
 // settingService implements the system setting service.
 type settingService struct {
-	dao SettingDAO
+	dao       SettingDAO
+	txManager database.TransactionManager
 }
 
-func NewSettingService(dao SettingDAO) SettingService {
-	return &settingService{dao: dao}
+func NewSettingService(dao SettingDAO, txManager database.TransactionManager) SettingService {
+	return &settingService{dao: dao, txManager: txManager}
 }
 
 func (s *settingService) List(ctx context.Context) ([]*SettingResponse, error) {
@@ -66,23 +70,44 @@ func (s *settingService) UpdateBatch(ctx context.Context, updates map[string]str
 	}
 
 	now := time.Now()
-	for key, value := range updates {
-		entry := &Setting{
-			ID:        uuid.New(),
-			TenantID:  tenantID,
-			Key:       key,
-			Value:     value,
-			Editable:  true,
-			UpdatedBy: updatedBy,
-			UpdatedAt: now,
-		}
+	if s.txManager == nil {
+		for key, value := range updates {
+			entry := &Setting{
+				ID:        uuid.New(),
+				TenantID:  tenantID,
+				Key:       key,
+				Value:     value,
+				Editable:  true,
+				UpdatedBy: updatedBy,
+				UpdatedAt: now,
+			}
 
-		if err := s.dao.Upsert(ctx, entry); err != nil {
-			return err
+			if err := s.dao.Upsert(ctx, entry); err != nil {
+				return err
+			}
 		}
+		return nil
 	}
 
-	return nil
+	return s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
+		txCtx := context.WithValue(ctx, "tx_db", tx)
+		for key, value := range updates {
+			entry := &Setting{
+				ID:        uuid.New(),
+				TenantID:  tenantID,
+				Key:       key,
+				Value:     value,
+				Editable:  true,
+				UpdatedBy: updatedBy,
+				UpdatedAt: now,
+			}
+
+			if err := s.dao.Upsert(txCtx, entry); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func toResponse(s *Setting) *SettingResponse {

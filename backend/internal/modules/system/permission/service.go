@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 	"pantheon-platform/backend/internal/modules/system/role"
 	"pantheon-platform/backend/internal/shared/audit"
 	"pantheon-platform/backend/internal/shared/database"
@@ -23,6 +24,8 @@ type PermissionService interface {
 	GetByID(ctx context.Context, id string) (*PermissionResponse, error)
 	Update(ctx context.Context, id string, req *PermissionRequest) (*Permission, error)
 	Delete(ctx context.Context, id string) error
+	BatchDelete(ctx context.Context, ids []string) error
+	BatchUpdateStatus(ctx context.Context, req *PermissionStatusRequest) error
 	List(ctx context.Context, req *RoleListRequest) (*PageResponse, error)
 
 	GetCodesByIDs(ctx context.Context, ids []string) ([]string, error)
@@ -128,6 +131,129 @@ func (s *permissionService) Delete(ctx context.Context, id string) error {
 	}
 
 	return s.dao.Delete(ctx, id)
+}
+
+func (s *permissionService) BatchDelete(ctx context.Context, ids []string) error {
+	tenantID := getTenantID(ctx)
+	permissions := make([]Permission, 0, len(ids))
+	seen := make(map[string]struct{}, len(ids))
+
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+
+		perm, err := s.dao.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if perm.TenantID != tenantID {
+			return fmt.Errorf("permission not found in current tenant")
+		}
+		if inUse, _ := s.dao.IsInUse(ctx, id); inUse {
+			return fmt.Errorf("permission %q is in use by roles", perm.Name)
+		}
+		permissions = append(permissions, perm)
+	}
+
+	if len(permissions) == 0 {
+		return nil
+	}
+
+	if err := s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
+		txDAO := s.dao.WithTx(tx).(PermissionDAO)
+		txCtx := context.WithValue(ctx, "tx_db", tx)
+		for _, perm := range permissions {
+			if err := txDAO.Delete(txCtx, perm.ID.String()); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	names := make([]string, 0, len(permissions))
+	for _, perm := range permissions {
+		names = append(names, perm.Name)
+	}
+	setPermissionAuditFields(ctx, audit.OperationFields{
+		Module:   "system/permissions",
+		Resource: "permission_batch_delete",
+		Summary:  fmt.Sprintf("Batch deleted %d permissions", len(permissions)),
+		Detail:   "permissions=" + strings.Join(names, ","),
+	})
+	return nil
+}
+
+func (s *permissionService) BatchUpdateStatus(ctx context.Context, req *PermissionStatusRequest) error {
+	tenantID := getTenantID(ctx)
+	permissions := make([]Permission, 0, len(req.PermissionIDs))
+	seen := make(map[string]struct{}, len(req.PermissionIDs))
+	totalRoles := 0
+	totalUsers := 0
+
+	for _, id := range req.PermissionIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+
+		perm, err := s.dao.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if perm.TenantID != tenantID {
+			return fmt.Errorf("permission not found in current tenant")
+		}
+		if perm.Status == req.Status {
+			continue
+		}
+		permissions = append(permissions, perm)
+	}
+
+	if err := s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
+		txDAO := s.dao.WithTx(tx).(PermissionDAO)
+		txCtx := context.WithValue(ctx, "tx_db", tx)
+		for _, perm := range permissions {
+			if err := txDAO.UpdateStatus(txCtx, perm.ID.String(), req.Status); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	for _, perm := range permissions {
+		affectedRoles, affectedUsers, err := s.syncAffectedRolePermissions(ctx, perm.ID.String())
+		if err != nil {
+			return err
+		}
+		totalRoles += affectedRoles
+		totalUsers += affectedUsers
+	}
+
+	names := make([]string, 0, len(permissions))
+	for _, perm := range permissions {
+		names = append(names, perm.Name)
+	}
+	setPermissionAuditFields(ctx, audit.OperationFields{
+		Module:   "system/permissions",
+		Resource: "permission_status_batch",
+		Summary:  fmt.Sprintf("Batch updated %d permissions to %s", len(permissions), req.Status),
+		Detail:   "permissions=" + strings.Join(names, ",") + ";status=" + req.Status + fmt.Sprintf(";affected_roles=%d;affected_users=%d", totalRoles, totalUsers),
+	})
+	return nil
 }
 
 func (s *permissionService) List(ctx context.Context, req *RoleListRequest) (*PageResponse, error) {

@@ -2,15 +2,20 @@ package user
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 	"pantheon-platform/backend/internal/shared/audit"
 	"pantheon-platform/backend/internal/shared/database"
 )
+
+var ErrUserNotFound = errors.New("user not found")
+var ErrUserScopeDenied = errors.New("user scope denied")
 
 // ========== Dependency Contracts ==========
 
@@ -145,6 +150,9 @@ func (s *userService) Create(ctx context.Context, req *UserRequest) (*User, erro
 		DepartmentID: departmentID,
 		PositionID:   positionID,
 	}
+	if err := s.ensureUserWritable(ctx, user); err != nil {
+		return nil, err
+	}
 
 	err = s.userDAO.Create(ctx, *user)
 	if err != nil {
@@ -180,6 +188,9 @@ func (s *userService) Create(ctx context.Context, req *UserRequest) (*User, erro
 func (s *userService) GetByID(ctx context.Context, id string) (*UserResponse, error) {
 	u, err := s.userDAO.GetByID(ctx, id)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.ensureUserReadable(ctx, &u); err != nil {
 		return nil, err
 	}
 
@@ -226,9 +237,11 @@ func (s *userService) Update(ctx context.Context, id string, req *UserUpdateRequ
 	if err != nil {
 		return nil, err
 	}
-	if err := s.ensureUserInTenant(ctx, &u); err != nil {
+	if err := s.ensureUserReadable(ctx, &u); err != nil {
 		return nil, err
 	}
+	previousDepartmentID := normalizeOptionalID(u.DepartmentID)
+	previousPositionID := normalizeOptionalID(u.PositionID)
 	beforeRoles, _ := s.userDAO.GetRoles(ctx, id)
 	previousStatus := u.Status
 	beforeDepartmentName := s.getDepartmentName(ctx, u.DepartmentID)
@@ -268,11 +281,16 @@ func (s *userService) Update(ctx context.Context, id string, req *UserUpdateRequ
 	if req.PositionID != nil {
 		u.PositionID = positionID
 	}
+	if err := s.ensureUserWritable(ctx, &u); err != nil {
+		return nil, err
+	}
 
 	err = s.userDAO.Update(ctx, u)
 	if err != nil {
 		return nil, err
 	}
+	orgScopeChanged := !optionalIDsEqual(previousDepartmentID, u.DepartmentID) || !optionalIDsEqual(previousPositionID, u.PositionID)
+	shouldRevokeSessions := req.Status != nil && *req.Status != "active"
 
 	if req.RoleIDs != nil {
 		_ = s.userDAO.ClearRoles(ctx, id)
@@ -281,10 +299,12 @@ func (s *userService) Update(ctx context.Context, id string, req *UserUpdateRequ
 		}
 		if s.authProvider != nil {
 			_ = s.authProvider.SetRolesForUser(ctx, id, roleIDs)
-			_ = s.authProvider.BumpUserAuthVersion(ctx, id)
 		}
 	}
-	if req.Status != nil && *req.Status != "active" && s.authProvider != nil {
+	if s.authProvider != nil && !shouldRevokeSessions && (req.RoleIDs != nil || orgScopeChanged) {
+		_ = s.authProvider.BumpUserAuthVersion(ctx, id)
+	}
+	if shouldRevokeSessions && s.authProvider != nil {
 		_ = s.authProvider.RevokeUserSessions(ctx, id)
 	}
 	afterRoles, _ := s.userDAO.GetRoles(ctx, id)
@@ -300,6 +320,9 @@ func (s *userService) Update(ctx context.Context, id string, req *UserUpdateRequ
 	}
 	if beforePositionName != afterPositionName && strings.TrimSpace(afterPositionName) != "" {
 		attrs["position_name"] = afterPositionName
+	}
+	if orgScopeChanged && !shouldRevokeSessions {
+		attrs["refresh_strategy"] = "bump_auth_version"
 	}
 	setUserAuditFields(ctx, audit.OperationFields{
 		Module:       "system/users",
@@ -324,10 +347,8 @@ func (s *userService) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-
-	tenantID := getTenantID(ctx)
-	if user.TenantID != tenantID {
-		return fmt.Errorf("user not found in current tenant")
+	if err := s.ensureUserReadable(ctx, &user); err != nil {
+		return err
 	}
 
 	_ = s.userDAO.ClearRoles(ctx, id)
@@ -337,6 +358,7 @@ func (s *userService) Delete(ctx context.Context, id string) error {
 	}
 
 	err = s.userDAO.SoftDelete(ctx, id)
+	tenantID := getTenantID(ctx)
 	if err == nil && tenantID != "" && s.quotaValidator != nil {
 		_ = s.quotaValidator.DecreaseUsage(ctx, tenantID, "users", 1, "system")
 	}
@@ -357,28 +379,41 @@ func (s *userService) Delete(ctx context.Context, id string) error {
 }
 
 func (s *userService) BatchDelete(ctx context.Context, userIDs []string) error {
-	tenantID := getTenantID(ctx)
-	deletedUsers := make([]string, 0, len(userIDs))
-	for _, id := range userIDs {
-		user, err := s.userDAO.GetByID(ctx, id)
-		if err != nil || user.TenantID != tenantID {
-			continue
+	users, err := s.loadWritableUsers(ctx, userIDs, "")
+	if err != nil {
+		return err
+	}
+	if len(users) == 0 {
+		return nil
+	}
+
+	if err := s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
+		txCtx := context.WithValue(ctx, "tx_db", tx)
+		for _, user := range users {
+			if err := s.userDAO.ClearRoles(txCtx, user.ID.String()); err != nil {
+				return err
+			}
+			if err := s.userDAO.SoftDelete(txCtx, user.ID.String()); err != nil {
+				return err
+			}
 		}
-		_ = s.userDAO.ClearRoles(ctx, id)
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	deletedUsers := make([]string, 0, len(users))
+	for _, user := range users {
 		if s.authProvider != nil {
-			_ = s.authProvider.SetRolesForUser(ctx, id, []string{})
-			_ = s.authProvider.BumpUserAuthVersion(ctx, id)
-		}
-		if err := s.userDAO.SoftDelete(ctx, id); err != nil {
-			continue
-		}
-		if s.authProvider != nil {
-			_ = s.authProvider.RevokeUserSessions(ctx, id)
-		}
-		if tenantID != "" && s.quotaValidator != nil {
-			_ = s.quotaValidator.DecreaseUsage(ctx, tenantID, "users", 1, "system")
+			_ = s.authProvider.SetRolesForUser(ctx, user.ID.String(), []string{})
+			_ = s.authProvider.BumpUserAuthVersion(ctx, user.ID.String())
+			_ = s.authProvider.RevokeUserSessions(ctx, user.ID.String())
 		}
 		deletedUsers = append(deletedUsers, user.Username)
+	}
+	tenantID := getTenantID(ctx)
+	if tenantID != "" && s.quotaValidator != nil {
+		_ = s.quotaValidator.DecreaseUsage(ctx, tenantID, "users", int64(len(users)), "system")
 	}
 	setUserAuditFields(ctx, audit.OperationFields{
 		Module:   "system/users",
@@ -478,7 +513,7 @@ func (s *userService) ResetPassword(ctx context.Context, userID string, newPassw
 	if err != nil {
 		return err
 	}
-	if err := s.ensureUserInTenant(ctx, &u); err != nil {
+	if err := s.ensureUserReadable(ctx, &u); err != nil {
 		return err
 	}
 	hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
@@ -506,7 +541,7 @@ func (s *userService) Activate(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	if err := s.ensureUserInTenant(ctx, &u); err != nil {
+	if err := s.ensureUserReadable(ctx, &u); err != nil {
 		return err
 	}
 	return s.userDAO.UpdateStatus(ctx, id, "active")
@@ -517,7 +552,7 @@ func (s *userService) Deactivate(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	if err := s.ensureUserInTenant(ctx, &u); err != nil {
+	if err := s.ensureUserReadable(ctx, &u); err != nil {
 		return err
 	}
 	if err := s.userDAO.UpdateStatus(ctx, id, "inactive"); err != nil {
@@ -530,16 +565,30 @@ func (s *userService) Deactivate(ctx context.Context, id string) error {
 }
 
 func (s *userService) BatchUpdateStatus(ctx context.Context, req *UserStatusRequest) error {
-	tenantID := getTenantID(ctx)
-	affectedUsers := make([]string, 0, len(req.UserIDs))
-	for _, id := range req.UserIDs {
-		user, err := s.userDAO.GetByID(ctx, id)
-		if err != nil || user.TenantID != tenantID {
-			continue
+	users, err := s.loadWritableUsers(ctx, req.UserIDs, req.Status)
+	if err != nil {
+		return err
+	}
+	if len(users) == 0 {
+		return nil
+	}
+
+	if err := s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
+		txCtx := context.WithValue(ctx, "tx_db", tx)
+		for _, user := range users {
+			if err := s.userDAO.UpdateStatus(txCtx, user.ID.String(), req.Status); err != nil {
+				return err
+			}
 		}
-		_ = s.userDAO.UpdateStatus(ctx, id, req.Status)
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	affectedUsers := make([]string, 0, len(users))
+	for _, user := range users {
 		if req.Status != "active" && s.authProvider != nil {
-			_ = s.authProvider.RevokeUserSessions(ctx, id)
+			_ = s.authProvider.RevokeUserSessions(ctx, user.ID.String())
 		}
 		affectedUsers = append(affectedUsers, user.Username)
 	}
@@ -560,7 +609,7 @@ func (s *userService) AssignRole(ctx context.Context, req *UserRoleRequest) erro
 	if err != nil {
 		return err
 	}
-	if err := s.ensureUserInTenant(ctx, &u); err != nil {
+	if err := s.ensureUserReadable(ctx, &u); err != nil {
 		return err
 	}
 	beforeRoles, _ := s.userDAO.GetRoles(ctx, req.UserID)
@@ -614,11 +663,39 @@ func getUserID(ctx context.Context) string {
 
 func (s *userService) ensureUserInTenant(ctx context.Context, user *User) error {
 	if user == nil {
-		return fmt.Errorf("user not found")
+		return ErrUserNotFound
 	}
 	tenantID := getTenantID(ctx)
 	if tenantID != "" && user.TenantID != tenantID {
-		return fmt.Errorf("user not found in current tenant")
+		return ErrUserNotFound
+	}
+	return nil
+}
+
+func (s *userService) ensureUserReadable(ctx context.Context, user *User) error {
+	if err := s.ensureUserWritable(ctx, user); err != nil {
+		if errors.Is(err, ErrUserScopeDenied) {
+			return ErrUserNotFound
+		}
+		return err
+	}
+	return nil
+}
+
+func (s *userService) ensureUserWritable(ctx context.Context, user *User) error {
+	if err := s.ensureUserInTenant(ctx, user); err != nil {
+		return err
+	}
+	currentUserID := getUserID(ctx)
+	if currentUserID == "" || s == nil || s.authProvider == nil {
+		return nil
+	}
+	filter, err := s.authProvider.GetDataScopeFilter(ctx, currentUserID, "/api/v1/system/users")
+	if err != nil || filter == nil {
+		return err
+	}
+	if !userMatchesDataScope(user, filter) {
+		return ErrUserScopeDenied
 	}
 	return nil
 }
@@ -651,6 +728,45 @@ func normalizeOptionalID(value *string) *string {
 		return nil
 	}
 	return &trimmed
+}
+
+func optionalIDsEqual(left, right *string) bool {
+	switch {
+	case left == nil && right == nil:
+		return true
+	case left == nil || right == nil:
+		return false
+	default:
+		return strings.TrimSpace(*left) == strings.TrimSpace(*right)
+	}
+}
+
+func (s *userService) loadWritableUsers(ctx context.Context, userIDs []string, targetStatus string) ([]User, error) {
+	seen := make(map[string]struct{}, len(userIDs))
+	users := make([]User, 0, len(userIDs))
+	for _, id := range userIDs {
+		trimmedID := strings.TrimSpace(id)
+		if trimmedID == "" {
+			continue
+		}
+		if _, ok := seen[trimmedID]; ok {
+			continue
+		}
+		seen[trimmedID] = struct{}{}
+
+		user, err := s.userDAO.GetByID(ctx, trimmedID)
+		if err != nil {
+			return nil, err
+		}
+		if err := s.ensureUserReadable(ctx, &user); err != nil {
+			return nil, err
+		}
+		if targetStatus != "" && user.Status == targetStatus {
+			continue
+		}
+		users = append(users, user)
+	}
+	return users, nil
 }
 
 func normalizeIDs(values []string) ([]string, error) {
@@ -902,4 +1018,45 @@ func (s *userService) getPositionName(ctx context.Context, positionID *string) s
 	}
 	name, _ := s.posValidator.GetPositionName(ctx, strings.TrimSpace(*positionID))
 	return strings.TrimSpace(name)
+}
+
+func userMatchesDataScope(user *User, filter map[string]interface{}) bool {
+	if user == nil || filter == nil {
+		return true
+	}
+	if idValue, ok := filter["id"]; ok {
+		if id, ok := idValue.(string); ok {
+			return strings.TrimSpace(id) == user.ID.String()
+		}
+	}
+	if creatorValue, ok := filter["creator_id"]; ok {
+		if creatorID, ok := creatorValue.(string); ok {
+			return strings.TrimSpace(creatorID) == user.ID.String()
+		}
+	}
+	if departmentValue, ok := filter["department_id"]; ok {
+		if user.DepartmentID == nil || strings.TrimSpace(*user.DepartmentID) == "" {
+			return false
+		}
+		userDepartmentID := strings.TrimSpace(*user.DepartmentID)
+		switch value := departmentValue.(type) {
+		case string:
+			return strings.TrimSpace(value) == userDepartmentID
+		case []string:
+			for _, departmentID := range value {
+				if strings.TrimSpace(departmentID) == userDepartmentID {
+					return true
+				}
+			}
+			return false
+		case []interface{}:
+			for _, departmentID := range value {
+				if rawID, ok := departmentID.(string); ok && strings.TrimSpace(rawID) == userDepartmentID {
+					return true
+				}
+			}
+			return false
+		}
+	}
+	return true
 }

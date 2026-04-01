@@ -15,21 +15,21 @@ var processStartTime = time.Now()
 
 // ServiceStatus represents the health of a backend service.
 type ServiceStatus struct {
-	Name      string        `json:"name"`
-	OK        bool          `json:"ok"`
-	LatencyMS int64         `json:"latency_ms"`
-	Error     string        `json:"error,omitempty"`
+	Name      string        `json:"name" example:"master_db"`
+	OK        bool          `json:"ok" example:"true"`
+	LatencyMS int64         `json:"latency_ms" example:"12"`
+	Error     string        `json:"error,omitempty" example:""`
 	Pool      *DBPoolStatus `json:"pool,omitempty"`
 }
 
 // DBPoolStatus represents database connection pool statistics.
 type DBPoolStatus struct {
-	MaxOpenConns int   `json:"max_open_conns"`
-	OpenConns    int   `json:"open_conns"`
-	InUse        int   `json:"in_use"`
-	Idle         int   `json:"idle"`
-	WaitCount    int64 `json:"wait_count"`
-	WaitDuration int64 `json:"wait_duration_ms"`
+	MaxOpenConns int   `json:"max_open_conns" example:"100"`
+	OpenConns    int   `json:"open_conns" example:"8"`
+	InUse        int   `json:"in_use" example:"3"`
+	Idle         int   `json:"idle" example:"5"`
+	WaitCount    int64 `json:"wait_count" example:"0"`
+	WaitDuration int64 `json:"wait_duration_ms" example:"0"`
 }
 
 // RedisStatus represents Redis health information.
@@ -41,32 +41,32 @@ type RedisStatus struct {
 
 // OnlineUserStatus represents count of currently online users.
 type OnlineUserStatus struct {
-	Count int `json:"count"`
+	Count int `json:"count" example:"18"`
 }
 
 // MemoryStats represents Go runtime memory statistics.
 type MemoryStats struct {
-	Alloc      uint64 `json:"alloc"`
-	TotalAlloc uint64 `json:"total_alloc"`
-	Sys        uint64 `json:"sys"`
-	HeapAlloc  uint64 `json:"heap_alloc"`
-	HeapSys    uint64 `json:"heap_sys"`
-	NumGC      uint32 `json:"num_gc"`
+	Alloc      uint64 `json:"alloc" example:"10485760"`
+	TotalAlloc uint64 `json:"total_alloc" example:"52428800"`
+	Sys        uint64 `json:"sys" example:"33554432"`
+	HeapAlloc  uint64 `json:"heap_alloc" example:"8388608"`
+	HeapSys    uint64 `json:"heap_sys" example:"16777216"`
+	NumGC      uint32 `json:"num_gc" example:"12"`
 }
 
 // OverviewResponse is the response for the monitor overview endpoint.
 type OverviewResponse struct {
-	Timestamp   string            `json:"timestamp"`
-	UptimeSec   int64             `json:"uptime_sec"`
-	GoVersion   string            `json:"go_version"`
-	NumCPU      int               `json:"num_cpu"`
-	Goroutines  int               `json:"goroutines"`
+	Timestamp   string            `json:"timestamp" example:"2026-03-30T12:00:00Z"`
+	UptimeSec   int64             `json:"uptime_sec" example:"86400"`
+	GoVersion   string            `json:"go_version" example:"go1.23.0"`
+	NumCPU      int               `json:"num_cpu" example:"8"`
+	Goroutines  int               `json:"goroutines" example:"42"`
 	Memory      MemoryStats       `json:"memory"`
 	Services    []ServiceStatus   `json:"services"`
 	Redis       *RedisStatus      `json:"redis,omitempty"`
 	Online      *OnlineUserStatus `json:"online,omitempty"`
-	TenantID    string            `json:"tenant_id,omitempty"`
-	HasTenantDB bool              `json:"has_tenant_db"`
+	TenantID    string            `json:"tenant_id,omitempty" example:"tenant-default"`
+	HasTenantDB bool              `json:"has_tenant_db" example:"true"`
 }
 
 // Service defines the monitor service interface.

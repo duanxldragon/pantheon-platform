@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -32,6 +33,19 @@ func NewUserHandler(userService UserService, authz PermissionReader, storageProv
 	}
 }
 
+// Create creates a user.
+// @Summary Create User
+// @Description Create a system user in the current tenant.
+// @Tags User Management
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param request body UserRequest true "User payload"
+// @Success 201 {object} userEnvelope
+// @Failure 401 {object} response.ErrorDetail
+// @Failure 400 {object} response.ErrorDetail
+// @Failure 500 {object} response.ErrorDetail
+// @Router /system/users [post]
 func (h *UserHandler) Create(c *gin.Context) {
 	var req UserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -41,6 +55,10 @@ func (h *UserHandler) Create(c *gin.Context) {
 
 	u, err := h.userService.Create(c.Request.Context(), &req)
 	if err != nil {
+		if errors.Is(err, ErrUserScopeDenied) {
+			response.Forbidden(c, "USER_SCOPE_DENIED", "Permission denied")
+			return
+		}
 		response.InternalError(c, "CREATE_USER_FAILED", err.Error())
 		return
 	}
@@ -54,6 +72,18 @@ func (h *UserHandler) Create(c *gin.Context) {
 	response.Created(c, dto)
 }
 
+// GetByID gets user detail by ID.
+// @Summary Get User
+// @Description Get a user by ID.
+// @Tags User Management
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param id path string true "User ID"
+// @Success 200 {object} userEnvelope
+// @Failure 401 {object} response.ErrorDetail
+// @Failure 404 {object} response.ErrorDetail
+// @Router /system/users/{id} [get]
 func (h *UserHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 	dto, err := h.userService.GetByID(c.Request.Context(), id)
@@ -64,6 +94,21 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 	response.Success(c, dto)
 }
 
+// Update updates a user.
+// @Summary Update User
+// @Description Update user profile, organization assignments, role bindings, or status.
+// @Tags User Management
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param id path string true "User ID"
+// @Param request body UserUpdateRequest true "User update payload"
+// @Success 200 {object} userEnvelope
+// @Failure 401 {object} response.ErrorDetail
+// @Failure 400 {object} response.ErrorDetail
+// @Failure 404 {object} response.ErrorDetail
+// @Failure 500 {object} response.ErrorDetail
+// @Router /system/users/{id} [put]
 func (h *UserHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req UserUpdateRequest
@@ -73,6 +118,14 @@ func (h *UserHandler) Update(c *gin.Context) {
 	}
 
 	if _, err := h.userService.Update(c.Request.Context(), id, &req); err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			response.NotFound(c, "USER_NOT_FOUND", "user.error.not_found")
+			return
+		}
+		if errors.Is(err, ErrUserScopeDenied) {
+			response.Forbidden(c, "USER_SCOPE_DENIED", "Permission denied")
+			return
+		}
 		response.InternalError(c, "UPDATE_USER_FAILED", err.Error())
 		return
 	}
@@ -85,15 +138,48 @@ func (h *UserHandler) Update(c *gin.Context) {
 	response.Success(c, dto)
 }
 
+// Delete deletes a user.
+// @Summary Delete User
+// @Description Delete a user by ID.
+// @Tags User Management
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param id path string true "User ID"
+// @Success 200 {object} userMessageEnvelope
+// @Failure 401 {object} response.ErrorDetail
+// @Failure 500 {object} response.ErrorDetail
+// @Router /system/users/{id} [delete]
 func (h *UserHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.userService.Delete(c.Request.Context(), id); err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			response.NotFound(c, "USER_NOT_FOUND", "user.error.not_found")
+			return
+		}
 		response.InternalError(c, "DELETE_USER_FAILED", err.Error())
 		return
 	}
 	response.Success(c, gin.H{"message": "ok"})
 }
 
+// List lists users.
+// @Summary List Users
+// @Description Get paginated users in the current tenant.
+// @Tags User Management
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param page query int false "Page number" default(1) minimum(1)
+// @Param page_size query int false "Items per page" default(20) minimum(1) maximum(100)
+// @Param search query string false "Search keyword matched against username, real name, email, or phone"
+// @Param status query string false "User status filter" Enums(active,inactive)
+// @Param department_id query string false "Department ID filter"
+// @Param role_id query string false "Role ID filter"
+// @Success 200 {object} userListEnvelope
+// @Failure 401 {object} response.ErrorDetail
+// @Failure 500 {object} response.ErrorDetail
+// @Router /system/users [get]
 func (h *UserHandler) List(c *gin.Context) {
 	var req UserListRequest
 	_ = c.ShouldBindQuery(&req)
@@ -112,6 +198,19 @@ func (h *UserHandler) List(c *gin.Context) {
 	response.Success(c, resp)
 }
 
+// BatchUpdateStatus updates user status in batch.
+// @Summary Batch Update User Status
+// @Description Enable or disable multiple users in one request.
+// @Tags User Management
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param request body UserStatusRequest true "User status payload"
+// @Success 200 {object} userMessageEnvelope
+// @Failure 401 {object} response.ErrorDetail
+// @Failure 400 {object} response.ErrorDetail
+// @Failure 500 {object} response.ErrorDetail
+// @Router /system/users/status [patch]
 func (h *UserHandler) BatchUpdateStatus(c *gin.Context) {
 	var req UserStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -119,6 +218,10 @@ func (h *UserHandler) BatchUpdateStatus(c *gin.Context) {
 		return
 	}
 	if err := h.userService.BatchUpdateStatus(c.Request.Context(), &req); err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			response.NotFound(c, "USER_NOT_FOUND", "user.error.not_found")
+			return
+		}
 		response.InternalError(c, "BATCH_UPDATE_FAILED", err.Error())
 		return
 	}
@@ -126,6 +229,18 @@ func (h *UserHandler) BatchUpdateStatus(c *gin.Context) {
 }
 
 // BatchDelete deletes multiple users by IDs.
+// @Summary Batch Delete Users
+// @Description Delete multiple users in one request.
+// @Tags User Management
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param request body BatchDeleteRequest true "User IDs"
+// @Success 200 {object} userMessageEnvelope
+// @Failure 401 {object} response.ErrorDetail
+// @Failure 400 {object} response.ErrorDetail
+// @Failure 500 {object} response.ErrorDetail
+// @Router /system/users/batch-delete [post]
 func (h *UserHandler) BatchDelete(c *gin.Context) {
 	var req BatchDeleteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -133,6 +248,10 @@ func (h *UserHandler) BatchDelete(c *gin.Context) {
 		return
 	}
 	if err := h.userService.BatchDelete(c.Request.Context(), req.UserIDs); err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			response.NotFound(c, "USER_NOT_FOUND", "user.error.not_found")
+			return
+		}
 		response.InternalError(c, "BATCH_DELETE_FAILED", err.Error())
 		return
 	}
@@ -140,6 +259,19 @@ func (h *UserHandler) BatchDelete(c *gin.Context) {
 }
 
 // ResetPassword resets a user's password (admin operation).
+// @Summary Reset User Password
+// @Description Reset password for a specified user.
+// @Tags User Management
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param id path string true "User ID"
+// @Param request body AdminResetPasswordRequest true "New password payload"
+// @Success 200 {object} userMessageEnvelope
+// @Failure 401 {object} response.ErrorDetail
+// @Failure 400 {object} response.ErrorDetail
+// @Failure 500 {object} response.ErrorDetail
+// @Router /system/users/{id}/password [patch]
 func (h *UserHandler) ResetPassword(c *gin.Context) {
 	id := c.Param("id")
 	var req AdminResetPasswordRequest
@@ -148,6 +280,10 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 		return
 	}
 	if err := h.userService.ResetPassword(c.Request.Context(), id, req.NewPassword); err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			response.NotFound(c, "USER_NOT_FOUND", "user.error.not_found")
+			return
+		}
 		response.InternalError(c, "RESET_PASSWORD_FAILED", err.Error())
 		return
 	}
@@ -155,6 +291,17 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 }
 
 // GetPermissions returns the aggregated Casbin permissions for the specified user.
+// @Summary Get User Permissions
+// @Description Get aggregated permissions for a specified user.
+// @Tags User Management
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param id path string true "User ID"
+// @Success 200 {object} userStringListEnvelope
+// @Failure 401 {object} response.ErrorDetail
+// @Failure 500 {object} response.ErrorDetail
+// @Router /system/users/{id}/permissions [get]
 func (h *UserHandler) GetPermissions(c *gin.Context) {
 	if h.authz == nil {
 		response.Success(c, []string{})
@@ -162,6 +309,11 @@ func (h *UserHandler) GetPermissions(c *gin.Context) {
 	}
 
 	userID := c.Param("id")
+	if _, err := h.userService.GetByID(c.Request.Context(), userID); err != nil {
+		response.NotFound(c, "USER_NOT_FOUND", "user.error.not_found")
+		return
+	}
+
 	perms, err := h.authz.GetUserPermissions(c.Request.Context(), userID)
 	if err != nil {
 		response.InternalError(c, "GET_USER_PERMISSIONS_FAILED", err.Error())
@@ -170,6 +322,19 @@ func (h *UserHandler) GetPermissions(c *gin.Context) {
 	response.Success(c, perms)
 }
 
+// UploadAvatar uploads a user avatar.
+// @Summary Upload User Avatar
+// @Description Upload an avatar file and return the accessible URL.
+// @Tags User Management
+// @Accept mpfd
+// @Produce json
+// @Security ApiKeyAuth
+// @Param file formData file true "Avatar file"
+// @Success 200 {object} userAvatarUploadEnvelope
+// @Failure 401 {object} response.ErrorDetail
+// @Failure 400 {object} response.ErrorDetail
+// @Failure 500 {object} response.ErrorDetail
+// @Router /system/users/upload [post]
 func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {

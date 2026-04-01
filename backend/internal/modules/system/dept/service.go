@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 	"pantheon-platform/backend/internal/shared/audit"
 	"pantheon-platform/backend/internal/shared/database"
 )
@@ -30,6 +31,8 @@ type DepartmentService interface {
 	GetByID(ctx context.Context, id string) (*DepartmentResponse, error)
 	Update(ctx context.Context, id string, req *DepartmentRequest) (*Department, error)
 	Delete(ctx context.Context, id string) error
+	BatchDelete(ctx context.Context, ids []string) error
+	BatchUpdateStatus(ctx context.Context, req *DepartmentStatusRequest) error
 	List(ctx context.Context, req *DepartmentListRequest) (*PageResponse, error)
 	GetTree(ctx context.Context, req *DepartmentTreeRequest) ([]*DepartmentResponse, error)
 }
@@ -217,6 +220,137 @@ func (s *departmentService) Delete(ctx context.Context, id string) error {
 			"status": dept.Status,
 			"action": "delete",
 		}),
+	})
+	return nil
+}
+
+func (s *departmentService) BatchDelete(ctx context.Context, ids []string) error {
+	tenantID := getTenantID(ctx)
+	departments := make([]Department, 0, len(ids))
+	seen := make(map[string]struct{}, len(ids))
+
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+
+		dept, err := s.dao.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if tenantID != "" && dept.TenantID != tenantID {
+			return fmt.Errorf("department not found in current tenant")
+		}
+		if has, _ := s.dao.HasChildren(ctx, id); has {
+			return fmt.Errorf("department %q has children", dept.Name)
+		}
+		if has, _ := s.userValidator.HasUsersInDept(ctx, id); has {
+			return fmt.Errorf("department %q has users", dept.Name)
+		}
+		departments = append(departments, dept)
+	}
+
+	if err := s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
+		txCtx := context.WithValue(ctx, "tx_db", tx)
+		for _, dept := range departments {
+			if err := s.dao.Delete(txCtx, dept.ID.String()); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	names := make([]string, 0, len(departments))
+	for _, dept := range departments {
+		names = append(names, dept.Name)
+	}
+	setDepartmentAuditFields(ctx, audit.OperationFields{
+		Module:   "system/depts",
+		Resource: "department_batch_delete",
+		Summary:  fmt.Sprintf("Batch deleted %d departments", len(departments)),
+		Detail:   "departments=" + strings.Join(names, ","),
+	})
+	return nil
+}
+
+func (s *departmentService) BatchUpdateStatus(ctx context.Context, req *DepartmentStatusRequest) error {
+	tenantID := getTenantID(ctx)
+	departments := make([]Department, 0, len(req.DepartmentIDs))
+	seen := make(map[string]struct{}, len(req.DepartmentIDs))
+	affectedUsers := make(map[string]struct{})
+
+	for _, id := range req.DepartmentIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+
+		dept, err := s.dao.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if tenantID != "" && dept.TenantID != tenantID {
+			return fmt.Errorf("department not found in current tenant")
+		}
+		if dept.Status == req.Status {
+			continue
+		}
+		departments = append(departments, dept)
+	}
+
+	if err := s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
+		txCtx := context.WithValue(ctx, "tx_db", tx)
+		for _, dept := range departments {
+			if err := s.dao.UpdateStatus(txCtx, dept.ID.String(), req.Status); err != nil {
+				return err
+			}
+			deptIDs, err := s.collectDepartmentIDs(txCtx, dept.ID.String())
+			if err != nil {
+				return err
+			}
+			userIDs, err := s.userValidator.ListUserIDsByDepartmentIDs(txCtx, deptIDs)
+			if err != nil {
+				return err
+			}
+			for _, userID := range userIDs {
+				if userID != "" {
+					affectedUsers[userID] = struct{}{}
+				}
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	if s.authProvider != nil && len(affectedUsers) > 0 {
+		userIDs := make([]string, 0, len(affectedUsers))
+		for userID := range affectedUsers {
+			userIDs = append(userIDs, userID)
+		}
+		_ = s.authProvider.BumpUsersAuthVersion(ctx, userIDs)
+	}
+
+	names := make([]string, 0, len(departments))
+	for _, dept := range departments {
+		names = append(names, dept.Name)
+	}
+	setDepartmentAuditFields(ctx, audit.OperationFields{
+		Module:   "system/depts",
+		Resource: "department_status_batch",
+		Summary:  fmt.Sprintf("Batch updated %d departments to %s", len(departments), req.Status),
+		Detail:   "departments=" + strings.Join(names, ",") + ";status=" + req.Status + fmt.Sprintf(";affected_users=%d", len(affectedUsers)),
 	})
 	return nil
 }

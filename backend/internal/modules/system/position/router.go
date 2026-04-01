@@ -8,6 +8,8 @@ func (h *PositionHandler) RegisterRoutes(group *gin.RouterGroup) {
 	{
 		pos.GET("", h.List)
 		pos.POST("", h.Create)
+		pos.POST("/batch-delete", h.BatchDelete)
+		pos.PATCH("/status", h.BatchUpdateStatus)
 		pos.GET("/:id", h.GetByID)
 		pos.PUT("/:id", h.Update)
 		pos.DELETE("/:id", h.Delete)

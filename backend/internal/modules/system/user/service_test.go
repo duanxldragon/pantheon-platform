@@ -1,6 +1,10 @@
 package user
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/google/uuid"
+)
 
 func TestBuildUserRoleAuditSummary(t *testing.T) {
 	before := []*UserRoleInfo{
@@ -46,6 +50,27 @@ func TestBuildUserOrgAuditSummary(t *testing.T) {
 	want := "\u66f4\u65b0\u7528\u6237\u300calice\u300d\u7ec4\u7ec7\u5f52\u5c5e\uff1a\u90e8\u95e8\u7531\u300c\u7814\u53d1\u90e8\u300d\u8c03\u6574\u4e3a\u300c\u8fd0\u7ef4\u90e8\u300d\uff0c\u52a0\u5165\u5c97\u4f4d\u300c\u503c\u73ed\u300d"
 	if got != want {
 		t.Fatalf("unexpected org summary: %s", got)
+	}
+}
+
+func TestUserMatchesDataScope(t *testing.T) {
+	departmentID := "dept-a"
+	record := &User{
+		ID:           uuid.MustParse("11111111-1111-1111-1111-111111111111"),
+		DepartmentID: &departmentID,
+	}
+
+	if !userMatchesDataScope(record, map[string]interface{}{"id": record.ID.String()}) {
+		t.Fatal("expected self scope to match exact user id")
+	}
+	if userMatchesDataScope(record, map[string]interface{}{"id": "22222222-2222-2222-2222-222222222222"}) {
+		t.Fatal("expected self scope mismatch")
+	}
+	if !userMatchesDataScope(record, map[string]interface{}{"department_id": []string{"dept-x", "dept-a"}}) {
+		t.Fatal("expected department scope to match user department")
+	}
+	if userMatchesDataScope(record, map[string]interface{}{"department_id": "dept-x"}) {
+		t.Fatal("expected department scope mismatch")
 	}
 }
 
