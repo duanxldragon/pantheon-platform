@@ -2,6 +2,7 @@ package notification
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -11,6 +12,16 @@ import (
 
 	"pantheon-platform/backend/internal/shared/database"
 )
+
+var allowedNotificationOrderColumns = map[string]string{
+	"created_at": "created_at",
+	"updated_at": "updated_at",
+	"sent_at":    "sent_at",
+	"expire_at":  "expire_at",
+	"priority":   "priority",
+	"status":     "status",
+	"title":      "title",
+}
 
 type NotificationDAO interface {
 	database.TenantMigrator
@@ -137,7 +148,11 @@ func (r *notificationDAO) List(ctx context.Context, req *NotificationListRequest
 
 	orderBy := "created_at"
 	if req.OrderBy != "" {
-		orderBy = req.OrderBy
+		column, ok := allowedNotificationOrderColumns[strings.ToLower(strings.TrimSpace(req.OrderBy))]
+		if !ok {
+			return nil, 0, errors.New("unsupported orderBy field")
+		}
+		orderBy = column
 	}
 	orderDir := "asc"
 	if req.OrderDesc {

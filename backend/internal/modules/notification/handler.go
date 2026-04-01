@@ -373,9 +373,7 @@ func (h *NotificationHandler) SendFromTemplate(c *gin.Context) {
 // SendNotification sends an existing notification by ID.
 // Request body: { "id": "<uuid>" }
 func (h *NotificationHandler) SendNotification(c *gin.Context) {
-	var body struct {
-		ID string `json:"id" binding:"required"`
-	}
+	var body SendExistingNotificationRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
 		response.BadRequest(c, "INVALID_REQUEST", "Invalid request parameters")
 		return

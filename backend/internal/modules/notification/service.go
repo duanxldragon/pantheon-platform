@@ -3,11 +3,16 @@ package notification
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+
+	"gorm.io/gorm"
+
+	"pantheon-platform/backend/internal/shared/database"
 )
 
 const (
@@ -46,15 +51,17 @@ type notificationService struct {
 	dao              NotificationDAO
 	emailSrv         EmailService
 	smsSrv           SMSService
+	txManager        database.TransactionManager
 	maxSendAttempts  int
 	retryBaseBackoff time.Duration
 }
 
-func NewNotificationService(dao NotificationDAO, emailSrv EmailService, smsSrv SMSService) NotificationService {
+func NewNotificationService(dao NotificationDAO, emailSrv EmailService, smsSrv SMSService, txManager database.TransactionManager) NotificationService {
 	return &notificationService{
 		dao:              dao,
 		emailSrv:         emailSrv,
 		smsSrv:           smsSrv,
+		txManager:        txManager,
 		maxSendAttempts:  defaultSendMaxAttempts,
 		retryBaseBackoff: defaultRetryDelay,
 	}
@@ -70,11 +77,24 @@ func (s *notificationService) CreateNotification(ctx context.Context, n *Notific
 	if n.Channel == "" {
 		n.Channel = ChannelSystem
 	}
-	if err := s.dao.Create(ctx, n); err != nil {
-		return err
+	receiverIDs := parseReceiverIDs(n.ReceiverIDs)
+	if s.txManager == nil {
+		if err := s.dao.Create(ctx, n); err != nil {
+			return err
+		}
+		return s.createInboxRows(ctx, n, receiverIDs)
 	}
 
-	receiverIDs := parseReceiverIDs(n.ReceiverIDs)
+	return s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
+		txCtx := context.WithValue(ctx, "tx_db", tx)
+		if err := s.dao.Create(txCtx, n); err != nil {
+			return err
+		}
+		return s.createInboxRows(txCtx, n, receiverIDs)
+	})
+}
+
+func (s *notificationService) createInboxRows(ctx context.Context, n *Notification, receiverIDs []string) error {
 	if len(receiverIDs) == 0 {
 		return nil
 	}
@@ -93,7 +113,9 @@ func (s *notificationService) CreateNotification(ctx context.Context, n *Notific
 			IsRead:         false,
 			IsDeleted:      false,
 		}
-		_ = s.dao.CreateInbox(ctx, inbox)
+		if err := s.dao.CreateInbox(ctx, inbox); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -291,61 +313,85 @@ func (s *notificationService) processJob(ctx context.Context, job *NotificationJ
 
 	notif, err := s.dao.GetByID(ctx, job.NotificationID.String())
 	if err != nil {
-		job.Attempts++
-		job.Status = JobFailed
-		job.LastError = err.Error()
-		_ = s.dao.MarkJobFailed(ctx, job.ID, job.Attempts, err.Error())
-		return job, err
+		return job, s.handleJobExecutionFailure(ctx, job, "", err)
 	}
 
-	_ = s.dao.UpdateNotificationFields(ctx, notif.ID.String(), map[string]interface{}{
+	if err := s.dao.UpdateNotificationFields(ctx, notif.ID.String(), map[string]interface{}{
 		"status":      StatusProcessing,
 		"fail_reason": "",
-	})
+	}); err != nil {
+		return job, s.handleJobExecutionFailure(ctx, job, notif.ID.String(), fmt.Errorf("failed to mark notification processing: %w", err))
+	}
 
 	dispatchErr := s.dispatchNotification(ctx, notif)
 	if dispatchErr != nil {
-		job.Attempts++
-		job.LastError = dispatchErr.Error()
-		if job.Attempts >= job.MaxAttempts {
-			job.Status = JobFailed
-			_ = s.dao.MarkJobFailed(ctx, job.ID, job.Attempts, dispatchErr.Error())
-			_ = s.dao.UpdateNotificationFields(ctx, notif.ID.String(), map[string]interface{}{
-				"status":      StatusFailed,
-				"fail_reason": dispatchErr.Error(),
-			})
-			return job, dispatchErr
-		}
-		if s.retryBaseBackoff <= 0 {
-			s.retryBaseBackoff = defaultRetryDelay
-		}
-		// Exponential backoff: base * 2^(attempts-1)
-		backoffMultiplier := int64(1) << (uint(job.Attempts) - 1)
-		delay := s.retryBaseBackoff * time.Duration(backoffMultiplier)
-		next := time.Now().Add(delay)
-
-		job.Status = JobPending
-		job.NextRetryAt = &next
-		_ = s.dao.RescheduleJob(ctx, job.ID, job.Attempts, next, dispatchErr.Error())
-		_ = s.dao.UpdateNotificationFields(ctx, notif.ID.String(), map[string]interface{}{
-			"status":      StatusQueued,
-			"fail_reason": dispatchErr.Error(),
-		})
-		return job, dispatchErr
+		return job, s.handleJobExecutionFailure(ctx, job, notif.ID.String(), dispatchErr)
 	}
 
 	job.Status = JobSucceeded
 	job.LastError = ""
 	job.NextRetryAt = nil
-	_ = s.dao.MarkJobSucceeded(ctx, job.ID)
 
 	sentAt := time.Now()
-	_ = s.dao.UpdateNotificationFields(ctx, notif.ID.String(), map[string]interface{}{
+	if err := s.dao.MarkJobSucceeded(ctx, job.ID); err != nil {
+		return job, errors.Join(err, fmt.Errorf("failed to persist job success state"))
+	}
+	if err := s.dao.UpdateNotificationFields(ctx, notif.ID.String(), map[string]interface{}{
 		"status":      StatusSent,
 		"sent_at":     sentAt,
 		"fail_reason": "",
-	})
+	}); err != nil {
+		return job, errors.Join(err, fmt.Errorf("failed to persist sent notification state"))
+	}
 	return job, nil
+}
+
+func (s *notificationService) handleJobExecutionFailure(ctx context.Context, job *NotificationJob, notificationID string, execErr error) error {
+	job.Attempts++
+	job.LastError = execErr.Error()
+
+	if job.Attempts >= job.MaxAttempts {
+		job.Status = JobFailed
+
+		persistErrs := []error{execErr}
+		if err := s.dao.MarkJobFailed(ctx, job.ID, job.Attempts, execErr.Error()); err != nil {
+			persistErrs = append(persistErrs, fmt.Errorf("failed to persist job failure state: %w", err))
+		}
+		if notificationID != "" {
+			if err := s.dao.UpdateNotificationFields(ctx, notificationID, map[string]interface{}{
+				"status":      StatusFailed,
+				"fail_reason": execErr.Error(),
+			}); err != nil {
+				persistErrs = append(persistErrs, fmt.Errorf("failed to persist failed notification state: %w", err))
+			}
+		}
+		return errors.Join(persistErrs...)
+	}
+
+	if s.retryBaseBackoff <= 0 {
+		s.retryBaseBackoff = defaultRetryDelay
+	}
+	backoffMultiplier := int64(1) << (uint(job.Attempts) - 1)
+	delay := s.retryBaseBackoff * time.Duration(backoffMultiplier)
+	next := time.Now().Add(delay)
+
+	job.Status = JobPending
+	job.NextRetryAt = &next
+
+	persistErrs := []error{execErr}
+	if err := s.dao.RescheduleJob(ctx, job.ID, job.Attempts, next, execErr.Error()); err != nil {
+		persistErrs = append(persistErrs, fmt.Errorf("failed to persist job retry state: %w", err))
+	}
+	if notificationID != "" {
+		if err := s.dao.UpdateNotificationFields(ctx, notificationID, map[string]interface{}{
+			"status":      StatusQueued,
+			"fail_reason": execErr.Error(),
+		}); err != nil {
+			persistErrs = append(persistErrs, fmt.Errorf("failed to persist queued notification state: %w", err))
+		}
+	}
+
+	return errors.Join(persistErrs...)
 }
 
 func (s *notificationService) dispatchNotification(ctx context.Context, n *Notification) error {
