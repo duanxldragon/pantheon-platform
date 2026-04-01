@@ -49,7 +49,7 @@ const MOCK_TENANTS: Tenant[] = [
     userLimit: 5000,
     expireTime: '2027-06-15',
     createdAt: '2024-02-10',
-    contactPerson: '马总',
+    contactPerson: '马化腾',
     description: '企业协同与开放平台示例租户',
   },
   {
@@ -88,6 +88,117 @@ type SetupTargetTenant = Pick<Tenant, 'id' | 'name' | 'code'>;
 export function TenantManagement() {
   const { t, language } = useLanguageStore();
   const zh = language === 'zh';
+  const locale = zh ? 'zh-CN' : 'en-US';
+
+  const copy = zh
+    ? {
+        pageTitle: '租户管理',
+        actions: {
+          refresh: '刷新',
+          export: '导出',
+          addTenant: '新增租户',
+        },
+        searchPlaceholder: '搜索租户名称、编码或联系人',
+        statusPlaceholder: '状态',
+        statuses: {
+          all: '全部',
+          active: '运行中',
+          suspended: '已停用',
+          pending: '待初始化',
+        },
+        notifications: {
+          confirmSuspend: (name: string) =>
+            `确认停用租户“${name}”吗？停用后该租户将无法继续登录和访问业务功能。`,
+          suspended: '租户已停用',
+          suspendFailed: '停用租户失败',
+          activated: '租户已恢复启用',
+          activateFailed: '启用租户失败',
+          openingOverview: (name: string) => `正在打开租户“${name}”的资源概览`,
+          tenantNameRequired: '请输入租户名称',
+          tenantCodeRequired: '请输入租户编码',
+          userLimitInvalid: '用户上限不能小于 0',
+          created: '租户创建成功',
+          createFailed: '创建租户失败',
+          openSetupConfirm: (name: string) => `租户“${name}”已创建，是否立即进入数据库初始化向导？`,
+          updated: '租户资料已更新',
+          updateFailed: '更新租户失败',
+          expiryRequired: '请选择服务有效期',
+          licenseUpdated: '租户授权已更新',
+          licenseUpdateFailed: '更新授权失败',
+          deleted: '租户已删除',
+          deleteFailed: '删除租户失败',
+          listRefreshed: '租户列表已刷新',
+          exportPending: '导出功能后续会接入真实租户数据源。',
+        },
+        source: {
+          label: '数据来源',
+          local: '本地兜底数据',
+          remote: '后端接口',
+          refreshedAt: '最近刷新',
+        },
+        pageDescription: {
+          fallback: '统一管理租户资料、授权、配额与数据库接入状态。当前列表为本地兜底数据。',
+          normal: '统一管理租户资料、授权、配额与数据库接入状态。',
+        },
+        setup: {
+          title: '租户数据库初始化',
+          description: (name: string) => `为租户“${name}”配置数据库连接并完成初始化。`,
+        },
+      }
+    : {
+        pageTitle: 'Tenant Management',
+        actions: {
+          refresh: 'Refresh',
+          export: 'Export',
+          addTenant: 'Add Tenant',
+        },
+        searchPlaceholder: 'Search tenant name, code, or contact',
+        statusPlaceholder: 'Status',
+        statuses: {
+          all: 'All',
+          active: 'Active',
+          suspended: 'Suspended',
+          pending: 'Pending',
+        },
+        notifications: {
+          confirmSuspend: (name: string) =>
+            `Suspend tenant "${name}"? The tenant will no longer be able to sign in or access features.`,
+          suspended: 'Tenant suspended',
+          suspendFailed: 'Failed to suspend tenant',
+          activated: 'Tenant activated',
+          activateFailed: 'Failed to activate tenant',
+          openingOverview: (name: string) => `Opening overview for tenant "${name}"`,
+          tenantNameRequired: 'Please enter a tenant name',
+          tenantCodeRequired: 'Please enter a tenant code',
+          userLimitInvalid: 'User limit cannot be negative',
+          created: 'Tenant created',
+          createFailed: 'Failed to create tenant',
+          openSetupConfirm: (name: string) => `Tenant "${name}" has been created. Open the database setup wizard now?`,
+          updated: 'Tenant updated',
+          updateFailed: 'Failed to update tenant',
+          expiryRequired: 'Please select an expiry date',
+          licenseUpdated: 'Tenant license updated',
+          licenseUpdateFailed: 'Failed to update license',
+          deleted: 'Tenant deleted',
+          deleteFailed: 'Failed to delete tenant',
+          listRefreshed: 'Tenant list refreshed',
+          exportPending: 'Export will be wired to the real tenant data source later.',
+        },
+        source: {
+          label: 'Source',
+          local: 'Local fallback',
+          remote: 'Backend API',
+          refreshedAt: 'Last refresh',
+        },
+        pageDescription: {
+          fallback: 'Manage tenant profiles, licenses, quotas, and database onboarding status. The current list uses local fallback data.',
+          normal: 'Manage tenant profiles, licenses, quotas, and database onboarding status.',
+        },
+        setup: {
+          title: 'Tenant Database Setup',
+          description: (name: string) => `Configure the database connection for tenant "${name}".`,
+        },
+      };
 
   const {
     searchQuery,
@@ -177,22 +288,15 @@ export function TenantManagement() {
         openTenantDialog('delete', tenant);
         break;
       case 'suspend':
-        if (
-          window.confirm(
-            zh
-              ? `确认停用租户「${tenant.name}」吗？停用后该租户将无法继续登录和访问业务功能。`
-              : `Suspend tenant "${tenant.name}"? The tenant will no longer be able to sign in or access features.`,
-          )
-        ) {
+        if (window.confirm(copy.notifications.confirmSuspend(tenant.name))) {
           void tenantDatabaseApi
             .suspendTenant(tenant.id)
             .then(async () => {
-              systemNotification.success(zh ? '租户已停用' : 'Tenant suspended');
+              systemNotification.success(copy.notifications.suspended);
               await reloadTenants();
             })
             .catch((error) => {
-              const message =
-                error instanceof Error ? error.message : zh ? '停用租户失败' : 'Failed to suspend tenant';
+              const message = error instanceof Error ? error.message : copy.notifications.suspendFailed;
               systemNotification.error(message);
             });
         }
@@ -201,19 +305,16 @@ export function TenantManagement() {
         void tenantDatabaseApi
           .activateTenant(tenant.id)
           .then(async () => {
-            systemNotification.success(zh ? '租户已恢复启用' : 'Tenant activated');
+            systemNotification.success(copy.notifications.activated);
             await reloadTenants();
           })
           .catch((error) => {
-            const message =
-              error instanceof Error ? error.message : zh ? '启用租户失败' : 'Failed to activate tenant';
+            const message = error instanceof Error ? error.message : copy.notifications.activateFailed;
             systemNotification.error(message);
           });
         break;
       case 'view':
-        systemNotification.info(
-          zh ? `正在打开租户「${tenant.name}」的资源概览` : `Opening overview for tenant "${tenant.name}"`,
-        );
+        systemNotification.info(copy.notifications.openingOverview(tenant.name));
         break;
       case 'database':
         openSetupDialog(tenant);
@@ -226,15 +327,15 @@ export function TenantManagement() {
   const handlers = {
     onCreateSubmit: async () => {
       if (!formData.name?.trim()) {
-        systemNotification.error(zh ? '请输入租户名称' : 'Please enter a tenant name');
+        systemNotification.error(copy.notifications.tenantNameRequired);
         return;
       }
       if (!formData.code?.trim()) {
-        systemNotification.error(zh ? '请输入租户编码' : 'Please enter a tenant code');
+        systemNotification.error(copy.notifications.tenantCodeRequired);
         return;
       }
       if ((formData.userLimit ?? 0) < 0) {
-        systemNotification.error(zh ? '用户上限不能小于 0' : 'User limit cannot be negative');
+        systemNotification.error(copy.notifications.userLimitInvalid);
         return;
       }
 
@@ -258,17 +359,11 @@ export function TenantManagement() {
           ]);
         }
 
-        systemNotification.success(zh ? '租户创建成功' : 'Tenant created');
+        systemNotification.success(copy.notifications.created);
         handleDialogChange('add', false);
         await reloadTenants();
 
-        if (
-          window.confirm(
-            zh
-              ? `租户「${created.name}」已创建，是否立即进入数据库初始化向导？`
-              : `Tenant "${created.name}" has been created. Open the database setup wizard now?`,
-          )
-        ) {
+        if (window.confirm(copy.notifications.openSetupConfirm(created.name))) {
           openSetupDialog({
             id: created.id,
             name: created.name,
@@ -276,7 +371,7 @@ export function TenantManagement() {
           });
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : zh ? '创建租户失败' : 'Failed to create tenant';
+        const message = error instanceof Error ? error.message : copy.notifications.createFailed;
         systemNotification.error(message);
       } finally {
         setSubmittingAdd(false);
@@ -287,7 +382,7 @@ export function TenantManagement() {
         return;
       }
       if (!formData.name?.trim()) {
-        systemNotification.error(zh ? '请输入租户名称' : 'Please enter a tenant name');
+        systemNotification.error(copy.notifications.tenantNameRequired);
         return;
       }
 
@@ -299,11 +394,11 @@ export function TenantManagement() {
           contact_person: formData.contactPerson?.trim() || '',
           expire_at: formData.expireTime || selectedTenant.expireTime || '',
         });
-        systemNotification.success(zh ? '租户资料已更新' : 'Tenant updated');
+        systemNotification.success(copy.notifications.updated);
         handleDialogChange('edit', false);
         await reloadTenants();
       } catch (error) {
-        const message = error instanceof Error ? error.message : zh ? '更新租户失败' : 'Failed to update tenant';
+        const message = error instanceof Error ? error.message : copy.notifications.updateFailed;
         systemNotification.error(message);
       } finally {
         setSubmittingEdit(false);
@@ -314,11 +409,11 @@ export function TenantManagement() {
         return;
       }
       if (!formData.expireTime) {
-        systemNotification.error(zh ? '请选择服务有效期' : 'Please select an expiry date');
+        systemNotification.error(copy.notifications.expiryRequired);
         return;
       }
       if ((formData.userLimit ?? 0) < 0) {
-        systemNotification.error(zh ? '用户上限不能小于 0' : 'User limit cannot be negative');
+        systemNotification.error(copy.notifications.userLimitInvalid);
         return;
       }
 
@@ -337,11 +432,11 @@ export function TenantManagement() {
             unit: 'users',
           },
         ]);
-        systemNotification.success(zh ? '租户授权已更新' : 'Tenant license updated');
+        systemNotification.success(copy.notifications.licenseUpdated);
         handleDialogChange('license', false);
         await reloadTenants();
       } catch (error) {
-        const message = error instanceof Error ? error.message : zh ? '更新授权失败' : 'Failed to update license';
+        const message = error instanceof Error ? error.message : copy.notifications.licenseUpdateFailed;
         systemNotification.error(message);
       } finally {
         setSubmittingLicense(false);
@@ -355,11 +450,11 @@ export function TenantManagement() {
       setDeletingTenant(true);
       try {
         await tenantDatabaseApi.deleteTenant(selectedTenant.id);
-        systemNotification.success(zh ? '租户已删除' : 'Tenant deleted');
+        systemNotification.success(copy.notifications.deleted);
         handleDialogChange('delete', false);
         await reloadTenants();
       } catch (error) {
-        const message = error instanceof Error ? error.message : zh ? '删除租户失败' : 'Failed to delete tenant';
+        const message = error instanceof Error ? error.message : copy.notifications.deleteFailed;
         systemNotification.error(message);
       } finally {
         setDeletingTenant(false);
@@ -367,23 +462,14 @@ export function TenantManagement() {
     },
   };
 
-  const dataSourceDescription = zh
-    ? `数据来源：${usingMockData ? '本地兜底' : '后端接口'}${
-        lastLoadedAt ? ` · 最近刷新：${new Date(lastLoadedAt).toLocaleString('zh-CN')}` : ''
-      }`
-    : `Source: ${usingMockData ? 'Local fallback' : 'Backend API'}${
-        lastLoadedAt ? ` · Last refresh: ${new Date(lastLoadedAt).toLocaleString('en-US')}` : ''
-      }`;
-
-  const pageDescription = zh
-    ? usingMockData
-      ? '统一管理租户资料、授权、配额与数据库接入状态。当前列表为本地兜底数据。'
-      : '统一管理租户资料、授权、配额与数据库接入状态。'
-    : 'Manage tenant profiles, licenses, quotas, and database onboarding status.';
+  const dataSourceDescription = `${copy.source.label}: ${usingMockData ? copy.source.local : copy.source.remote}${
+    lastLoadedAt ? ` · ${copy.source.refreshedAt}: ${new Date(lastLoadedAt).toLocaleString(locale)}` : ''
+  }`;
+  const pageDescription = usingMockData ? copy.pageDescription.fallback : copy.pageDescription.normal;
 
   return (
     <PageLayout
-      title={t.menu.tenantManagement}
+      title={t.menu.tenantManagement || copy.pageTitle}
       description={pageDescription}
       actions={
         <div className="flex items-center gap-2">
@@ -392,27 +478,23 @@ export function TenantManagement() {
             size="sm"
             onClick={() => {
               void reloadTenants().then(() => {
-                systemNotification.success(zh ? '租户列表已刷新' : 'Tenant list refreshed');
+                systemNotification.success(copy.notifications.listRefreshed);
               });
             }}
             className="gap-2 border-slate-200 bg-white"
             disabled={loading}
           >
             <RefreshCw className={`h-4 w-4 text-slate-400 ${loading ? 'animate-spin' : ''}`} />
-            {t.actions.refresh}
+            {copy.actions.refresh}
           </Button>
           <Button
             variant="outline"
             size="sm"
             className="gap-2 border-slate-200 bg-white"
-            onClick={() =>
-              systemNotification.info(
-                zh ? '导出能力后续会接入真实租户数据源。' : 'Export will be wired to the real tenant data source later.',
-              )
-            }
+            onClick={() => systemNotification.info(copy.notifications.exportPending)}
           >
             <Download className="h-4 w-4 text-slate-400" />
-            {t.actions.export}
+            {copy.actions.export}
           </Button>
           <Button
             size="sm"
@@ -420,7 +502,7 @@ export function TenantManagement() {
             className="rounded-xl bg-primary shadow-lg shadow-primary/20 transition-all active:scale-95 hover:bg-primary/90"
           >
             <Plus className="mr-2 h-4 w-4" />
-            {zh ? '新增租户' : 'Add Tenant'}
+            {copy.actions.addTenant}
           </Button>
         </div>
       }
@@ -434,7 +516,7 @@ export function TenantManagement() {
           <div className="relative min-w-[350px] flex-1">
             <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
-              placeholder={zh ? '搜索租户名称、编码或联系人' : 'Search tenant name, code, or contact'}
+              placeholder={copy.searchPlaceholder}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               className="h-11 rounded-xl border-slate-200 bg-white pl-10 transition-all focus:ring-primary/20"
@@ -446,14 +528,14 @@ export function TenantManagement() {
               <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white">
                 <div className="flex items-center gap-2">
                   <Filter className="h-3.5 w-3.5 text-slate-400" />
-                  <SelectValue placeholder={zh ? '状态' : 'Status'} />
+                  <SelectValue placeholder={copy.statusPlaceholder} />
                 </div>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{zh ? '全部' : 'All'}</SelectItem>
-                <SelectItem value="active">{zh ? '运行中' : 'Active'}</SelectItem>
-                <SelectItem value="suspended">{zh ? '已停用' : 'Suspended'}</SelectItem>
-                <SelectItem value="pending">{zh ? '待初始化' : 'Pending'}</SelectItem>
+                <SelectItem value="all">{copy.statuses.all}</SelectItem>
+                <SelectItem value="active">{copy.statuses.active}</SelectItem>
+                <SelectItem value="suspended">{copy.statuses.suspended}</SelectItem>
+                <SelectItem value="pending">{copy.statuses.pending}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -490,14 +572,8 @@ export function TenantManagement() {
       <Dialog open={setupDialogOpen} onOpenChange={(open) => (open ? setSetupDialogOpen(true) : closeSetupDialog())}>
         <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto p-0">
           <DialogHeader className="px-6 pt-6">
-            <DialogTitle>{zh ? '租户数据库初始化' : 'Tenant Database Setup'}</DialogTitle>
-            <DialogDescription>
-              {setupTargetTenant
-                ? zh
-                  ? `为租户「${setupTargetTenant.name}」配置数据库连接并完成初始化。`
-                  : `Configure the database connection for tenant "${setupTargetTenant.name}".`
-                : ' '}
-            </DialogDescription>
+            <DialogTitle>{copy.setup.title}</DialogTitle>
+            <DialogDescription>{setupTargetTenant ? copy.setup.description(setupTargetTenant.name) : ' '}</DialogDescription>
           </DialogHeader>
 
           {setupTargetTenant ? (

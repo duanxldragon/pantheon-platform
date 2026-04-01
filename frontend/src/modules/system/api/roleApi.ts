@@ -67,6 +67,14 @@ export const roleApi = {
     await http.delete(`/v1/system/roles/${id}`);
   },
 
+  batchDeleteRoles: async (ids: string[]): Promise<void> => {
+    await http.post('/v1/system/roles/batch-delete', { role_ids: ids });
+  },
+
+  batchUpdateRoleStatus: async (ids: string[], status: 'active' | 'inactive'): Promise<void> => {
+    await http.patch('/v1/system/roles/status', { role_ids: ids, status });
+  },
+
   assignMenus: async (id: string, menuIds: Array<string | number>): Promise<void> => {
     await http.post(`/v1/system/roles/${id}/menus`, { menu_ids: menuIds.map(String) });
   },

@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../../../../components/ui/dialog';
+import { getDialogClassName, getDialogStyle } from '../../../../../shared/constants/dialogSizes';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import type { Menu, Role, RoleFormData } from '../../../types';
 import { RoleForm } from './RoleForm';
@@ -62,21 +63,35 @@ export function AddRoleDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent
+        className={getDialogClassName('3xl', 'flex min-h-0 flex-col p-0')}
+        style={{ ...getDialogStyle('3xl'), height: '92vh', maxHeight: '860px' }}
+      >
+        <DialogHeader className="shrink-0 border-b border-slate-100/90 px-6 py-5 text-left">
+          <DialogTitle className="text-xl font-semibold tracking-tight text-slate-950">
             {isEdit ? t.actions.edit : t.actions.add} {t.user.role}
           </DialogTitle>
-          <DialogDescription>{isEdit ? t.common.editDescription : t.common.addDescription}</DialogDescription>
+          <DialogDescription className="mt-1 text-sm leading-6 text-slate-500">
+            {isEdit ? t.common.editDescription : t.common.addDescription}
+          </DialogDescription>
         </DialogHeader>
 
-        <RoleForm data={formData} menus={menus} onChange={setFormData} isEdit={isEdit} />
+        <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <RoleForm data={formData} menus={menus} onChange={setFormData} isEdit={isEdit} />
+        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="shrink-0 border-t border-slate-100/90 bg-slate-50/90 px-6 py-4 sm:justify-between">
+          <div className="text-xs text-slate-400">
+            {isEdit ? t.common.editDescription : t.common.addDescription}
+          </div>
+          <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-2xl border-slate-200 bg-white px-4 hover:bg-slate-50">
             {t.common.cancel}
           </Button>
-          <Button onClick={() => onSubmit(formData as RoleFormData)}>{t.common.confirm}</Button>
+          <Button onClick={() => onSubmit(formData as RoleFormData)} className="rounded-2xl bg-primary px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-md">
+            {t.common.confirm}
+          </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

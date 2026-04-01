@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 
 import { AlertCircle, Calendar as CalendarIcon, Clock, Search, Shield } from 'lucide-react';
 import { format } from 'date-fns';
@@ -22,6 +22,7 @@ import { Label } from '../../../../../components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '../../../../../components/ui/popover';
 import { ScrollArea } from '../../../../../components/ui/scroll-area';
 import { cn } from '../../../../../components/ui/utils';
+import { getDialogClassName, getDialogStyle } from '../../../../../shared/constants/dialogSizes';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import { api } from '../../../api';
 import { useRoles } from '../../../hooks/useRoles';
@@ -51,6 +52,8 @@ export function RoleAssignmentDialog({
   const { language, t } = useLanguageStore();
   const { roles } = useRoles();
   const i18n = t.systemManagement.users.roleAssignDialog;
+  const fieldClassName =
+    'h-11 rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10';
 
   const dateLocale = language === 'zh' ? zhCN : enUS;
 
@@ -96,8 +99,8 @@ export function RoleAssignmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
+      <DialogContent className={getDialogClassName('2xl', 'p-0')} style={getDialogStyle('2xl')}>
+        <DialogHeader className="border-b border-slate-100/90 bg-slate-50/70 px-6 py-5">
           <DialogTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-blue-600" />
             {i18n.title}
@@ -107,30 +110,30 @@ export function RoleAssignmentDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
-          <div className="flex items-center gap-3 rounded-lg bg-gray-50 p-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-sm">
+        <div className="custom-scrollbar max-h-[calc(92vh-164px)] space-y-4 overflow-y-auto px-6 py-5">
+          <div className="flex items-center gap-3 rounded-[24px] border border-slate-200/70 bg-slate-50/80 p-4 shadow-[0_18px_36px_-32px_rgba(15,23,42,0.28)]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-[0_16px_30px_-20px_rgba(37,99,235,0.45)]">
               <span className="font-medium">{userName.charAt(0)}</span>
             </div>
             <div>
-              <div className="font-medium text-gray-900">{userName}</div>
-              <div className="text-sm text-gray-500">{i18n.selectRoles}</div>
+              <div className="font-semibold text-slate-900">{userName}</div>
+              <div className="text-sm text-slate-500">{i18n.selectRoles}</div>
             </div>
           </div>
 
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               placeholder={i18n.searchPlaceholder}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="pl-9"
+              className={`${fieldClassName} pl-10`}
             />
           </div>
 
           <div>
-            <Label className="mb-2 text-sm font-medium text-gray-700">{i18n.rolesLabel}</Label>
-            <ScrollArea className="h-[240px] rounded-lg border p-2">
+            <Label className="mb-2 text-sm font-medium text-slate-700">{i18n.rolesLabel}</Label>
+            <ScrollArea className="h-[240px] rounded-[24px] border border-slate-200/70 bg-slate-50/65 p-3 shadow-[0_18px_36px_-32px_rgba(15,23,42,0.24)]">
               <div className="space-y-1 pr-3">
                 {filteredRoles.map((role) => {
                   const selected = selectedRoleIds.includes(role.id);
@@ -140,10 +143,10 @@ export function RoleAssignmentDialog({
                     <div
                       key={role.id}
                       className={cn(
-                        'flex cursor-pointer items-center gap-3 rounded-lg border p-2 transition-colors',
+                        'flex cursor-pointer items-center gap-3 rounded-2xl border px-3 py-3 transition-all',
                         selected
-                          ? 'border-blue-300 bg-blue-50'
-                          : 'border-gray-200 bg-white hover:bg-gray-50',
+                          ? 'border-blue-200 bg-blue-50/85 shadow-sm shadow-blue-100/70'
+                          : 'border-slate-200/70 bg-white/90 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white',
                       )}
                       onClick={() => toggleRole(role.id)}
                     >
@@ -154,20 +157,20 @@ export function RoleAssignmentDialog({
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-900">{role.name}</span>
+                          <span className="text-sm font-medium text-slate-900">{role.name}</span>
                           <Badge
                             variant="outline"
                             className={cn(
-                              'text-xs',
+                              'rounded-full px-2.5 py-1 text-xs',
                               systemRole
                                 ? 'border-orange-200 bg-orange-50 text-orange-700'
-                                : 'border-gray-300 bg-gray-100 text-gray-600',
+                                : 'border-slate-200 bg-slate-100 text-slate-600',
                             )}
                           >
                             {systemRole ? i18n.systemRole : i18n.customRole}
                           </Badge>
                         </div>
-                        <div className="text-xs text-gray-500">{role.code}</div>
+                        <div className="text-xs text-slate-500">{role.code}</div>
                       </div>
                     </div>
                   );
@@ -195,7 +198,7 @@ export function RoleAssignmentDialog({
                   <Button
                     variant="outline"
                     className={cn(
-                      'w-full justify-start text-left font-normal',
+                      `w-full justify-start text-left font-normal ${fieldClassName}`,
                       !expiresAt && 'text-muted-foreground',
                     )}
                   >
@@ -220,7 +223,7 @@ export function RoleAssignmentDialog({
           </div>
 
           {selectedRoleIds.length > 0 && (
-            <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-2 text-sm text-blue-800">
+            <div className="flex items-start gap-2 rounded-[24px] border border-blue-200/80 bg-blue-50/85 p-4 text-sm text-blue-800 shadow-[0_18px_36px_-32px_rgba(59,130,246,0.28)]">
               <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
               <span>
                 {i18n.tipAssignPrefix}{' '}
@@ -239,15 +242,27 @@ export function RoleAssignmentDialog({
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {t.common.cancel}
-          </Button>
-          <Button onClick={handleSubmit} disabled={selectedRoleIds.length === 0}>
-            {t.common.confirm}
-          </Button>
+        <DialogFooter className="border-t border-slate-100/90 bg-slate-50/80 px-6 py-4 sm:justify-between">
+          <div className="text-xs text-slate-400">{i18n.selectRoles}</div>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="rounded-2xl border-slate-200 bg-white/90 px-5 hover:bg-white"
+            >
+              {t.common.cancel}
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={selectedRoleIds.length === 0}
+              className="rounded-2xl px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+            >
+              {t.common.confirm}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+

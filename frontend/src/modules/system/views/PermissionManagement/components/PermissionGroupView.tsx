@@ -8,30 +8,16 @@ import { ActionButtons, type ActionButtonConfig } from '../../../../../shared/co
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import { systemPermissions } from '../../../constants/permissions';
 import type { Permission } from '../../../types';
+import {
+  getPermissionModuleLabel,
+  getPermissionModuleWeight,
+  normalizePermissionModule,
+} from '../moduleLocalization';
 
 interface PermissionGroupViewProps {
   permissions: Permission[];
   onEdit: (permission: Permission) => void;
   onDelete: (permission: Permission) => void;
-}
-
-const moduleAliases: Array<{ key: string; aliases: string[] }> = [
-  { key: 'dashboard', aliases: ['仪表盘', 'Dashboard'] },
-  { key: 'host', aliases: ['主机管理', 'Host Management'] },
-  { key: 'k8s', aliases: ['K8s 管理', 'K8s Management'] },
-  { key: 'deploy', aliases: ['组件部署', 'Component Deploy'] },
-  { key: 'operations', aliases: ['运维操作', 'Operations'] },
-  { key: 'alert', aliases: ['告警中心', 'Alerts'] },
-  { key: 'system', aliases: ['系统管理', 'System Management'] },
-  { key: 'data', aliases: ['数据权限', 'Data Scope'] },
-];
-
-function getModuleWeight(moduleName: string) {
-  const normalized = moduleName.trim().toLowerCase();
-  const index = moduleAliases.findIndex(({ aliases }) =>
-    aliases.some((alias) => alias.trim().toLowerCase() === normalized),
-  );
-  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
 }
 
 export function PermissionGroupView({
@@ -41,40 +27,57 @@ export function PermissionGroupView({
 }: PermissionGroupViewProps) {
   const { language } = useLanguageStore();
   const zh = language === 'zh';
-  const copy = {
-    empty: zh ? '暂无权限数据' : 'No permissions available',
-    countSuffix: zh ? '项权限' : 'permissions',
-    noDescription: zh ? '暂无说明' : 'No description',
-    relatedMenu: zh ? '关联菜单 ID：' : 'Related Menu ID: ',
-    edit: zh ? '编辑' : 'Edit',
-    delete: zh ? '删除' : 'Delete',
-    typeMeta: {
-      menu: zh ? '菜单权限' : 'Menu Permission',
-      operation: zh ? '操作权限' : 'Operation Permission',
-      data: zh ? '数据权限' : 'Data Permission',
-      field: zh ? '字段权限' : 'Field Permission',
-    },
-  };
+  const copy = zh
+    ? {
+        empty: '暂无权限数据',
+        countSuffix: '项权限',
+        noDescription: '暂无说明',
+        relatedMenu: '关联菜单 ID：',
+        edit: '编辑',
+        delete: '删除',
+        uncategorized: '未分类',
+        typeMeta: {
+          menu: '菜单权限',
+          operation: '操作权限',
+          data: '数据权限',
+          field: '字段权限',
+        },
+      }
+    : {
+        empty: 'No permissions available',
+        countSuffix: 'permissions',
+        noDescription: 'No description',
+        relatedMenu: 'Related Menu ID: ',
+        edit: 'Edit',
+        delete: 'Delete',
+        uncategorized: 'Uncategorized',
+        typeMeta: {
+          menu: 'Menu Permission',
+          operation: 'Operation Permission',
+          data: 'Data Permission',
+          field: 'Field Permission',
+        },
+      };
 
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
 
   const groupedPermissions = useMemo(() => {
     const groups: Record<string, Permission[]> = {};
     permissions.forEach((permission) => {
-      const moduleName = permission.module || (zh ? '未分类' : 'Uncategorized');
+      const moduleName = normalizePermissionModule(permission.module) || copy.uncategorized;
       if (!groups[moduleName]) {
         groups[moduleName] = [];
       }
       groups[moduleName].push(permission);
     });
     return groups;
-  }, [permissions, zh]);
+  }, [copy.uncategorized, permissions]);
 
   const sortedModules = useMemo(
     () =>
       Object.keys(groupedPermissions).sort((left, right) => {
-        const leftWeight = getModuleWeight(left);
-        const rightWeight = getModuleWeight(right);
+        const leftWeight = getPermissionModuleWeight(left);
+        const rightWeight = getPermissionModuleWeight(right);
         if (leftWeight === rightWeight) {
           return left.localeCompare(right);
         }
@@ -103,7 +106,7 @@ export function PermissionGroupView({
   };
 
   if (sortedModules.length === 0) {
-    return <div className="py-10 text-center text-sm text-gray-500">{copy.empty}</div>;
+    return <div className="py-10 text-center text-sm text-slate-500">{copy.empty}</div>;
   }
 
   return (
@@ -111,21 +114,25 @@ export function PermissionGroupView({
       {sortedModules.map((moduleName) => {
         const modulePermissions = groupedPermissions[moduleName];
         const expanded = expandedModules.has(moduleName);
+        const moduleLabel =
+          moduleName === copy.uncategorized
+            ? copy.uncategorized
+            : getPermissionModuleLabel(moduleName, language);
 
         return (
           <Card key={moduleName} className="overflow-hidden">
             <button
               type="button"
               onClick={() => toggleModule(moduleName)}
-              className="flex w-full items-center justify-between px-6 py-4 text-left transition-colors hover:bg-gray-50"
+              className="flex w-full items-center justify-between px-6 py-4 text-left transition-colors hover:bg-slate-50"
             >
               <div className="flex items-center gap-3">
                 {expanded ? (
-                  <ChevronDown className="h-5 w-5 text-gray-500" />
+                  <ChevronDown className="h-5 w-5 text-slate-500" />
                 ) : (
-                  <ChevronRight className="h-5 w-5 text-gray-500" />
+                  <ChevronRight className="h-5 w-5 text-slate-500" />
                 )}
-                <h3 className="text-lg font-semibold text-gray-900">{moduleName}</h3>
+                <h3 className="text-lg font-semibold text-slate-900">{moduleLabel}</h3>
                 <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">
                   {modulePermissions.length} {copy.countSuffix}
                 </Badge>
@@ -137,7 +144,7 @@ export function PermissionGroupView({
                 {modulePermissions.map((permission) => {
                   const meta = typeMeta[permission.type] || {
                     label: permission.type,
-                    className: 'border-gray-200 bg-gray-100 text-gray-800',
+                    className: 'border-slate-200 bg-slate-100 text-slate-800',
                   };
                   const actions: ActionButtonConfig[] = [
                     {
@@ -158,25 +165,25 @@ export function PermissionGroupView({
                   return (
                     <div
                       key={String(permission.id)}
-                      className="flex items-center justify-between gap-4 px-6 py-4 transition-colors hover:bg-gray-50"
+                      className="flex items-center justify-between gap-4 px-6 py-4 transition-colors hover:bg-slate-50"
                     >
                       <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-3">
                         <div>
                           <div className="mb-1 flex items-center gap-2">
-                            <span className="font-medium text-gray-900">{permission.name}</span>
+                            <span className="font-medium text-slate-900">{permission.name}</span>
                             <Badge variant="outline" className={`text-xs ${meta.className}`}>
                               {meta.label}
                             </Badge>
                           </div>
-                          <code className="rounded bg-gray-100 px-2 py-0.5 text-sm text-gray-600">
+                          <code className="rounded-lg bg-slate-100 px-2 py-0.5 text-sm text-slate-600">
                             {permission.code}
                           </code>
                         </div>
 
                         <div className="md:col-span-2">
-                          <p className="text-sm text-gray-600">{permission.description || copy.noDescription}</p>
+                          <p className="text-sm text-slate-600">{permission.description || copy.noDescription}</p>
                           {permission.menuId ? (
-                            <span className="mt-1 inline-block text-xs text-gray-500">
+                            <span className="mt-1 inline-block text-xs text-slate-500">
                               {copy.relatedMenu}
                               {permission.menuId}
                             </span>

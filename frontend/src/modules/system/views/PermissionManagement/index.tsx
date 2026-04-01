@@ -42,6 +42,7 @@ import { useActionPermissionDialogGuard } from '../../../../shared/hooks/useActi
 import { usePermissionConfirmGuard } from '../../../../shared/hooks/usePermissionConfirmGuard';
 import { systemPermissions } from '../../constants/permissions';
 import { createEntityFeedback } from '../../utils/feedback';
+import { getPermissionModuleLabel } from './moduleLocalization';
 
 interface StatusConfirmState {
   open: boolean;
@@ -67,6 +68,43 @@ export function PermissionManagement() {
   const { t, language } = useLanguageStore();
   const zh = language === 'zh';
   const permissionMessages = createEntityFeedback(zh, { zh: '权限', en: 'Permission', enPlural: 'permissions' });
+  const copy = zh
+    ? {
+        actionLabels: {
+          add: '新增',
+          edit: '编辑',
+          delete: '删除',
+          import: '导入',
+          export: '导出',
+          batchEnable: '批量启用',
+          batchDisable: '批量禁用',
+          batchStatusUpdate: '批量状态变更',
+          batchDelete: '批量删除',
+        },
+        buttons: {
+          batchEnable: (count: number) => `批量启用 (${count})`,
+          batchDisable: (count: number) => `批量禁用 (${count})`,
+          batchDelete: (count: number) => `批量删除 (${count})`,
+        },
+      }
+    : {
+        actionLabels: {
+          add: 'create',
+          edit: 'edit',
+          delete: 'delete',
+          import: 'import',
+          export: 'export',
+          batchEnable: 'batch enable',
+          batchDisable: 'batch disable',
+          batchStatusUpdate: 'batch status update',
+          batchDelete: 'batch delete',
+        },
+        buttons: {
+          batchEnable: (count: number) => `Enable (${count})`,
+          batchDisable: (count: number) => `Disable (${count})`,
+          batchDelete: (count: number) => `Delete (${count})`,
+        },
+      };
   const hasPermission = useAuthStore((state) => state.hasPermission);
   const canQueryPermission = hasPermission(systemPermissions.permission.query);
   const { menus } = useMenus({ enabled: canQueryPermission });
@@ -158,7 +196,7 @@ export function PermissionManagement() {
 
   const handlers = {
     onAdd: async () => {
-      if (!ensureActionPermission(canCreatePermission, zh ? '新增' : 'create')) return;
+      if (!ensureActionPermission(canCreatePermission, copy.actionLabels.add)) return;
       try {
         await api.createPermission(formData as Partial<Permission>);
         toast.success(permissionMessages.createSuccess);
@@ -171,7 +209,7 @@ export function PermissionManagement() {
     },
     onEdit: async () => {
       if (!selectedPermission) return;
-      if (!ensureActionPermission(canUpdatePermission, zh ? '编辑' : 'edit')) return;
+      if (!ensureActionPermission(canUpdatePermission, copy.actionLabels.edit)) return;
       try {
         await api.updatePermission(String(selectedPermission.id), formData as Partial<Permission>);
         toast.success(permissionMessages.updateSuccess);
@@ -184,7 +222,7 @@ export function PermissionManagement() {
     },
     onDelete: async () => {
       if (!selectedPermission) return;
-      if (!ensureActionPermission(canDeletePermission, zh ? '删除' : 'delete')) return;
+      if (!ensureActionPermission(canDeletePermission, copy.actionLabels.delete)) return;
       const impact = getPermissionDeleteImpact(String(selectedPermission.id));
       if (impact.affectedRoleCount > 0) {
         toast.error(buildPermissionDeleteBlockedMessage([{ name: selectedPermission.name, ...impact }]));
@@ -201,13 +239,13 @@ export function PermissionManagement() {
       }
     },
     onImport: async () => {
-      if (!ensureActionPermission(canCreatePermission, zh ? '导入' : 'import')) return;
+      if (!ensureActionPermission(canCreatePermission, copy.actionLabels.import)) return;
       toast.success(t.systemManagement.permissionManagement.importSuccess);
       setDialogOpen('import', false);
       await loadPermissions();
     },
     onExport: async () => {
-      if (!ensureActionPermission(canExportPermission, zh ? '导出' : 'export')) return;
+      if (!ensureActionPermission(canExportPermission, copy.actionLabels.export)) return;
       toast.success(t.systemManagement.permissionManagement.exporting);
       setDialogOpen('export', false);
     }
@@ -360,7 +398,7 @@ export function PermissionManagement() {
   };
 
   const handleBatchDelete = async () => {
-    if (!ensureActionPermission(canDeletePermission, zh ? '批量删除' : 'batch delete')) return;
+    if (!ensureActionPermission(canDeletePermission, copy.actionLabels.batchDelete)) return;
     const blockedPermissions = selectedPermissions
       .map((permission) => ({
         name: permission.name,
@@ -374,7 +412,7 @@ export function PermissionManagement() {
     }
 
     try {
-      await Promise.all(selectedPermissions.map((permission) => api.deletePermission(String(permission.id))));
+      await api.batchDeletePermissions(selectedPermissions.map((permission) => String(permission.id)));
       toast.success(permissionMessages.batchDeleteSuccess(selectedPermissions.length));
       setSelectedPermissions([]);
       resetPermissionForm();
@@ -394,11 +432,11 @@ export function PermissionManagement() {
     pageTitle: t.menu.systemPermissions,
     dialogs,
     guardedDialogs: {
-      add: { label: zh ? '新增' : 'create', allowed: canCreatePermission },
-      edit: { label: zh ? '编辑' : 'edit', allowed: canUpdatePermission },
-      delete: { label: zh ? '删除' : 'delete', allowed: canDeletePermission },
-      import: { label: zh ? '导入' : 'import', allowed: canCreatePermission },
-      export: { label: zh ? '导出' : 'export', allowed: canExportPermission },
+      add: { label: copy.actionLabels.add, allowed: canCreatePermission },
+      edit: { label: copy.actionLabels.edit, allowed: canUpdatePermission },
+      delete: { label: copy.actionLabels.delete, allowed: canDeletePermission },
+      import: { label: copy.actionLabels.import, allowed: canCreatePermission },
+      export: { label: copy.actionLabels.export, allowed: canExportPermission },
     },
     closeDialogs: (names) => {
       setDialogs((prev) => {
@@ -415,14 +453,14 @@ export function PermissionManagement() {
     guard: statusConfirm.guard,
     pageTitle: t.menu.systemPermissions,
     guards: {
-      update: { label: zh ? '批量状态变更' : 'batch status update', allowed: canUpdatePermission },
-      delete: { label: zh ? '批量删除' : 'batch delete', allowed: canDeletePermission },
+      update: { label: copy.actionLabels.batchStatusUpdate, allowed: canUpdatePermission },
+      delete: { label: copy.actionLabels.batchDelete, allowed: canDeletePermission },
     },
     closeConfirm: closeStatusConfirm,
   });
 
   const handleBatchPermissionStatus = (enabled: boolean) => {
-    if (!ensureActionPermission(canUpdatePermission, zh ? `批量${enabled ? '启用' : '禁用'}` : `batch ${enabled ? 'enable' : 'disable'}`)) return;
+    if (!ensureActionPermission(canUpdatePermission, enabled ? copy.actionLabels.batchEnable : copy.actionLabels.batchDisable)) return;
     const targetPermissions = enabled ? permissionsToEnable : permissionsToDisable;
     if (targetPermissions.length === 0) {
       return;
@@ -430,13 +468,9 @@ export function PermissionManagement() {
 
     openPermissionBatchStatusConfirm(targetPermissions, enabled, async () => {
       try {
-        await Promise.all(
-          targetPermissions.map((permission) =>
-            api.updatePermission(String(permission.id), {
-              ...permission,
-              status: enabled ? 'active' : 'inactive',
-            }),
-          ),
+        await api.batchUpdatePermissionStatus(
+          targetPermissions.map((permission) => String(permission.id)),
+          enabled ? 'active' : 'inactive',
         );
         setSelectedPermissions([]);
         await loadPermissions();
@@ -452,54 +486,67 @@ export function PermissionManagement() {
       title={t.menu.systemPermissions}
       description={t.systemManagement.permissionManagement.pageDescription}
       actions={canQueryPermission ? (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-[26px] border border-slate-200/70 bg-white/72 p-3 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
           {selectedPermissions.length > 0 && (
             <>
               {canUpdatePermission && permissionsToEnable.length > 0 ? (
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => handleBatchPermissionStatus(true)}
-                  className="border-emerald-100 text-emerald-700 hover:bg-emerald-50 rounded-xl"
+                  className="h-11 gap-2 rounded-2xl border-emerald-200/80 bg-emerald-50/80 px-4 text-emerald-700 shadow-sm shadow-emerald-100/60 transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50"
                 >
-                  <Power className="w-4 h-4 mr-2" />
-                  {zh ? `批量启用 (${permissionsToEnable.length})` : `Enable (${permissionsToEnable.length})`}
+                  <Power className="w-4 h-4" />
+                  {copy.buttons.batchEnable(permissionsToEnable.length)}
                 </Button>
               ) : null}
               {canUpdatePermission && permissionsToDisable.length > 0 ? (
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => handleBatchPermissionStatus(false)}
-                  className="border-amber-100 text-amber-700 hover:bg-amber-50 rounded-xl"
+                  className="h-11 gap-2 rounded-2xl border-amber-200/80 bg-amber-50/80 px-4 text-amber-700 shadow-sm shadow-amber-100/60 transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50"
                 >
-                  <PowerOff className="w-4 h-4 mr-2" />
-                  {zh ? `批量禁用 (${permissionsToDisable.length})` : `Disable (${permissionsToDisable.length})`}
+                  <PowerOff className="w-4 h-4" />
+                  {copy.buttons.batchDisable(permissionsToDisable.length)}
                 </Button>
               ) : null}
               {canDeletePermission ? (
-                <Button variant="outline" size="sm" onClick={handleBatchDelete} className="border-rose-100 text-rose-600 hover:bg-rose-50 rounded-xl">
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  {t.systemManagement.permissionManagement.batchDelete} ({selectedPermissions.length})
+                <Button
+                  variant="outline"
+                  onClick={handleBatchDelete}
+                  className="h-11 gap-2 rounded-2xl border-rose-200/80 bg-rose-50/80 px-4 text-rose-600 shadow-sm shadow-rose-100/60 transition-all hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {copy.buttons.batchDelete(selectedPermissions.length)}
                 </Button>
               ) : null}
             </>
           )}
           {canCreatePermission ? (
-            <Button variant="outline" size="sm" onClick={() => setDialogOpen('import', true)} className="border-slate-200 rounded-xl bg-white shadow-sm">
-              <Upload className="w-4 h-4 mr-2 text-slate-400" />
+            <Button
+              variant="outline"
+              onClick={() => setDialogOpen('import', true)}
+              className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+            >
+              <Upload className="w-4 h-4" />
               {t.actions.import}
             </Button>
           ) : null}
           {canExportPermission ? (
-            <Button variant="outline" size="sm" onClick={() => setDialogOpen('export', true)} className="border-slate-200 rounded-xl bg-white shadow-sm">
-              <Download className="w-4 h-4 mr-2 text-slate-400" />
+            <Button
+              variant="outline"
+              onClick={() => setDialogOpen('export', true)}
+              className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+            >
+              <Download className="w-4 h-4" />
               {t.actions.export}
             </Button>
           ) : null}
           {canCreatePermission ? (
-            <Button size="sm" onClick={openAddDialog} className="bg-primary hover:bg-primary/90 rounded-xl shadow-lg shadow-primary/20 active:scale-95 transition-all">
-              <Plus className="w-4 h-4 mr-2" />
+            <Button
+              onClick={openAddDialog}
+              className="h-11 gap-2 rounded-2xl bg-primary px-4 shadow-[0_16px_30px_-18px_rgba(var(--primary),0.7)] transition-all active:scale-95 hover:-translate-y-0.5 hover:bg-primary/92 hover:shadow-[0_18px_34px_-18px_rgba(var(--primary),0.75)]"
+            >
+              <Plus className="w-4 h-4" />
               {t.actions.add}
             </Button>
           ) : null}
@@ -518,18 +565,18 @@ export function PermissionManagement() {
       <PermissionStats stats={stats} />
 
       {/* 2. 搜索过滤栏 */}
-      <div className="flex flex-col gap-4 mb-6 bg-white/50 backdrop-blur-md p-4 rounded-3xl border border-slate-100 shadow-sm">
+      <div className="mb-6 flex flex-col gap-4 rounded-[26px] border border-slate-200/70 bg-white/72 p-4 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
         <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl">
+          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/70 bg-slate-100/85 p-1">
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+              className={`rounded-xl p-2 transition-all ${viewMode === 'list' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:bg-white/70 hover:text-slate-600'}`}
             >
               <List className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode('group')}
-              className={`p-2 rounded-lg transition-all ${viewMode === 'group' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+              className={`rounded-xl p-2 transition-all ${viewMode === 'group' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:bg-white/70 hover:text-slate-600'}`}
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
@@ -541,20 +588,20 @@ export function PermissionManagement() {
               placeholder={t.systemManagement.permissionManagement.searchPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-11 bg-white border-slate-200 rounded-xl focus:ring-primary/20 transition-all"
+              className="h-11 rounded-2xl border-slate-200/80 bg-white/90 pl-10 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10"
             />
           </div>
 
           <div className="flex items-center gap-3">
             <div className="w-40">
               <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger className="h-11 border-slate-200 rounded-xl bg-white">
+                <SelectTrigger className="h-11 rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50">
                     <div className="flex items-center gap-2">
                       <Filter className="w-3.5 h-3.5 text-slate-400" />
                       <SelectValue placeholder={t.systemManagement.permissionManagement.typePlaceholder} />
                     </div>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-2xl border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/60">
                     <SelectItem value="all">{t.systemManagement.permissionManagement.typeAll}</SelectItem>
                     <SelectItem value="menu">{t.systemManagement.permissionManagement.typeMenu}</SelectItem>
                     <SelectItem value="operation">{t.systemManagement.permissionManagement.typeOperation}</SelectItem>
@@ -566,12 +613,16 @@ export function PermissionManagement() {
             {viewMode === 'list' && (
               <div className="w-44">
                 <Select value={filterModule} onValueChange={setFilterModule}>
-                  <SelectTrigger className="h-11 border-slate-200 rounded-xl bg-white">
+                  <SelectTrigger className="h-11 rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50">
                     <SelectValue placeholder={t.systemManagement.permissionManagement.modulePlaceholder} />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-2xl border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/60">
                     <SelectItem value="all">{t.systemManagement.permissionManagement.moduleAll}</SelectItem>
-                    {modules.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                    {modules.map((module) => (
+                      <SelectItem key={module} value={module}>
+                        {getPermissionModuleLabel(module, language)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -581,7 +632,7 @@ export function PermissionManagement() {
       </div>
 
       {/* 3. 数据展示区 */}
-      <Card className="border-none shadow-sm overflow-hidden bg-white/80 backdrop-blur-xl">
+      <Card className="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/88 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.28)] backdrop-blur-sm">
         {viewMode === 'list' ? (
           <PermissionTable
             data={paginatedData}

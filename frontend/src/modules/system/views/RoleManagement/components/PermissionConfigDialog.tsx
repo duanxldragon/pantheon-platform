@@ -8,6 +8,7 @@ import { Checkbox } from '../../../../../components/ui/checkbox';
 import { Label } from '../../../../../components/ui/label';
 import { ScrollArea } from '../../../../../components/ui/scroll-area';
 import { Separator } from '../../../../../components/ui/separator';
+import { getMenuLabel } from '../../../../../shared/constants/viewsConfig';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import { FormDialog } from '../../../../../shared/components/ui/FormDialog';
 import { roleApi } from '../../../api/roleApi';
@@ -28,10 +29,33 @@ export function PermissionConfigDialog({
   menus,
   onSuccess,
 }: PermissionConfigDialogProps) {
-  const { language } = useLanguageStore();
+  const { language, t } = useLanguageStore();
   const zh = language === 'zh';
-  const saveRoleMenuPermissionsSuccessMessage = zh ? '角色菜单权限已保存' : 'Role menu permissions saved';
-  const saveRoleMenuPermissionsFailedMessage = zh ? '保存角色菜单权限失败，请重试' : 'Failed to save role menu permissions';
+  const copy = zh
+    ? {
+        saveSuccess: '角色菜单权限已保存',
+        saveFailed: '保存角色菜单权限失败，请重试',
+        title: '配置菜单权限',
+        description: (roleName: string) => `为角色“${roleName}”配置可访问的菜单与按钮。`,
+        cancelText: '取消',
+        submitText: '保存配置',
+        submittingText: '保存中...',
+        selectedPrefix: '已选择',
+        selectedSuffix: '项菜单权限',
+        clear: '清空选择',
+      }
+    : {
+        saveSuccess: 'Role menu permissions saved',
+        saveFailed: 'Failed to save role menu permissions',
+        title: 'Configure Menu Permissions',
+        description: (roleName: string) => `Configure accessible menus and buttons for role "${roleName}".`,
+        cancelText: 'Cancel',
+        submitText: 'Save',
+        submittingText: 'Saving...',
+        selectedPrefix: 'Selected',
+        selectedSuffix: 'menu permissions',
+        clear: 'Clear',
+      };
 
   const [selectedMenuIds, setSelectedMenuIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -71,11 +95,11 @@ export function PermissionConfigDialog({
     setLoading(true);
     try {
       await roleApi.assignMenus(String(role.id), selectedMenuIds);
-      toast.success(saveRoleMenuPermissionsSuccessMessage);
+      toast.success(copy.saveSuccess);
       onSuccess?.();
       onOpenChange(false);
     } catch {
-      toast.error(saveRoleMenuPermissionsFailedMessage);
+      toast.error(copy.saveFailed);
     } finally {
       setLoading(false);
     }
@@ -89,45 +113,43 @@ export function PermissionConfigDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={zh ? '配置菜单权限' : 'Configure Menu Permissions'}
-      description={
-        zh
-          ? `为角色“${role.name}”配置可访问的菜单与按钮。`
-          : `Configure accessible menus and buttons for role "${role.name}".`
-      }
+      title={copy.title}
+      description={copy.description(role.name)}
       onSubmit={handleSubmit}
       loading={loading}
-      cancelText={zh ? '取消' : 'Cancel'}
-      submitText={zh ? '保存配置' : 'Save'}
-      submittingText={zh ? '保存中...' : 'Saving...'}
-      width="max-w-3xl"
+      cancelText={copy.cancelText}
+      submitText={copy.submitText}
+      submittingText={copy.submittingText}
+      width="sm:max-w-[1180px]"
     >
       <div className="space-y-4">
-        <div className="flex items-center justify-between rounded-lg bg-blue-50 p-3">
-          <div className="text-sm text-gray-700">
-            {zh ? '已选择' : 'Selected'}{' '}
-            <span className="font-medium text-blue-600">{selectedMenuIds.length}</span>{' '}
-            {zh ? '项菜单权限' : 'menu permissions'}
+        <div className="flex items-center justify-between rounded-[24px] border border-blue-200/80 bg-gradient-to-r from-blue-50 via-white to-cyan-50 p-4 shadow-[0_18px_36px_-30px_rgba(59,130,246,0.28)]">
+          <div className="text-sm text-slate-700">
+            {copy.selectedPrefix}{' '}
+            <span className="font-semibold text-blue-600">{selectedMenuIds.length}</span>{' '}
+            {copy.selectedSuffix}
           </div>
           <button
             type="button"
             onClick={() => setSelectedMenuIds([])}
-            className="text-sm text-blue-600 hover:text-blue-700"
+            className="rounded-2xl border border-blue-100 bg-white/90 px-3 py-1.5 text-sm text-blue-600 transition-colors hover:bg-white hover:text-blue-700"
           >
-            {zh ? '清空选择' : 'Clear'}
+            {copy.clear}
           </button>
         </div>
 
         <Separator />
 
-        <ScrollArea className="h-[420px] pr-4">
-          <div className="space-y-1">
+        <ScrollArea className="h-[420px] rounded-[28px] border border-slate-200/80 bg-slate-50/75 p-3 pr-4 shadow-inner shadow-slate-100/80">
+          <div className="space-y-2">
             {renderMenuTree({
               menuList: menuTree,
               expandedMenuIds,
               toggleExpand,
               selectedMenuIds,
               toggleSelection,
+              language,
+              t,
             })}
           </div>
         </ScrollArea>
@@ -142,6 +164,8 @@ function renderMenuTree({
   toggleExpand,
   selectedMenuIds,
   toggleSelection,
+  language,
+  t,
   level = 0,
 }: {
   menuList: Menu[];
@@ -149,6 +173,8 @@ function renderMenuTree({
   toggleExpand: (menuId: string) => void;
   selectedMenuIds: string[];
   toggleSelection: (menuId: string) => void;
+  language: string;
+  t: unknown;
   level?: number;
 }): ReactNode {
   return menuList.map((menu) => {
@@ -159,41 +185,48 @@ function renderMenuTree({
 
     return (
       <div key={menuId} className={level > 0 ? 'ml-6' : ''}>
-        <div className="flex items-center gap-2 rounded px-2 py-2 hover:bg-gray-50">
+        <div
+          className={`flex items-center gap-3 rounded-[24px] border px-4 py-3 transition-all duration-200 ${
+            selected
+              ? 'border-blue-200 bg-blue-50/80 shadow-sm shadow-blue-100/60'
+              : 'border-slate-200/70 bg-white/88 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white'
+          }`}
+        >
           {hasChildren ? (
             <button
               type="button"
               onClick={() => toggleExpand(menuId)}
-              className="rounded p-0.5 hover:bg-gray-200"
+              className="rounded-2xl p-1.5 transition-colors hover:bg-slate-100"
             >
               <ChevronRight
-                className={`h-4 w-4 text-gray-500 transition-transform ${
-                  expanded ? 'rotate-90' : ''
-                }`}
+                className={`h-4 w-4 text-slate-500 transition-transform ${expanded ? 'rotate-90' : ''}`}
               />
             </button>
           ) : (
-            <span className="w-5" />
+            <span className="w-7" />
           )}
 
-          {hasChildren ? (
-            <Folder className="h-4 w-4 text-blue-500" />
-          ) : (
-            <File className="h-4 w-4 text-gray-400" />
-          )}
+          <div
+            className={`flex h-9 w-9 items-center justify-center rounded-2xl border ${
+              hasChildren
+                ? 'border-blue-100 bg-blue-50 text-blue-600'
+                : 'border-slate-200/80 bg-slate-50 text-slate-500'
+            }`}
+          >
+            {hasChildren ? <Folder className="h-4 w-4" /> : <File className="h-4 w-4" />}
+          </div>
 
           <Checkbox
             id={`permission-menu-${menuId}`}
             checked={selected}
             onCheckedChange={() => toggleSelection(menuId)}
           />
-          <Label
-            htmlFor={`permission-menu-${menuId}`}
-            className="flex-1 cursor-pointer text-gray-700"
-          >
-            {menu.name}
+          <Label htmlFor={`permission-menu-${menuId}`} className="flex-1 cursor-pointer text-sm font-medium text-slate-700">
+            {getMenuLabel(menu, language, t)}
           </Label>
-          <span className="text-xs text-gray-400">{menu.path || menu.code}</span>
+          <span className="rounded-full border border-slate-200/80 bg-white/90 px-3 py-1 text-[11px] text-slate-500">
+            {menu.path || menu.code}
+          </span>
         </div>
 
         {hasChildren &&
@@ -204,6 +237,8 @@ function renderMenuTree({
             toggleExpand,
             selectedMenuIds,
             toggleSelection,
+            language,
+            t,
             level: level + 1,
           })}
       </div>

@@ -79,4 +79,12 @@ export const positionApi = {
   deletePosition: async (id: string): Promise<void> => {
     await http.delete(`/v1/system/positions/${id}`);
   },
+
+  batchDeletePositions: async (ids: string[]): Promise<void> => {
+    await http.post('/v1/system/positions/batch-delete', { position_ids: ids });
+  },
+
+  batchUpdatePositionStatus: async (ids: string[], status: 'active' | 'inactive'): Promise<void> => {
+    await http.patch('/v1/system/positions/status', { position_ids: ids, status });
+  },
 };

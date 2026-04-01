@@ -40,6 +40,8 @@ export const UserSearchForm: React.FC<UserSearchFormProps> = ({
 }) => {
   const { t } = useLanguageStore();
   const [isExpanded, setIsExpanded] = React.useState(false);
+  const fieldClassName =
+    'h-11 rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10';
 
   const handleReset = () => {
     onSearchChange('');
@@ -51,16 +53,16 @@ export const UserSearchForm: React.FC<UserSearchFormProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-4 mb-4 shadow-sm transition-all duration-300">
+    <div className="mb-5 rounded-[26px] border border-slate-200/70 bg-white/72 p-4 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] transition-all duration-300 backdrop-blur-sm">
       <div className="flex flex-wrap items-center gap-4">
         {/* Keyword Search */}
         <div className="relative flex-1 min-w-[240px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
             placeholder={t.topBar.searchPlaceholder}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-9 h-10 border-gray-200 focus:border-primary/50 focus:ring-primary/20 transition-all rounded-lg"
+            className={`${fieldClassName} pl-10`}
           />
         </div>
 
@@ -70,10 +72,10 @@ export const UserSearchForm: React.FC<UserSearchFormProps> = ({
             value={filters.departmentId || 'all'} 
             onValueChange={(val) => onFilterChange({ ...filters, departmentId: val })}
           >
-              <SelectTrigger className="h-10 border-gray-200 rounded-lg">
+              <SelectTrigger className={fieldClassName}>
               <SelectValue placeholder={t.user.department} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-2xl border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/60">
               <SelectItem value="all">{t.common.all}{t.user.department}</SelectItem>
                 {departments.map((dept) => (
                   <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
@@ -88,10 +90,10 @@ export const UserSearchForm: React.FC<UserSearchFormProps> = ({
             value={filters.status || 'all'} 
             onValueChange={(val) => onFilterChange({ ...filters, status: val })}
           >
-            <SelectTrigger className="h-10 border-gray-200 rounded-lg">
+            <SelectTrigger className={fieldClassName}>
               <SelectValue placeholder={t.user.status} />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-2xl border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/60">
               <SelectItem value="all">{t.common.all}{t.user.status}</SelectItem>
               <SelectItem value="active">{t.status.enabled}</SelectItem>
               <SelectItem value="inactive">{t.status.disabled}</SelectItem>
@@ -100,12 +102,12 @@ export const UserSearchForm: React.FC<UserSearchFormProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 rounded-2xl border border-slate-200/70 bg-slate-50/80 p-1">
           <Button 
             variant="outline" 
             size="sm" 
             onClick={handleReset}
-            className="h-10 px-4 border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg transition-all active:scale-95"
+            className="h-11 rounded-2xl border-slate-200/80 bg-white/90 px-5 text-slate-600 shadow-sm shadow-slate-200/50 transition-all active:scale-95 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-primary"
           >
             <RotateCcw className="w-4 h-4 mr-2 opacity-70" />
             {t.common.reset}
@@ -114,7 +116,7 @@ export const UserSearchForm: React.FC<UserSearchFormProps> = ({
             variant="ghost" 
             size="sm" 
             onClick={() => setIsExpanded(!isExpanded)}
-            className={`h-10 px-3 rounded-lg transition-colors ${isExpanded ? 'bg-primary/10 text-primary' : 'text-gray-500'}`}
+            className={`h-11 rounded-2xl px-4 transition-all ${isExpanded ? 'bg-primary/10 text-primary shadow-sm shadow-primary/10' : 'text-slate-500 hover:-translate-y-0.5 hover:bg-white hover:shadow-sm'}`}
           >
             <Filter className="w-4 h-4 mr-2" />
             {t.actions.filter}
@@ -125,17 +127,17 @@ export const UserSearchForm: React.FC<UserSearchFormProps> = ({
 
       {/* More Filters */}
       {isExpanded && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-50 animate-in fade-in slide-in-from-top-2 duration-300">
+        <div className="mt-4 grid animate-in grid-cols-1 gap-4 border-t border-slate-200/80 pt-4 duration-300 fade-in slide-in-from-top-2 md:grid-cols-3">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-500 ml-1">{t.user.role}</label>
+            <label className="ml-1 text-xs font-medium text-slate-500">{t.user.role}</label>
             <Select 
               value={filters.roleId || 'all'} 
               onValueChange={(val) => onFilterChange({ ...filters, roleId: val })}
             >
-              <SelectTrigger className="h-10 border-gray-100 bg-gray-50/50 rounded-lg">
+              <SelectTrigger className={fieldClassName}>
                 <SelectValue placeholder={t.user.role} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-2xl border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/60">
                 <SelectItem value="all">{t.common.all}{t.user.role}</SelectItem>
                 {roles.map((role) => (
                   <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>

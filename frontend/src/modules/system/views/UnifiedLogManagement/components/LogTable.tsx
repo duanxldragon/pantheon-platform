@@ -86,11 +86,14 @@ export const LogTable: React.FC<LogTableProps> = ({
 }) => {
   const { t, language } = useLanguageStore();
   const dateLocale = language === 'zh' ? zhCN : enUS;
+  const loginFeedbackLabel = language === 'zh' ? '登录反馈' : 'Login Feedback';
+  const targetColumnLabel = language === 'zh' ? '操作对象' : 'Target';
+  const logoutLabel = language === 'zh' ? '退出时间' : 'Logout';
 
   const getStatusBadge = (status: 'success' | 'failure') => {
     if (status === 'success') {
       return (
-        <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-50 gap-1 font-medium">
+        <Badge className="gap-1 border border-emerald-100 bg-emerald-50 font-medium text-emerald-600 hover:bg-emerald-50">
           <CheckCircle2 className="w-3 h-3" />
           {t.modules.deploy.status.success}
         </Badge>
@@ -98,7 +101,7 @@ export const LogTable: React.FC<LogTableProps> = ({
     }
 
     return (
-      <Badge className="bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-50 gap-1 font-medium">
+      <Badge className="gap-1 border border-rose-100 bg-rose-50 font-medium text-rose-600 hover:bg-rose-50">
         <XCircle className="w-3 h-3" />
         {t.modules.deploy.status.failed}
       </Badge>
@@ -114,15 +117,15 @@ export const LogTable: React.FC<LogTableProps> = ({
         render: (log) => (
           <div className="flex items-center gap-3">
             <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-sm ${
+              className={`flex h-9 w-9 items-center justify-center rounded-2xl shadow-sm ${
                 log.kind === 'operation' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'
               }`}
             >
               {log.kind === 'operation' ? <Shield className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
             </div>
-            <div className="flex flex-col min-w-0">
-              <span className="font-bold text-gray-900 leading-tight truncate">{log.username}</span>
-              <span className="text-[11px] text-gray-400">
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate font-bold leading-tight text-slate-900">{log.username}</span>
+              <span className="text-[11px] text-slate-400">
                 {log.kind === 'operation' ? t.systemManagement.logs.tabOperation : t.systemManagement.logs.tabLogin}
               </span>
             </div>
@@ -138,11 +141,13 @@ export const LogTable: React.FC<LogTableProps> = ({
           const value = new Date(timestamp);
           return (
             <div className="flex flex-col gap-0.5">
-              <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                <Clock className="w-3.5 h-3.5 text-gray-400" />
+              <div className="flex items-center gap-1.5 text-sm text-slate-700">
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
                 {format(value, 'HH:mm:ss', { locale: dateLocale })}
               </div>
-              <span className="text-[11px] text-gray-400 ml-5">{format(value, 'yyyy-MM-dd', { locale: dateLocale })}</span>
+              <span className="ml-5 text-[11px] text-slate-400">
+                {format(value, 'yyyy-MM-dd', { locale: dateLocale })}
+              </span>
             </div>
           );
         },
@@ -153,10 +158,10 @@ export const LogTable: React.FC<LogTableProps> = ({
         width: '180px',
         render: (log) => (
           <div className="flex flex-col gap-1">
-            <code className="text-[11px] px-1.5 py-0.5 rounded bg-gray-50 text-gray-600 border border-gray-100 w-fit font-mono">
+            <code className="w-fit rounded-full border border-slate-200/80 bg-slate-50/90 px-2.5 py-1 font-mono text-[11px] text-slate-600 shadow-sm shadow-slate-200/40">
               {log.ip}
             </code>
-            <div className="flex items-center gap-1 text-[11px] text-gray-400">
+            <div className="flex items-center gap-1 text-[11px] text-slate-400">
               <Globe className="w-3 h-3" />
               {log.location || '-'}
             </div>
@@ -181,17 +186,41 @@ export const LogTable: React.FC<LogTableProps> = ({
               width: '220px',
               render: (log) => {
                 if (log.kind !== 'login') {
-                  return <span className="text-gray-300 text-xs">-</span>;
+                  return <span className="text-xs text-slate-300">-</span>;
                 }
                 const isMobile = /iphone|android|mobile/i.test(`${log.os} ${log.browser}`);
                 return (
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-8 h-8 bg-gray-50 rounded-lg border border-gray-100">
-                      {isMobile ? <Smartphone className="w-4 h-4 text-gray-400" /> : <Monitor className="w-4 h-4 text-gray-400" />}
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-100 bg-slate-50">
+                      {isMobile ? <Smartphone className="w-4 h-4 text-slate-400" /> : <Monitor className="w-4 h-4 text-slate-400" />}
                     </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-medium text-gray-700 truncate">{log.os || '-'}</span>
-                      <span className="text-[10px] text-gray-400 truncate">{log.browser || '-'}</span>
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate text-xs font-medium text-slate-700">{log.os || '-'}</span>
+                      <span className="truncate text-[10px] text-slate-400">{log.browser || '-'}</span>
+                    </div>
+                  </div>
+                );
+              },
+            },
+            {
+              key: 'feedback',
+              label: loginFeedbackLabel,
+              width: '280px',
+              render: (log) => {
+                if (log.kind !== 'login') {
+                  return <span className="text-xs text-slate-300">-</span>;
+                }
+
+                return (
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <span className="truncate text-sm font-medium text-slate-700">
+                      {log.message || (log.status === 'success' ? t.modules.deploy.status.success : t.modules.deploy.status.failed)}
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-slate-200/80 bg-slate-50/90 px-2 py-0.5 shadow-sm shadow-slate-200/30">
+                        <Clock className="h-3 w-3" />
+                        {logoutLabel}: {log.logoutAt ? format(new Date(log.logoutAt), 'HH:mm:ss', { locale: dateLocale }) : '-'}
+                      </span>
                     </div>
                   </div>
                 );
@@ -205,7 +234,7 @@ export const LogTable: React.FC<LogTableProps> = ({
               width: '380px',
               render: (log) => {
                 if (log.kind !== 'operation') {
-                  return <span className="text-gray-300 text-xs">-</span>;
+                  return <span className="text-xs text-slate-300">-</span>;
                 }
 
                 const methodColor: Record<string, string> = {
@@ -226,23 +255,23 @@ export const LogTable: React.FC<LogTableProps> = ({
                 const resourceBadgeClass = getAuditResourceBadgeClass(log.resource);
 
                 return (
-                  <div className="flex flex-col gap-2 min-w-0">
-                    <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                      <Badge variant="outline" className="bg-gray-50/50 font-normal text-gray-600 border-gray-100">
+                  <div className="flex min-w-0 flex-col gap-2">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <Badge variant="outline" className="rounded-full border border-slate-200/80 bg-slate-50/90 font-normal text-slate-600 shadow-sm shadow-slate-200/40">
                         {log.module}
                       </Badge>
-                      <span className="text-sm font-semibold text-gray-800 truncate">{title}</span>
+                      <span className="truncate text-sm font-semibold text-slate-800">{title}</span>
                     </div>
-                    <div className="flex items-center gap-2 flex-wrap text-[11px] text-gray-500">
-                      <Badge className={`font-mono text-[10px] ${methodColor[log.method] || 'bg-gray-50 text-gray-600 border-gray-100'}`}>
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                      <Badge className={`rounded-full font-mono text-[10px] shadow-sm ${methodColor[log.method] || 'bg-slate-50 text-slate-600 border-slate-100'}`}>
                         {log.method}
                       </Badge>
-                      <Badge variant="outline" className={resourceBadgeClass}>
+                      <Badge variant="outline" className={`rounded-full shadow-sm ${resourceBadgeClass}`}>
                         <Tag className="w-3 h-3 mr-1" />
                         {log.resource || '-'}
                       </Badge>
-                      <span className="inline-flex items-center gap-1 font-medium text-gray-600">{resourceName}</span>
-                      <span className="font-mono text-gray-400">{log.duration}ms</span>
+                      <span className="inline-flex items-center gap-1 font-medium text-slate-600">{resourceName}</span>
+                      <span className="font-mono text-slate-400">{log.duration}ms</span>
                       {log.errorMsg ? (
                         <span className="inline-flex items-center gap-1 text-[10px] text-rose-600">
                           <AlertCircle className="w-3 h-3" />
@@ -251,29 +280,54 @@ export const LogTable: React.FC<LogTableProps> = ({
                       ) : null}
                     </div>
                     {affectedUsers || affectedRoles || refreshStrategy || sessionStrategy ? (
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex flex-wrap items-center gap-2">
                         {affectedUsers ? (
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-100">
+                          <Badge variant="outline" className="rounded-full border-blue-100 bg-blue-50 text-blue-700 shadow-sm shadow-blue-100/40">
                             {t.systemManagement.logs.impact.users.replace('{count}', affectedUsers)}
                           </Badge>
                         ) : null}
                         {affectedRoles ? (
-                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-100">
+                          <Badge variant="outline" className="rounded-full border-purple-100 bg-purple-50 text-purple-700 shadow-sm shadow-purple-100/40">
                             {t.systemManagement.logs.impact.roles.replace('{count}', affectedRoles)}
                           </Badge>
                         ) : null}
                         {isRefreshStrategy(refreshStrategy) ? (
-                          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-100">
+                          <Badge variant="outline" className="rounded-full border-emerald-100 bg-emerald-50 text-emerald-700 shadow-sm shadow-emerald-100/40">
                             {t.systemManagement.logs.impact.authRefresh}
                           </Badge>
                         ) : null}
                         {isRevokeStrategy(sessionStrategy) ? (
-                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-100">
+                          <Badge variant="outline" className="rounded-full border-amber-100 bg-amber-50 text-amber-700 shadow-sm shadow-amber-100/40">
                             {t.systemManagement.logs.impact.sessionRevoke}
                           </Badge>
                         ) : null}
                       </div>
                     ) : null}
+                  </div>
+                );
+              },
+            },
+            {
+              key: 'target',
+              label: targetColumnLabel,
+              width: '240px',
+              render: (log) => {
+                if (log.kind !== 'operation') {
+                  return <span className="text-xs text-slate-300">-</span>;
+                }
+
+                return (
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <span className="truncate text-sm font-medium text-slate-700">
+                      {log.resourceName || log.resource || '-'}
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-slate-200/80 bg-slate-50/90 px-2 py-0.5 font-mono shadow-sm shadow-slate-200/30">
+                        <Tag className="h-3 w-3" />
+                        {log.resourceId || '-'}
+                      </span>
+                      <span className="truncate font-mono">{log.requestUrl || '-'}</span>
+                    </div>
                   </div>
                 );
               },
@@ -299,7 +353,7 @@ export const LogTable: React.FC<LogTableProps> = ({
     };
 
     return [...base, ...typeCols, actions];
-  }, [activeTab, dateLocale, onViewDetail, t]);
+  }, [activeTab, dateLocale, language, onViewDetail, t]);
 
   return (
     <EnhancedDataTable
@@ -307,7 +361,7 @@ export const LogTable: React.FC<LogTableProps> = ({
       data={data}
       rowKey={(log) => log.id}
       loading={loading}
-      selectable
+      selectable={false}
       selectedItems={selectedItems}
       onSelectionChange={onSelectionChange}
       pagination={{

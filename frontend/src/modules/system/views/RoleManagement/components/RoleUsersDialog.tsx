@@ -17,6 +17,7 @@ import {
 import { Input } from '../../../../../components/ui/input';
 import { ScrollArea } from '../../../../../components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../../../components/ui/tabs';
+import { getDialogClassName, getDialogStyle } from '../../../../../shared/constants/dialogSizes';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import { api } from '../../../api';
 import type { Role, User } from '../../../types';
@@ -36,9 +37,19 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
   const { t, language } = useLanguageStore();
   const i18n = t.systemManagement.roles.usersDialog;
   const zh = language === 'zh';
-  const loadRoleMembersFailedMessage = zh ? '加载角色成员失败，请重试' : 'Failed to load role members';
-  const addRoleMembersFailedMessage = zh ? '添加角色成员失败，请重试' : 'Failed to add role members';
-  const removeRoleMembersFailedMessage = zh ? '移除角色成员失败，请重试' : 'Failed to remove role members';
+  const copy = zh
+    ? {
+        loadFailed: '加载角色成员失败，请重试',
+        addFailed: '添加角色成员失败，请重试',
+        removeFailed: '移除角色成员失败，请重试',
+      }
+    : {
+        loadFailed: 'Failed to load role members',
+        addFailed: 'Failed to add role members',
+        removeFailed: 'Failed to remove role members',
+      };
+  const fieldClassName =
+    'h-11 rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10';
 
   const [activeTab, setActiveTab] = useState<'current' | 'add'>('current');
   const [searchQuery, setSearchQuery] = useState('');
@@ -69,7 +80,7 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
       setCurrentUsers(currentResponse.items);
       setAllUsers(allResponse.items);
     } catch {
-      toast.error(loadRoleMembersFailedMessage);
+      toast.error(copy.loadFailed);
     } finally {
       setLoading(false);
     }
@@ -77,7 +88,7 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
 
   const availableUsers = useMemo(
     () => allUsers.filter((user) => !user.roleIds?.map(asID).includes(roleId)),
-    [allUsers, roleId]
+    [allUsers, roleId],
   );
 
   const filterUsers = (users: User[]) => {
@@ -90,7 +101,7 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
       (user) =>
         user.realName.toLowerCase().includes(keyword) ||
         user.username.toLowerCase().includes(keyword) ||
-        (user.email || '').toLowerCase().includes(keyword)
+        (user.email || '').toLowerCase().includes(keyword),
     );
   };
 
@@ -152,7 +163,7 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
               ? Array.from(new Set([...existingRoleIds, roleId]))
               : existingRoleIds.filter((idValue) => idValue !== roleId);
           await api.updateUser(id, { roleIds: nextRoleIds });
-        })
+        }),
       );
 
       toast.success(mode === 'add' ? i18n.addSuccess : i18n.removeSuccess);
@@ -164,7 +175,7 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
         setActiveTab('current');
       }
     } catch {
-      toast.error(mode === 'add' ? addRoleMembersFailedMessage : removeRoleMembersFailedMessage);
+      toast.error(mode === 'add' ? copy.addFailed : copy.removeFailed);
     } finally {
       setLoading(false);
     }
@@ -181,8 +192,8 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="flex max-h-[85vh] max-w-3xl flex-col">
-        <DialogHeader>
+      <DialogContent className={getDialogClassName('3xl', 'flex min-h-0 flex-col p-0')} style={getDialogStyle('3xl')}>
+        <DialogHeader className="border-b border-slate-100/90 bg-slate-50/70 px-6 py-5">
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5 text-blue-600" />
             {i18n.title}: {role.name}
@@ -190,14 +201,14 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
           <DialogDescription>{i18n.description}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col space-y-4">
+        <div className="flex min-h-0 flex-1 flex-col space-y-4 px-6 py-5">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               placeholder={i18n.searchPlaceholder}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="pl-9"
+              className={`${fieldClassName} pl-10`}
             />
           </div>
 
@@ -206,18 +217,18 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
             onValueChange={(value) => setActiveTab(value as 'current' | 'add')}
             className="flex min-h-0 flex-1 flex-col"
           >
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="current" className="gap-2">
+            <TabsList className="grid w-full grid-cols-2 rounded-2xl border border-slate-200/70 bg-slate-100/85 p-1">
+              <TabsTrigger value="current" className="gap-2 rounded-xl">
                 <UserMinus className="h-4 w-4" />
                 {i18n.tabCurrent} <Badge variant="outline">{currentUsers.length}</Badge>
               </TabsTrigger>
-              <TabsTrigger value="add" className="gap-2">
+              <TabsTrigger value="add" className="gap-2 rounded-xl">
                 <UserPlus className="h-4 w-4" />
                 {i18n.tabAdd} <Badge variant="outline">{availableUsers.length}</Badge>
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="current" className="mt-3 min-h-0 flex-1">
+            <TabsContent value="current" className="mt-4 min-h-0 flex-1">
               <UserList
                 users={filteredCurrentUsers}
                 selectedUserIds={selectedUserIds}
@@ -226,7 +237,7 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
               />
             </TabsContent>
 
-            <TabsContent value="add" className="mt-3 min-h-0 flex-1">
+            <TabsContent value="add" className="mt-4 min-h-0 flex-1">
               <UserList
                 users={filteredAvailableUsers}
                 selectedUserIds={selectedUserIds}
@@ -237,8 +248,8 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
           </Tabs>
         </div>
 
-        <DialogFooter className="flex items-center justify-between gap-2">
-          <div className="text-xs text-gray-500">
+        <DialogFooter className="border-t border-slate-100/90 bg-slate-50/80 px-6 py-4 sm:justify-between">
+          <div className="text-xs text-slate-500">
             {i18n.selectedLabel}: {selectedUserIds.size} / {displayedUsers.length}
           </div>
           <div className="flex items-center gap-2">
@@ -246,6 +257,7 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
               variant="outline"
               onClick={selectAllDisplayed}
               disabled={displayedUsers.length === 0 || loading}
+              className="rounded-2xl border-slate-200 bg-white/90 px-5 hover:bg-white"
             >
               {t.common.selectAll}
             </Button>
@@ -254,6 +266,7 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
                 variant="destructive"
                 onClick={() => void updateUsersRole('remove')}
                 disabled={selectedUserIds.size === 0 || loading}
+                className="rounded-2xl bg-rose-600 px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-rose-700 hover:shadow-md"
               >
                 {i18n.removeSelected}
               </Button>
@@ -261,6 +274,7 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
               <Button
                 onClick={() => void updateUsersRole('add')}
                 disabled={selectedUserIds.size === 0 || loading}
+                className="rounded-2xl px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
               >
                 {i18n.addSelected}
               </Button>
@@ -284,7 +298,7 @@ function UserList({
   emptyText: string;
 }) {
   if (users.length === 0) {
-    return <div className="py-10 text-center text-sm text-gray-500">{emptyText}</div>;
+    return <div className="py-10 text-center text-sm text-slate-500">{emptyText}</div>;
   }
 
   return (
@@ -298,7 +312,11 @@ function UserList({
               key={userId}
               type="button"
               onClick={() => onToggle(userId)}
-              className="flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-gray-50"
+              className={`flex w-full items-start gap-3 rounded-[24px] border p-4 text-left transition-all duration-200 ${
+                checked
+                  ? 'border-blue-200 bg-blue-50/75 shadow-sm shadow-blue-100/60'
+                  : 'border-slate-200/70 bg-white/92 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white'
+              }`}
             >
               <Checkbox
                 checked={checked}
@@ -307,12 +325,12 @@ function UserList({
               />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-900">{user.realName}</span>
-                  <Badge variant="outline" className="text-xs">
+                  <span className="font-medium text-slate-900">{user.realName}</span>
+                  <Badge variant="outline" className="rounded-full bg-white/90 text-xs">
                     @{user.username}
                   </Badge>
                 </div>
-                <div className="truncate text-xs text-gray-500">{user.email}</div>
+                <div className="truncate text-xs text-slate-500">{user.email}</div>
               </div>
             </button>
           );

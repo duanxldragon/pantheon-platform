@@ -1,11 +1,12 @@
-﻿import React from 'react';
+import React from 'react';
+
 import { useLanguageStore } from '../../../../../stores/languageStore';
-import { FormDialog } from '../../../../../shared/components/ui/FormDialog';
-import { DeleteConfirmDialog } from '../../../../../shared/components/ui/DeleteConfirmDialog';
 import { DataImportExportDialog } from '../../../../../shared/components/ui/DataImportExportDialog';
+import { DeleteConfirmDialog } from '../../../../../shared/components/ui/DeleteConfirmDialog';
+import { FormDialog } from '../../../../../shared/components/ui/FormDialog';
+import type { Department, Position, User } from '../../../types';
 import { PositionForm } from './PositionForm';
 import { PositionUsersDialog } from './PositionUsersDialog';
-import { Position, Department, User } from '../../../types';
 
 interface PositionDialogManagerProps {
   dialogs: {
@@ -44,12 +45,16 @@ export const PositionDialogManager: React.FC<PositionDialogManagerProps> = ({
   handlers,
   deleteDescription,
 }) => {
-  const { t } = useLanguageStore();
+  const { t, language } = useLanguageStore();
+  const zh = language === 'zh';
+  const templateHeaders = zh
+    ? ['名称', '编码', '部门ID', '级别', '排序', '说明']
+    : ['Name', 'Code', 'DepartmentId', 'Level', 'Sort', 'Description'];
 
   return (
     <>
       <FormDialog
-        title={t.actions.add + ' ' + t.menu.systemPositions}
+        title={`${t.actions.add} ${t.menu.systemPositions}`}
         open={dialogs.add}
         onOpenChange={(open) => setDialogOpen('add', open)}
         onSubmit={handlers.onSubmit}
@@ -58,7 +63,7 @@ export const PositionDialogManager: React.FC<PositionDialogManagerProps> = ({
       </FormDialog>
 
       <FormDialog
-        title={t.actions.edit + ' ' + t.menu.systemPositions}
+        title={`${t.actions.edit} ${t.menu.systemPositions}`}
         open={dialogs.edit}
         onOpenChange={(open) => setDialogOpen('edit', open)}
         onSubmit={handlers.onSubmit}
@@ -72,7 +77,7 @@ export const PositionDialogManager: React.FC<PositionDialogManagerProps> = ({
           open={dialogs.users}
           onOpenChange={(open) => setDialogOpen('users', open)}
           allUsers={allUsers}
-          currentUsers={allUsers.filter(user => String(user.positionId ?? '') === String(selectedPosition.id))}
+          currentUsers={allUsers.filter((user) => String(user.positionId ?? '') === String(selectedPosition.id))}
           onAssignUsers={handlers.onAssignUsers}
           onUnassignUser={handlers.onUnassignUser}
         />
@@ -85,9 +90,7 @@ export const PositionDialogManager: React.FC<PositionDialogManagerProps> = ({
         title={t.actions.delete}
         description={
           deleteDescription ||
-          (selectedPosition
-            ? `${t.common.confirm} ${t.actions.delete} ${selectedPosition.name}?`
-            : '')
+          (selectedPosition ? `${t.common.confirm} ${t.actions.delete} ${selectedPosition.name}?` : '')
         }
       />
 
@@ -97,7 +100,7 @@ export const PositionDialogManager: React.FC<PositionDialogManagerProps> = ({
         mode="import"
         resourceName={t.menu.systemPositions}
         onImport={handlers.onImport}
-        templateHeaders={['Name', 'Code', 'DepartmentId', 'Level', 'Sort', 'Description']}
+        templateHeaders={templateHeaders}
       />
 
       <DataImportExportDialog
@@ -110,4 +113,3 @@ export const PositionDialogManager: React.FC<PositionDialogManagerProps> = ({
     </>
   );
 };
-

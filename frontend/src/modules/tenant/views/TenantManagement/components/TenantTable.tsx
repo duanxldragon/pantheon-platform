@@ -50,27 +50,77 @@ export function TenantTable({ data, onAction, pagination }: TenantTableProps) {
   const { language } = useLanguageStore();
   const zh = language === 'zh';
 
+  const copy = zh
+    ? {
+        statuses: {
+          active: '运行中',
+          suspended: '已停用',
+          pending: '待初始化',
+        },
+        columns: {
+          tenantName: '租户名称',
+          database: '数据库',
+          userQuota: '用户配额',
+          expiry: '服务有效期',
+          status: '状态',
+          actions: '操作',
+        },
+        actions: {
+          edit: '编辑',
+          overview: '概览',
+          databaseSetup: '数据库初始化',
+          renewLicense: '授权续期',
+          activate: '恢复启用',
+          suspend: '停用租户',
+          delete: '删除租户',
+        },
+      }
+    : {
+        statuses: {
+          active: 'Active',
+          suspended: 'Suspended',
+          pending: 'Pending',
+        },
+        columns: {
+          tenantName: 'Tenant Name',
+          database: 'Database',
+          userQuota: 'User Quota',
+          expiry: 'Expiry',
+          status: 'Status',
+          actions: 'Actions',
+        },
+        actions: {
+          edit: 'Edit',
+          overview: 'Overview',
+          databaseSetup: 'Database Setup',
+          renewLicense: 'Renew License',
+          activate: 'Activate',
+          suspend: 'Suspend',
+          delete: 'Delete Tenant',
+        },
+      };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active':
         return (
           <Badge className="gap-1.5 border-emerald-100 bg-emerald-50 font-bold text-emerald-600">
             <Power className="h-3 w-3" />
-            {zh ? '运行中' : 'Active'}
+            {copy.statuses.active}
           </Badge>
         );
       case 'suspended':
         return (
           <Badge className="gap-1.5 border-rose-100 bg-rose-50 font-bold text-rose-600">
             <ShieldAlert className="h-3 w-3" />
-            {zh ? '已停用' : 'Suspended'}
+            {copy.statuses.suspended}
           </Badge>
         );
       case 'pending':
         return (
           <Badge className="gap-1.5 border-amber-100 bg-amber-50 font-bold text-amber-600">
             <RefreshCcw className="h-3 w-3" />
-            {zh ? '待初始化' : 'Pending'}
+            {copy.statuses.pending}
           </Badge>
         );
       default:
@@ -81,7 +131,7 @@ export function TenantTable({ data, onAction, pagination }: TenantTableProps) {
   const columns: Column<Tenant>[] = [
     {
       key: 'name',
-      label: zh ? '租户名称' : 'Tenant Name',
+      label: copy.columns.tenantName,
       width: '280px',
       render: (tenant) => (
         <div className="flex items-center gap-3">
@@ -99,7 +149,7 @@ export function TenantTable({ data, onAction, pagination }: TenantTableProps) {
     },
     {
       key: 'database',
-      label: zh ? '数据库' : 'Database',
+      label: copy.columns.database,
       width: '200px',
       render: (tenant) => {
         const iconUrl = getDbIcon(tenant.dbType);
@@ -124,7 +174,7 @@ export function TenantTable({ data, onAction, pagination }: TenantTableProps) {
     },
     {
       key: 'users',
-      label: zh ? '用户配额' : 'User Quota',
+      label: copy.columns.userQuota,
       width: '180px',
       render: (tenant) => {
         const usage = tenant.userLimit > 0 ? (tenant.userCount / tenant.userLimit) * 100 : 0;
@@ -143,7 +193,7 @@ export function TenantTable({ data, onAction, pagination }: TenantTableProps) {
     },
     {
       key: 'expire',
-      label: zh ? '服务有效期' : 'Expiry',
+      label: copy.columns.expiry,
       width: '160px',
       render: (tenant) => (
         <div className="flex flex-col gap-0.5">
@@ -156,14 +206,14 @@ export function TenantTable({ data, onAction, pagination }: TenantTableProps) {
     },
     {
       key: 'status',
-      label: zh ? '状态' : 'Status',
+      label: copy.columns.status,
       width: '120px',
       align: 'center',
       render: (tenant) => getStatusBadge(tenant.status),
     },
     {
       key: 'actions',
-      label: zh ? '操作' : 'Actions',
+      label: copy.columns.actions,
       width: '150px',
       align: 'right',
       render: (tenant) => (
@@ -172,12 +222,12 @@ export function TenantTable({ data, onAction, pagination }: TenantTableProps) {
             actions={[
               {
                 icon: <Edit className="h-4 w-4 text-amber-500" />,
-                label: zh ? '编辑' : 'Edit',
+                label: copy.actions.edit,
                 onClick: () => onAction('edit', tenant),
               },
               {
                 icon: <Search className="h-4 w-4 text-blue-500" />,
-                label: zh ? '概览' : 'Overview',
+                label: copy.actions.overview,
                 onClick: () => onAction('view', tenant),
               },
             ]}
@@ -191,27 +241,27 @@ export function TenantTable({ data, onAction, pagination }: TenantTableProps) {
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem onClick={() => onAction('database', tenant)}>
                 <Database className="mr-2 h-4 w-4 text-indigo-500" />
-                {zh ? '数据库初始化' : 'Database Setup'}
+                {copy.actions.databaseSetup}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onAction('license', tenant)}>
                 <ShieldCheck className="mr-2 h-4 w-4 text-emerald-500" />
-                {zh ? '授权续期' : 'Renew License'}
+                {copy.actions.renewLicense}
               </DropdownMenuItem>
               {tenant.status === 'suspended' ? (
                 <DropdownMenuItem onClick={() => onAction('activate', tenant)}>
                   <Power className="mr-2 h-4 w-4 text-emerald-500" />
-                  {zh ? '恢复启用' : 'Activate'}
+                  {copy.actions.activate}
                 </DropdownMenuItem>
               ) : (
                 <DropdownMenuItem className="text-rose-600" onClick={() => onAction('suspend', tenant)}>
                   <Power className="mr-2 h-4 w-4" />
-                  {zh ? '停用租户' : 'Suspend'}
+                  {copy.actions.suspend}
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-rose-600" onClick={() => onAction('delete', tenant)}>
                 <ShieldAlert className="mr-2 h-4 w-4" />
-                {zh ? '删除租户' : 'Delete Tenant'}
+                {copy.actions.delete}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

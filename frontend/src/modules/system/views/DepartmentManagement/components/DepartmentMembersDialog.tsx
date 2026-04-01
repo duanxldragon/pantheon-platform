@@ -17,6 +17,7 @@ import {
 } from '../../../../../components/ui/dialog';
 import { Input } from '../../../../../components/ui/input';
 import { ScrollArea } from '../../../../../components/ui/scroll-area';
+import { getDialogClassName, getDialogStyle } from '../../../../../shared/constants/dialogSizes';
 import { ConfirmDialog } from '../../../../../shared/components/ui/ConfirmDialog';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import type { Department, ID, User } from '../../../types';
@@ -46,25 +47,51 @@ export function DepartmentMembersDialog({
 }: DepartmentMembersDialogProps) {
   const { language } = useLanguageStore();
   const zh = language === 'zh';
-  const copy = {
-    title: zh ? '部门成员管理' : 'Department Members',
-    description: zh
-      ? '管理部门成员，支持添加成员、移出成员，并触发相关权限刷新。'
-      : 'Manage department members, including add/remove actions and permission refresh.',
-    currentTab: zh ? '当前成员' : 'Current Members',
-    addTab: zh ? '添加成员' : 'Add Members',
-    searchPlaceholder: zh ? '搜索用户名、姓名或邮箱' : 'Search by username, name, or email',
-    emptyCurrent: zh ? '当前部门暂无成员' : 'No members in this department',
-    emptyAvailable: zh ? '暂无可添加的用户' : 'No available users to add',
-    selectedLabel: zh ? '已选' : 'Selected',
-    selectAll: zh ? '全选当前列表' : 'Select Current List',
-    addAction: zh ? '添加到部门' : 'Add to Department',
-    confirmAddTitle: zh ? '确认添加成员' : 'Confirm Add Members',
-    confirmRemoveTitle: zh ? '确认移出成员' : 'Confirm Remove Member',
-    confirmAddText: zh ? '确认添加' : 'Confirm Add',
-    confirmRemoveText: zh ? '确认移出' : 'Confirm Remove',
-    cancelText: zh ? '取消' : 'Cancel',
-  };
+  const copy = zh
+    ? {
+        title: '部门成员管理',
+        description: '管理部门成员，支持添加成员、移出成员，并触发相关权限刷新。',
+        currentTab: '当前成员',
+        addTab: '添加成员',
+        searchPlaceholder: '搜索用户名、姓名或邮箱',
+        emptyCurrent: '当前部门暂无成员',
+        emptyAvailable: '暂无可添加的用户',
+        selectedLabel: '已选',
+        selectAll: '全选当前列表',
+        addAction: '添加到部门',
+        confirmAddTitle: '确认添加成员',
+        confirmRemoveTitle: '确认移出成员',
+        confirmAddText: '确认添加',
+        confirmRemoveText: '确认移出',
+        cancelText: '取消',
+        addDescription: (departmentName: string, count: number) =>
+          `本次将为部门“${departmentName}”添加 ${count} 名成员，并触发相关用户的权限刷新。`,
+        removeDescription: (departmentName: string, username: string) =>
+          `本次将从部门“${departmentName}”移出成员“${username}”，并触发该用户的权限刷新。`,
+      }
+    : {
+        title: 'Department Members',
+        description: 'Manage department members, including add/remove actions and permission refresh.',
+        currentTab: 'Current Members',
+        addTab: 'Add Members',
+        searchPlaceholder: 'Search by username, name, or email',
+        emptyCurrent: 'No members in this department',
+        emptyAvailable: 'No available users to add',
+        selectedLabel: 'Selected',
+        selectAll: 'Select Current List',
+        addAction: 'Add to Department',
+        confirmAddTitle: 'Confirm Add Members',
+        confirmRemoveTitle: 'Confirm Remove Member',
+        confirmAddText: 'Confirm Add',
+        confirmRemoveText: 'Confirm Remove',
+        cancelText: 'Cancel',
+        addDescription: (departmentName: string, count: number) =>
+          `This will add ${count} members to "${departmentName}" and refresh related user permissions.`,
+        removeDescription: (departmentName: string, username: string) =>
+          `This will remove "${username}" from "${departmentName}" and refresh that user's permissions.`,
+      };
+  const fieldClassName =
+    'h-11 rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10';
 
   const [activeTab, setActiveTab] = useState<'current' | 'add'>('current');
   const [searchQuery, setSearchQuery] = useState('');
@@ -188,19 +215,16 @@ export function DepartmentMembersDialog({
     onOpenChange(nextOpen);
   };
 
+  const pendingUsername = pendingRemoveUser?.realName || pendingRemoveUser?.username || '';
   const confirmDescription =
     confirmMode === 'add'
-      ? zh
-        ? `本次将为部门「${department.name}」添加 ${selectedUserIds.size} 名成员，并触发相关用户的权限刷新。`
-        : `This will add ${selectedUserIds.size} members to "${department.name}" and refresh related user permissions.`
-      : zh
-        ? `本次将从部门「${department.name}」移出成员「${pendingRemoveUser?.realName || pendingRemoveUser?.username || ''}」，并触发该用户的权限刷新。`
-        : `This will remove "${pendingRemoveUser?.realName || pendingRemoveUser?.username || ''}" from "${department.name}" and refresh that user's permissions.`;
+      ? copy.addDescription(department.name, selectedUserIds.size)
+      : copy.removeDescription(department.name, pendingUsername);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="flex max-h-[85vh] max-w-3xl flex-col">
-        <DialogHeader>
+      <DialogContent className={getDialogClassName('3xl', 'flex min-h-0 flex-col p-0')} style={getDialogStyle('3xl')}>
+        <DialogHeader className="border-b border-slate-100/90 bg-slate-50/70 px-6 py-5">
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5 text-blue-600" />
             {department.name} - {copy.title}
@@ -208,18 +232,18 @@ export function DepartmentMembersDialog({
           <DialogDescription>{copy.description}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col space-y-4">
-          <div className="flex gap-2 border-b border-gray-200">
+        <div className="flex min-h-0 flex-1 flex-col space-y-4 px-6 py-5">
+          <div className="inline-flex w-fit items-center gap-1 rounded-2xl border border-slate-200/70 bg-slate-100/85 p-1">
             <Button
               variant={activeTab === 'current' ? 'default' : 'ghost'}
-              className={activeTab === 'current' ? 'rounded-none border-b-2 border-blue-600' : 'rounded-none'}
+              className={activeTab === 'current' ? 'rounded-xl px-4 shadow-sm' : 'rounded-xl px-4 text-slate-600 hover:bg-white/70'}
               onClick={() => setActiveTab('current')}
             >
               {copy.currentTab} ({currentMembers.length})
             </Button>
             <Button
               variant={activeTab === 'add' ? 'default' : 'ghost'}
-              className={activeTab === 'add' ? 'rounded-none border-b-2 border-blue-600' : 'rounded-none'}
+              className={activeTab === 'add' ? 'rounded-xl px-4 shadow-sm' : 'rounded-xl px-4 text-slate-600 hover:bg-white/70'}
               onClick={() => setActiveTab('add')}
             >
               {copy.addTab} ({availableUsers.length})
@@ -227,12 +251,12 @@ export function DepartmentMembersDialog({
           </div>
 
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder={copy.searchPlaceholder}
-              className="pl-10"
+              className={`${fieldClassName} pl-10`}
             />
           </div>
 
@@ -241,35 +265,43 @@ export function DepartmentMembersDialog({
               <div className="space-y-2">
                 {filteredCurrentMembers.length > 0 ? (
                   filteredCurrentMembers.map((user) => (
-                    <Card key={asID(user.id)} className="p-4 transition-shadow hover:shadow-md">
+                    <Card
+                      key={asID(user.id)}
+                      className="rounded-[24px] border border-slate-200/70 bg-white/92 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+                    >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <AvatarBadge color="blue">{user.realName.slice(0, 1)}</AvatarBadge>
                           <div>
                             <div className="flex items-center gap-2">
-                              <p className="text-gray-900">{user.realName}</p>
-                              <Badge variant="outline" className="bg-gray-50 text-xs">
+                              <p className="text-slate-900">{user.realName}</p>
+                              <Badge variant="outline" className="bg-slate-50 text-xs">
                                 {user.username}
                               </Badge>
                             </div>
                             <div className="mt-1 flex items-center gap-2">
-                              <p className="text-sm text-gray-500">{user.email}</p>
-                              {user.roleNames?.[0] && (
+                              <p className="text-sm text-slate-500">{user.email}</p>
+                              {user.roleNames?.[0] ? (
                                 <Badge className="bg-purple-100 text-xs text-purple-700">
                                   {user.roleNames[0]}
                                 </Badge>
-                              )}
+                              ) : null}
                             </div>
                           </div>
                         </div>
-                        <Button size="sm" variant="ghost" onClick={() => openRemoveConfirm(user)}>
-                          <UserMinus className="h-4 w-4 text-red-500" />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-10 w-10 rounded-2xl hover:bg-rose-50"
+                          onClick={() => openRemoveConfirm(user)}
+                        >
+                          <UserMinus className="h-4 w-4 text-rose-500" />
                         </Button>
                       </div>
                     </Card>
                   ))
                 ) : (
-                  <EmptyState icon={<Users className="mb-3 h-12 w-12 text-gray-300" />} text={copy.emptyCurrent} />
+                  <EmptyState icon={<Users className="mb-3 h-12 w-12 text-slate-300" />} text={copy.emptyCurrent} />
                 )}
               </div>
             </ScrollArea>
@@ -283,7 +315,11 @@ export function DepartmentMembersDialog({
                       return (
                         <Card
                           key={userId}
-                          className="cursor-pointer p-4 transition-shadow hover:shadow-md"
+                          className={`cursor-pointer rounded-[24px] border p-4 transition-all duration-200 ${
+                            selectedUserIds.has(userId)
+                              ? 'border-blue-200 bg-blue-50/75 shadow-sm shadow-blue-100/60'
+                              : 'border-slate-200/70 bg-white/92 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white'
+                          }`}
                           onClick={() => toggleUser(userId)}
                         >
                           <div className="flex items-center justify-between">
@@ -296,18 +332,16 @@ export function DepartmentMembersDialog({
                               <AvatarBadge color="green">{user.realName.slice(0, 1)}</AvatarBadge>
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <p className="text-gray-900">{user.realName}</p>
-                                  <Badge variant="outline" className="bg-gray-50 text-xs">
+                                  <p className="text-slate-900">{user.realName}</p>
+                                  <Badge variant="outline" className="bg-slate-50 text-xs">
                                     {user.username}
                                   </Badge>
                                 </div>
                                 <div className="mt-1 flex items-center gap-2">
-                                  <p className="text-sm text-gray-500">{user.email}</p>
-                                  {user.departmentName && (
-                                    <Badge className="bg-blue-100 text-xs text-blue-700">
-                                      {user.departmentName}
-                                    </Badge>
-                                  )}
+                                  <p className="text-sm text-slate-500">{user.email}</p>
+                                  {user.departmentName ? (
+                                    <Badge className="bg-blue-100 text-xs text-blue-700">{user.departmentName}</Badge>
+                                  ) : null}
                                 </div>
                               </div>
                             </div>
@@ -316,20 +350,29 @@ export function DepartmentMembersDialog({
                       );
                     })
                   ) : (
-                    <EmptyState icon={<UserPlus className="mb-3 h-12 w-12 text-gray-300" />} text={copy.emptyAvailable} />
+                    <EmptyState icon={<UserPlus className="mb-3 h-12 w-12 text-slate-300" />} text={copy.emptyAvailable} />
                   )}
                 </div>
               </ScrollArea>
 
-              <DialogFooter className="flex items-center justify-between gap-2">
-                <div className="text-xs text-gray-500">
+              <DialogFooter className="border-t border-slate-100/90 bg-slate-50/80 px-4 py-4 sm:justify-between">
+                <div className="text-xs text-slate-500">
                   {copy.selectedLabel} {selectedUserIds.size} / {filteredAvailableUsers.length}
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" onClick={selectAllDisplayed} disabled={filteredAvailableUsers.length === 0}>
+                  <Button
+                    variant="outline"
+                    onClick={selectAllDisplayed}
+                    disabled={filteredAvailableUsers.length === 0}
+                    className="rounded-2xl border-slate-200 bg-white/90 px-5 hover:bg-white"
+                  >
                     {copy.selectAll}
                   </Button>
-                  <Button onClick={openAddConfirm} disabled={selectedUserIds.size === 0} className="gap-2">
+                  <Button
+                    onClick={openAddConfirm}
+                    disabled={selectedUserIds.size === 0}
+                    className="gap-2 rounded-2xl px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                  >
                     <UserPlus className="h-4 w-4" />
                     {copy.addAction}
                   </Button>
@@ -358,12 +401,12 @@ export function DepartmentMembersDialog({
 
 function AvatarBadge({ color, children }: { color: 'blue' | 'green'; children: string }) {
   const className = color === 'blue' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700';
-  return <div className={`flex h-10 w-10 items-center justify-center rounded-full ${className}`}>{children}</div>;
+  return <div className={`flex h-10 w-10 items-center justify-center rounded-2xl font-semibold ${className}`}>{children}</div>;
 }
 
 function EmptyState({ icon, text }: { icon: ReactNode; text: string }) {
   return (
-    <div className="py-12 text-center text-gray-500">
+    <div className="py-12 text-center text-slate-500">
       <div className="flex justify-center">{icon}</div>
       <p>{text}</p>
     </div>

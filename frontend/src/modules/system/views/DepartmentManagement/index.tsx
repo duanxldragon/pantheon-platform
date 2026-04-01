@@ -50,6 +50,53 @@ export function DepartmentManagement() {
   const { t, language } = useLanguageStore();
   const zh = language === 'zh';
   const departmentMessages = createEntityFeedback(zh, { zh: '部门', en: 'Department', enPlural: 'departments' });
+  const copy = zh
+    ? {
+        actions: {
+          add: '新增',
+          edit: '编辑',
+          delete: '删除',
+          import: '导入',
+          export: '导出',
+          memberAssign: '成员分配',
+          batchEnable: '批量启用',
+          batchDisable: '批量禁用',
+          batchDelete: '批量删除',
+          batchStatusUpdate: '批量状态变更',
+        },
+        buttons: {
+          batchEnable: (count: number) => `批量启用 (${count})`,
+          batchDisable: (count: number) => `批量禁用 (${count})`,
+          batchDelete: (count: number) => `批量删除 (${count})`,
+        },
+        titles: {
+          expandAll: '全部展开',
+          collapseAll: '全部收起',
+        },
+      }
+    : {
+        actions: {
+          add: 'create',
+          edit: 'edit',
+          delete: 'delete',
+          import: 'import',
+          export: 'export',
+          memberAssign: 'member assignment',
+          batchEnable: 'batch enable',
+          batchDisable: 'batch disable',
+          batchDelete: 'batch delete',
+          batchStatusUpdate: 'batch status update',
+        },
+        buttons: {
+          batchEnable: (count: number) => `Enable (${count})`,
+          batchDisable: (count: number) => `Disable (${count})`,
+          batchDelete: (count: number) => `Delete (${count})`,
+        },
+        titles: {
+          expandAll: 'Expand all',
+          collapseAll: 'Collapse all',
+        },
+      };
   const hasPermission = useAuthStore((state) => state.hasPermission);
   const canQueryDepartment = hasPermission(systemPermissions.department.query);
   
@@ -519,7 +566,7 @@ export function DepartmentManagement() {
     pageTitle: t.menu.systemDepartments,
     dialogs,
     protectedDialogs: {
-      members: zh ? '成员分配' : 'member assignment',
+      members: copy.actions.memberAssign,
     },
     closeDialogs: closeProtectedDialogs,
   });
@@ -527,11 +574,11 @@ export function DepartmentManagement() {
     pageTitle: t.menu.systemDepartments,
     dialogs,
     guardedDialogs: {
-      add: { label: zh ? '新增' : 'create', allowed: canCreateDepartment },
-      edit: { label: zh ? '编辑' : 'edit', allowed: canUpdateDepartment },
-      delete: { label: zh ? '删除' : 'delete', allowed: canDeleteDepartment },
-      import: { label: zh ? '导入' : 'import', allowed: canCreateDepartment },
-      export: { label: zh ? '导出' : 'export', allowed: canExportDepartment },
+      add: { label: copy.actions.add, allowed: canCreateDepartment },
+      edit: { label: copy.actions.edit, allowed: canUpdateDepartment },
+      delete: { label: copy.actions.delete, allowed: canDeleteDepartment },
+      import: { label: copy.actions.import, allowed: canCreateDepartment },
+      export: { label: copy.actions.export, allowed: canExportDepartment },
     },
     closeDialogs: closeProtectedDialogs,
   });
@@ -540,14 +587,14 @@ export function DepartmentManagement() {
     guard: statusConfirm.guard,
     pageTitle: t.menu.systemDepartments,
     guards: {
-      update: { label: zh ? '批量状态变更' : 'batch status update', allowed: canUpdateDepartment },
-      delete: { label: zh ? '批量删除' : 'batch delete', allowed: canDeleteDepartment },
+      update: { label: copy.actions.batchStatusUpdate, allowed: canUpdateDepartment },
+      delete: { label: copy.actions.batchDelete, allowed: canDeleteDepartment },
     },
     closeConfirm: closeStatusConfirm,
   });
 
   const handleBatchDepartmentStatus = (enabled: boolean) => {
-    if (!ensureActionPermission(canUpdateDepartment, zh ? `批量${enabled ? '启用' : '禁用'}` : `batch ${enabled ? 'enable' : 'disable'}`)) return;
+    if (!ensureActionPermission(canUpdateDepartment, enabled ? copy.actions.batchEnable : copy.actions.batchDisable)) return;
     const targetItems = enabled ? departmentsToEnable : departmentsToDisable;
     if (targetItems.length === 0) {
       return;
@@ -555,10 +602,9 @@ export function DepartmentManagement() {
 
     openDepartmentBatchConfirm(enabled ? 'enable' : 'disable', targetItems, async () => {
       try {
-        await Promise.all(
-          targetItems.map((department) =>
-            api.updateDepartment(String(department.id), { status: enabled ? 'active' : 'inactive' }),
-          ),
+        await api.batchUpdateDepartmentStatus(
+          targetItems.map((department) => String(department.id)),
+          enabled ? 'active' : 'inactive',
         );
         setSelectedDepartments([]);
         await reloadDepartments();
@@ -570,7 +616,7 @@ export function DepartmentManagement() {
   };
 
   const handleBatchDepartmentDelete = () => {
-    if (!ensureActionPermission(canDeleteDepartment, zh ? '批量删除' : 'batch delete')) return;
+    if (!ensureActionPermission(canDeleteDepartment, copy.actions.batchDelete)) return;
     if (selectedDepartmentIds.length === 0) {
       return;
     }
@@ -594,7 +640,7 @@ export function DepartmentManagement() {
 
     openDepartmentBatchConfirm('delete', selectedDepartments, async () => {
       try {
-        await Promise.all(selectedDepartmentIds.map((departmentId) => api.deleteDepartment(departmentId)));
+        await api.batchDeleteDepartments(selectedDepartmentIds);
         setSelectedDepartments([]);
         await reloadDepartments();
       } catch {
@@ -608,60 +654,72 @@ export function DepartmentManagement() {
     <PageLayout
       title={t.menu.systemDepartments}
       actions={canQueryDepartment ? (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-[26px] border border-slate-200/70 bg-white/72 p-3 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
           {selectedDepartments.length > 0 && (
             <>
               {canUpdateDepartment && departmentsToEnable.length > 0 ? (
-                <Button variant="outline" onClick={() => handleBatchDepartmentStatus(true)} className="gap-2 border-emerald-100 text-emerald-700 hover:bg-emerald-50">
+                <Button variant="outline" onClick={() => handleBatchDepartmentStatus(true)} className="h-11 gap-2 rounded-2xl border-emerald-200/80 bg-emerald-50/80 px-4 text-emerald-700 shadow-sm shadow-emerald-100/60 transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50">
                   <Power className="w-4 h-4" />
-                  {zh ? `批量启用 (${departmentsToEnable.length})` : `Enable (${departmentsToEnable.length})`}
+                  {copy.buttons.batchEnable(departmentsToEnable.length)}
                 </Button>
               ) : null}
               {canUpdateDepartment && departmentsToDisable.length > 0 ? (
-                <Button variant="outline" onClick={() => handleBatchDepartmentStatus(false)} className="gap-2 border-amber-100 text-amber-700 hover:bg-amber-50">
+                <Button variant="outline" onClick={() => handleBatchDepartmentStatus(false)} className="h-11 gap-2 rounded-2xl border-amber-200/80 bg-amber-50/80 px-4 text-amber-700 shadow-sm shadow-amber-100/60 transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50">
                   <PowerOff className="w-4 h-4" />
-                  {zh ? `批量禁用 (${departmentsToDisable.length})` : `Disable (${departmentsToDisable.length})`}
+                  {copy.buttons.batchDisable(departmentsToDisable.length)}
                 </Button>
               ) : null}
               {canDeleteDepartment ? (
-                <Button variant="outline" onClick={handleBatchDepartmentDelete} className="gap-2 border-red-100 text-red-600 hover:bg-red-50">
+                <Button variant="outline" onClick={handleBatchDepartmentDelete} className="h-11 gap-2 rounded-2xl border-rose-200/80 bg-rose-50/80 px-4 text-rose-600 shadow-sm shadow-rose-100/60 transition-all hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-50">
                   <Trash2 className="w-4 h-4" />
-                  {zh ? `批量删除 (${selectedDepartments.length})` : `Delete (${selectedDepartments.length})`}
+                  {copy.buttons.batchDelete(selectedDepartments.length)}
                 </Button>
               ) : null}
             </>
           )}
-          <div className="relative mr-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <div className="relative mr-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
               placeholder={t.topBar.searchPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-10 w-64 border-gray-200 rounded-lg focus:ring-primary/20 transition-all"
+              className="h-11 w-64 rounded-2xl border-slate-200/80 bg-white/90 pl-10 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10"
             />
           </div>
           
-          <Button variant="outline" size="icon" onClick={expandAll} className="h-10 w-10 border-gray-200" title="全部展开">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={expandAll}
+            className="h-11 w-11 rounded-2xl border-slate-200/80 bg-white/90 text-slate-500 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900"
+            title={copy.titles.expandAll}
+          >
             <ChevronDown className="w-4 h-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={collapseAll} className="h-10 w-10 border-gray-200 mr-2" title="全部收起">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={collapseAll}
+            className="mr-1 h-11 w-11 rounded-2xl border-slate-200/80 bg-white/90 text-slate-500 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900"
+            title={copy.titles.collapseAll}
+          >
             <ChevronRight className="w-4 h-4" />
           </Button>
 
           {canCreateDepartment ? (
-            <Button variant="outline" onClick={() => setDialogOpen('import', true)} className="gap-2 border-gray-200">
+            <Button variant="outline" onClick={() => setDialogOpen('import', true)} className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white">
               <Upload className="w-4 h-4" />
               {t.actions.import}
             </Button>
           ) : null}
           {canExportDepartment ? (
-            <Button variant="outline" onClick={() => setDialogOpen('export', true)} className="gap-2 border-gray-200">
+            <Button variant="outline" onClick={() => setDialogOpen('export', true)} className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white">
               <Download className="w-4 h-4" />
               {t.actions.export}
             </Button>
           ) : null}
           {canCreateDepartment ? (
-            <Button onClick={openAddDialog} className="gap-2 shadow-sm">
+            <Button onClick={openAddDialog} className="h-11 gap-2 rounded-2xl bg-primary px-4 shadow-[0_16px_30px_-18px_rgba(var(--primary),0.7)] transition-all active:scale-95 hover:-translate-y-0.5 hover:bg-primary/92 hover:shadow-[0_18px_34px_-18px_rgba(var(--primary),0.75)]">
               <Plus className="w-4 h-4" />
               {t.actions.add}
             </Button>
@@ -679,7 +737,7 @@ export function DepartmentManagement() {
         />
       ) : (
         <>
-      <Card className="border-none shadow-sm overflow-hidden bg-white/80 backdrop-blur-sm p-0">
+      <Card className="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/88 p-0 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.28)] backdrop-blur-sm">
         <DepartmentTreeTable
           data={flattenedDisplayData}
           expandedKeys={expandedKeys}
@@ -739,6 +797,7 @@ export function DepartmentManagement() {
     </PageLayout>
   );
 }
+
 
 
 

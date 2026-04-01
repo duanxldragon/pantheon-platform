@@ -49,7 +49,13 @@ export const UserDialogManager: React.FC<UserDialogManagerProps> = ({
   deleteDescription,
   handlers
 }) => {
-  const { t } = useLanguageStore();
+  const { t, language } = useLanguageStore();
+  const zh = language === 'zh';
+  const copy = {
+    importHeaders: zh
+      ? ['用户名', '姓名', '邮箱', '手机号', '部门', '岗位', '角色']
+      : ['Username', 'RealName', 'Email', 'Phone', 'Department', 'Position', 'Roles'],
+  };
 
   return (
     <>
@@ -137,7 +143,7 @@ export const UserDialogManager: React.FC<UserDialogManagerProps> = ({
         mode="import"
         resourceName={t.menu.systemUsers}
         onImport={handlers.onImport}
-        templateHeaders={['Username', 'RealName', 'Email', 'Phone', 'Department', 'Position', 'Roles']}
+        templateHeaders={copy.importHeaders}
       />
 
       <DataImportExportDialog

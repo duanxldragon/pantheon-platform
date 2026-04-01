@@ -48,6 +48,8 @@ export function UserForm({
   const zh = language === 'zh';
   const formI18n = t.systemManagement.users.form;
   const [formData, setFormData] = useState<Partial<UserFormData>>(createDefaultFormData(data));
+  const fieldClassName =
+    'rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10';
 
   useEffect(() => {
     setFormData(createDefaultFormData(data));
@@ -79,7 +81,7 @@ export function UserForm({
           onChange={(event) => updateField('username', event.target.value)}
           placeholder={formI18n.usernamePlaceholder}
           disabled={isEdit}
-          className="bg-white"
+          className={fieldClassName}
         />
       </FormField>
 
@@ -88,7 +90,7 @@ export function UserForm({
           value={formData.realName}
           onChange={(event) => updateField('realName', event.target.value)}
           placeholder={formI18n.realNamePlaceholder}
-          className="bg-white"
+          className={fieldClassName}
         />
       </FormField>
 
@@ -98,7 +100,7 @@ export function UserForm({
           value={formData.email}
           onChange={(event) => updateField('email', event.target.value)}
           placeholder={formI18n.emailPlaceholder}
-          className="bg-white"
+          className={fieldClassName}
         />
       </FormField>
 
@@ -107,7 +109,7 @@ export function UserForm({
           value={formData.phone}
           onChange={(event) => updateField('phone', event.target.value)}
           placeholder={formI18n.phonePlaceholder}
-          className="bg-white"
+          className={fieldClassName}
         />
       </FormField>
 
@@ -118,7 +120,7 @@ export function UserForm({
             value={formData.password}
             onChange={(event) => updateField('password', event.target.value)}
             placeholder={formI18n.passwordPlaceholder}
-            className="bg-white"
+            className={fieldClassName}
           />
         </FormField>
       )}
@@ -128,7 +130,7 @@ export function UserForm({
           value={formData.departmentId?.toString()}
           onValueChange={(value) => updateField('departmentId', value as ID)}
         >
-          <SelectTrigger className="bg-white">
+          <SelectTrigger className={fieldClassName}>
             <SelectValue placeholder={formI18n.departmentPlaceholder} />
           </SelectTrigger>
           <SelectContent>
@@ -146,45 +148,50 @@ export function UserForm({
         required
         description={
           zh
-            ? '用户可同时绑定多个角色，保存后将重新计算动态菜单与权限快照。'
+            ? '用户可同时绑定多个角色，保存后会重新计算动态菜单与权限快照。'
             : 'A user can be assigned multiple roles. Saving recalculates menus and permission snapshots.'
         }
       >
-        <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-3">
+        <div className="space-y-4 rounded-[28px] border border-slate-200/70 bg-slate-50/85 p-5 shadow-[0_18px_36px_-32px_rgba(15,23,42,0.3)]">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-semibold text-slate-800">{t.user.role}</div>
+            <div className="rounded-full border border-slate-200/80 bg-white/90 px-3 py-1 text-xs font-medium text-slate-500">
+              {selectedRoles.length}
+            </div>
+          </div>
+
           <div className="max-h-48 space-y-2 overflow-y-auto pr-1">
             {roles.map((role) => {
               const checked = (formData.roleIds || []).some((id) => String(id) === String(role.id));
               return (
                 <label
                   key={role.id}
-                  className="flex cursor-pointer items-center gap-3 rounded-md border border-gray-100 px-3 py-2 transition-colors hover:bg-gray-50"
+                  className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200/70 bg-white/88 px-4 py-3 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
                 >
                   <Checkbox
                     checked={checked}
-                    onCheckedChange={(nextChecked) => toggleRole(role.id, nextChecked)}
+                    onCheckedChange={(nextChecked) => toggleRole(role.id, nextChecked === true)}
                   />
-                  <span className="text-sm text-gray-700">{role.name}</span>
+                  <span className="text-sm font-medium text-slate-700">{role.name}</span>
                 </label>
               );
             })}
           </div>
 
-          <div className="flex min-h-8 flex-wrap gap-2">
+          <div className="flex min-h-10 flex-wrap gap-2">
             {selectedRoles.length > 0 ? (
               selectedRoles.map((role) => (
                 <Badge
                   key={role.id}
                   variant="outline"
-                  className="border-blue-200 bg-blue-50 text-blue-700"
+                  className="rounded-full border border-blue-200 bg-blue-50/80 px-3 py-1 text-blue-700"
                 >
                   {role.name}
                 </Badge>
               ))
             ) : (
-              <span className="text-xs text-gray-500">
-                {zh
-                  ? '请至少选择一个角色。'
-                  : 'Select at least one role.'}
+              <span className="text-xs text-slate-500">
+                {zh ? '请至少选择一个角色。' : 'Select at least one role.'}
               </span>
             )}
           </div>
@@ -192,8 +199,11 @@ export function UserForm({
       </FormField>
 
       <FormField label={t.user.status} required>
-        <Select value={formData.status} onValueChange={(value) => updateField('status', value as UserFormData['status'])}>
-          <SelectTrigger className="bg-white">
+        <Select
+          value={formData.status}
+          onValueChange={(value) => updateField('status', value as UserFormData['status'])}
+        >
+          <SelectTrigger className={fieldClassName}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -209,7 +219,7 @@ export function UserForm({
             value={formData.description}
             onChange={(event) => updateField('description', event.target.value)}
             placeholder={formI18n.remarkPlaceholder}
-            className="resize-none bg-white"
+            className={`resize-none ${fieldClassName}`}
             rows={3}
           />
         </FormField>

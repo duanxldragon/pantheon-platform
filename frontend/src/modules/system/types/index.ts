@@ -89,6 +89,7 @@ export interface Role {
 export interface Menu {
   id: ID;
   name: string;
+  title?: string;
   code: string;
   path: string;
   icon: string;

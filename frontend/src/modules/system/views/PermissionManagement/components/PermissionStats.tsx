@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Activity, Database, Layout, Shield } from 'lucide-react';
 
 import { Card } from '../../../../../components/ui/card';
@@ -28,7 +28,7 @@ export const PermissionStats: React.FC<PermissionStatsProps> = ({ stats }) => {
       {items.map((item, index) => (
         <Card
           key={index}
-          className="p-4 border-none shadow-sm bg-white/80 backdrop-blur-sm group hover:shadow-md transition-all duration-300"
+          className="group rounded-[24px] border border-slate-200/70 bg-white/88 p-4 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.24)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_48px_-30px_rgba(15,23,42,0.28)]"
         >
           <div className="flex items-center gap-4">
             <div
@@ -37,7 +37,7 @@ export const PermissionStats: React.FC<PermissionStatsProps> = ({ stats }) => {
               <item.icon className={`w-6 h-6 ${item.color}`} />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-tight">{item.label}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-tight">{item.label}</p>
               <p className={`text-2xl font-black ${item.color}`}>{item.value.toLocaleString()}</p>
             </div>
           </div>
@@ -46,4 +46,5 @@ export const PermissionStats: React.FC<PermissionStatsProps> = ({ stats }) => {
     </div>
   );
 };
+
 

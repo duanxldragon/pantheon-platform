@@ -8,6 +8,7 @@
 - 登录、会话、2FA：看 `docs/auth/AUTH_SECURITY.md`
 - 权限刷新与强制失效：看 `docs/auth/AUTH_SESSION_STRATEGY.md`
 - 租户初始化：看 `docs/tenant/TENANT_INITIALIZATION.md`
+- 功能回归覆盖：看 `./SYSTEM_MANAGEMENT_TEST_MATRIX.md`
 
 ---
 

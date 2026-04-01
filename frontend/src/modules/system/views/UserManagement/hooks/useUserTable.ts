@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+
 import { User } from '../../../types';
 
 interface Filters {
@@ -12,35 +13,40 @@ export function useUserTable(initialUsers: User[]) {
   const [filters, setFilters] = useState<Filters>({
     departmentId: 'all',
     roleId: 'all',
-    status: 'all'
+    status: 'all',
   });
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
-  // 综合过滤逻辑
   const filteredData = useMemo(() => {
-    return initialUsers.filter((user) => {
-      // 1. 关键字搜索 (用户名、姓名、邮箱、手机)
-      const matchesSearch = searchQuery === '' || 
-        [user.username, user.realName, user.email, user.phone]
-          .some(field => field?.toLowerCase().includes(searchQuery.toLowerCase()));
+    return initialUsers
+      .filter((user) => {
+        const matchesSearch =
+          searchQuery === '' ||
+          [user.username, user.realName, user.email, user.phone].some((field) =>
+            field?.toLowerCase().includes(searchQuery.toLowerCase()),
+          );
 
-      // 2. 部门过滤
-      const matchesDept = filters.departmentId === 'all' || user.departmentId === filters.departmentId;
+        const matchesDept = filters.departmentId === 'all' || user.departmentId === filters.departmentId;
+        const matchesRole = filters.roleId === 'all' || user.roleIds.includes(filters.roleId!);
+        const matchesStatus = filters.status === 'all' || user.status === filters.status;
 
-      // 3. 角色过滤
-      const matchesRole = filters.roleId === 'all' || user.roleIds.includes(filters.roleId!);
+        return matchesSearch && matchesDept && matchesRole && matchesStatus;
+      })
+      .sort((left, right) => {
+        const leftTime = left.createdAt ? new Date(left.createdAt).getTime() : 0;
+        const rightTime = right.createdAt ? new Date(right.createdAt).getTime() : 0;
+        return rightTime - leftTime;
+      });
+  }, [filters, initialUsers, searchQuery]);
 
-      // 4. 状态过滤
-      const matchesStatus = filters.status === 'all' || user.status === filters.status;
+  useEffect(() => {
+    setPage(1);
+  }, [initialUsers, searchQuery, filters.departmentId, filters.roleId, filters.status]);
 
-      return matchesSearch && matchesDept && matchesRole && matchesStatus;
-    });
-  }, [initialUsers, searchQuery, filters]);
-
-  // 分页计算
   const totalPages = Math.ceil(filteredData.length / pageSize) || 1;
+
   const paginatedData = useMemo(() => {
     const start = (page - 1) * pageSize;
     return filteredData.slice(start, start + pageSize);

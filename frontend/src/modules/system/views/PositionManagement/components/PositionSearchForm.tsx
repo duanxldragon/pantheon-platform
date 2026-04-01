@@ -35,6 +35,8 @@ export const PositionSearchForm: React.FC<PositionSearchFormProps> = ({
   departments,
 }) => {
   const { t } = useLanguageStore();
+  const fieldClassName =
+    'h-11 rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10';
 
   const handleReset = () => {
     onSearchChange('');
@@ -46,15 +48,15 @@ export const PositionSearchForm: React.FC<PositionSearchFormProps> = ({
   };
 
   return (
-    <div className="bg-white/50 backdrop-blur-sm rounded-xl border border-gray-100 p-4 mb-4 shadow-sm">
+    <div className="mb-5 rounded-[26px] border border-slate-200/70 bg-white/72 p-4 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
       <div className="flex flex-wrap items-center gap-4">
         <div className="relative flex-1 min-w-[240px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
             placeholder={t.topBar.searchPlaceholder}
             value={searchQuery}
             onChange={(event) => onSearchChange(event.target.value)}
-            className="pl-9 h-10 border-gray-200 focus:border-primary/50 transition-all rounded-lg"
+            className={`${fieldClassName} pl-10`}
           />
         </div>
 
@@ -63,13 +65,13 @@ export const PositionSearchForm: React.FC<PositionSearchFormProps> = ({
             value={filters.departmentId || 'all'}
             onValueChange={(value) => onFilterChange({ ...filters, departmentId: value })}
           >
-            <SelectTrigger className="h-10 border-gray-200 rounded-lg">
+            <SelectTrigger className={fieldClassName}>
                 <div className="flex items-center gap-2">
-                  <Building className="w-3.5 h-3.5 text-gray-400" />
+                  <Building className="h-4 w-4 text-slate-400" />
                   <SelectValue placeholder={t.user.department} />
                 </div>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-2xl border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/60">
                 <SelectItem value="all">
                   {t.common.all}
                   {t.user.department}
@@ -88,13 +90,13 @@ export const PositionSearchForm: React.FC<PositionSearchFormProps> = ({
             value={filters.level || 'all'}
             onValueChange={(value) => onFilterChange({ ...filters, level: value })}
           >
-            <SelectTrigger className="h-10 border-gray-200 rounded-lg">
+            <SelectTrigger className={fieldClassName}>
                 <div className="flex items-center gap-2">
-                  <Layers className="w-3.5 h-3.5 text-gray-400" />
+                  <Layers className="h-4 w-4 text-slate-400" />
                   <SelectValue placeholder={t.systemManagement.positions.level} />
                 </div>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-2xl border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/60">
                 <SelectItem value="all">{t.systemManagement.positions.levelAll}</SelectItem>
                 <SelectItem value="1">{t.systemManagement.positions.levelL1}</SelectItem>
                 <SelectItem value="2">{t.systemManagement.positions.levelL2}</SelectItem>
@@ -103,15 +105,18 @@ export const PositionSearchForm: React.FC<PositionSearchFormProps> = ({
             </Select>
           </div>
 
-        <div className="w-32">
+        <div className="w-36">
           <Select
             value={filters.status || 'all'}
             onValueChange={(value) => onFilterChange({ ...filters, status: value })}
           >
-            <SelectTrigger className="h-10 border-gray-200 rounded-lg">
-              <SelectValue placeholder={t.user.status} />
+            <SelectTrigger className={fieldClassName}>
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-slate-400" />
+                <SelectValue placeholder={t.user.status} />
+              </div>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-2xl border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/60">
               <SelectItem value="all">
                 {t.common.all}
                 {t.user.status}
@@ -125,7 +130,7 @@ export const PositionSearchForm: React.FC<PositionSearchFormProps> = ({
         <Button
           variant="outline"
           onClick={handleReset}
-          className="h-10 border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg"
+          className="h-11 rounded-2xl border-slate-200/80 bg-white/90 px-5 text-slate-600 shadow-sm shadow-slate-200/50 transition-all active:scale-95 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-primary"
         >
           <RotateCcw className="w-4 h-4 mr-2 opacity-70" />
           {t.common.reset}

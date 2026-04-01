@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from '../../../../../components/ui/dialog';
 import { Separator } from '../../../../../components/ui/separator';
+import { getDialogClassName, getDialogStyle } from '../../../../../shared/constants/dialogSizes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../../../components/ui/tabs';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import type { User } from '../../../types';
@@ -37,31 +38,53 @@ export function EnhancedUserDetailDialog({
 }: EnhancedUserDetailDialogProps) {
   const { language } = useLanguageStore();
   const zh = language === 'zh';
-  const copy = {
-    description: zh
-      ? '查看用户基础资料、权限详情和最近登录活动。'
-      : 'View user profile, permission details, and recent login activity.',
-    tabInfo: zh ? '基本信息' : 'Profile',
-    tabPermissions: zh ? '权限明细' : 'Permissions',
-    tabActivity: zh ? '登录活动' : 'Activity',
-    username: zh ? '用户名' : 'Username',
-    realName: zh ? '姓名' : 'Name',
-    email: zh ? '邮箱' : 'Email',
-    phone: zh ? '手机号' : 'Phone',
-    department: zh ? '所属部门' : 'Department',
-    roles: zh ? '角色' : 'Roles',
-    noRoles: zh ? '未分配角色' : 'No roles assigned',
-    status: zh ? '账号状态' : 'Account Status',
-    statusActive: zh ? '启用' : 'Active',
-    statusInactive: zh ? '禁用' : 'Inactive',
-    statusLocked: zh ? '锁定' : 'Locked',
-    createdAt: zh ? '创建时间' : 'Created At',
-    lastLogin: zh ? '最近登录' : 'Last Login',
-    noRecord: zh ? '暂无记录' : 'No record',
-    remark: zh ? '备注说明' : 'Remarks',
-    recentLoginTime: zh ? '最近登录时间：' : 'Last login time: ',
-    recentLoginIp: zh ? '最近登录 IP：' : 'Last login IP: ',
-  };
+  const copy = zh
+    ? {
+        description: '查看用户基础资料、权限详情和最近登录活动。',
+        tabInfo: '基本信息',
+        tabPermissions: '权限明细',
+        tabActivity: '登录活动',
+        username: '用户名',
+        realName: '姓名',
+        email: '邮箱',
+        phone: '手机号',
+        department: '所属部门',
+        roles: '角色',
+        noRoles: '未分配角色',
+        status: '账号状态',
+        statusActive: '启用',
+        statusInactive: '停用',
+        statusLocked: '锁定',
+        createdAt: '创建时间',
+        lastLogin: '最近登录',
+        noRecord: '暂无记录',
+        remark: '备注说明',
+        recentLoginTime: '最近登录时间：',
+        recentLoginIp: '最近登录 IP：',
+      }
+    : {
+        description: 'View user profile, permission details, and recent login activity.',
+        tabInfo: 'Profile',
+        tabPermissions: 'Permissions',
+        tabActivity: 'Activity',
+        username: 'Username',
+        realName: 'Name',
+        email: 'Email',
+        phone: 'Phone',
+        department: 'Department',
+        roles: 'Roles',
+        noRoles: 'No roles assigned',
+        status: 'Account Status',
+        statusActive: 'Active',
+        statusInactive: 'Inactive',
+        statusLocked: 'Locked',
+        createdAt: 'Created At',
+        lastLogin: 'Last Login',
+        noRecord: 'No record',
+        remark: 'Remarks',
+        recentLoginTime: 'Last login time: ',
+        recentLoginIp: 'Last login IP: ',
+      };
 
   if (!user) {
     return null;
@@ -69,101 +92,109 @@ export function EnhancedUserDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col overflow-hidden">
-        <DialogHeader>
+      <DialogContent className={getDialogClassName('4xl', 'flex min-h-0 flex-col p-0')} style={getDialogStyle('4xl')}>
+        <DialogHeader className="border-b border-slate-100/90 bg-slate-50/70 px-6 py-5">
           <DialogTitle className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-xl text-white">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-400 to-blue-600 text-xl font-semibold text-white shadow-lg shadow-blue-200/60">
               {user.realName.charAt(0)}
             </div>
             <div>
-              <div className="text-xl text-gray-900">{user.realName}</div>
-              <div className="text-sm text-gray-500">@{user.username}</div>
+              <div className="text-xl font-semibold text-slate-900">{user.realName}</div>
+              <div className="text-sm text-slate-500">@{user.username}</div>
             </div>
           </DialogTitle>
           <DialogDescription className="sr-only">{copy.description}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 py-5">
           <Tabs defaultValue="info" className="flex h-full flex-col">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="info">{copy.tabInfo}</TabsTrigger>
-              <TabsTrigger value="permissions">{copy.tabPermissions}</TabsTrigger>
-              <TabsTrigger value="activity">{copy.tabActivity}</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 rounded-2xl border border-slate-200/70 bg-slate-100/85 p-1">
+              <TabsTrigger value="info" className="rounded-xl">
+                {copy.tabInfo}
+              </TabsTrigger>
+              <TabsTrigger value="permissions" className="rounded-xl">
+                {copy.tabPermissions}
+              </TabsTrigger>
+              <TabsTrigger value="activity" className="rounded-xl">
+                {copy.tabActivity}
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="info" className="mt-6 flex-1 overflow-auto">
               <div className="space-y-6">
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                   <div className="space-y-4">
-                    <InfoField label={copy.username} icon={<UserIcon className="h-4 w-4 text-gray-400" />}>
+                    <InfoField label={copy.username} icon={<UserIcon className="h-4 w-4 text-slate-400" />}>
                       {user.username}
                     </InfoField>
-                    <InfoField label={copy.realName} icon={<UserIcon className="h-4 w-4 text-gray-400" />}>
+                    <InfoField label={copy.realName} icon={<UserIcon className="h-4 w-4 text-slate-400" />}>
                       {user.realName}
                     </InfoField>
-                    <InfoField label={copy.email} icon={<Mail className="h-4 w-4 text-gray-400" />}>
+                    <InfoField label={copy.email} icon={<Mail className="h-4 w-4 text-slate-400" />}>
                       {user.email || '-'}
                     </InfoField>
-                    <InfoField label={copy.phone} icon={<Phone className="h-4 w-4 text-gray-400" />}>
+                    <InfoField label={copy.phone} icon={<Phone className="h-4 w-4 text-slate-400" />}>
                       {user.phone || '-'}
                     </InfoField>
                   </div>
 
                   <div className="space-y-4">
-                    <InfoField label={copy.department} icon={<Building2 className="h-4 w-4 text-gray-400" />}>
+                    <InfoField label={copy.department} icon={<Building2 className="h-4 w-4 text-slate-400" />}>
                       {user.departmentName || '-'}
                     </InfoField>
 
                     <div>
-                      <label className="mb-2 block text-sm text-gray-600">{copy.roles}</label>
-                      <div className="rounded-lg bg-gray-50 p-3">
+                      <label className="mb-2 block text-sm text-slate-600">{copy.roles}</label>
+                      <div className="rounded-[24px] border border-slate-200/70 bg-slate-50/80 p-4">
                         <div className="flex flex-wrap gap-2">
                           {(user.roleNames || []).length > 0 ? (
                             user.roleNames.map((roleName) => (
-                              <Badge key={roleName} variant="outline" className="bg-white">
+                              <Badge key={roleName} variant="outline" className="rounded-full bg-white/90">
                                 <Shield className="mr-1 h-3 w-3" />
                                 {roleName}
                               </Badge>
                             ))
                           ) : (
-                            <span className="text-sm text-gray-500">{copy.noRoles}</span>
+                            <span className="text-sm text-slate-500">{copy.noRoles}</span>
                           )}
                         </div>
                       </div>
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-sm text-gray-600">{copy.status}</label>
-                      <div className="rounded-lg bg-gray-50 p-3">
+                      <label className="mb-2 block text-sm text-slate-600">{copy.status}</label>
+                      <div className="rounded-[24px] border border-slate-200/70 bg-slate-50/80 p-4">
                         {user.status === 'active' ? (
                           <Badge className="bg-green-100 text-green-700">{copy.statusActive}</Badge>
                         ) : user.status === 'inactive' ? (
-                          <Badge className="bg-gray-100 text-gray-700">{copy.statusInactive}</Badge>
+                          <Badge className="bg-slate-100 text-slate-700">{copy.statusInactive}</Badge>
                         ) : (
                           <Badge className="bg-red-100 text-red-700">{copy.statusLocked}</Badge>
                         )}
                       </div>
                     </div>
 
-                    <InfoField label={copy.createdAt} icon={<Calendar className="h-4 w-4 text-gray-400" />}>
+                    <InfoField label={copy.createdAt} icon={<Calendar className="h-4 w-4 text-slate-400" />}>
                       {user.createdAt || '-'}
                     </InfoField>
 
-                    <InfoField label={copy.lastLogin} icon={<Activity className="h-4 w-4 text-gray-400" />}>
+                    <InfoField label={copy.lastLogin} icon={<Activity className="h-4 w-4 text-slate-400" />}>
                       {user.lastLoginAt || copy.noRecord}
                     </InfoField>
                   </div>
                 </div>
 
-                {user.description && (
+                {user.description ? (
                   <>
                     <Separator />
                     <div>
-                      <label className="mb-2 block text-sm text-gray-600">{copy.remark}</label>
-                      <div className="rounded-lg bg-gray-50 p-4 text-gray-700">{user.description}</div>
+                      <label className="mb-2 block text-sm text-slate-600">{copy.remark}</label>
+                      <div className="rounded-[24px] border border-slate-200/70 bg-slate-50/80 p-4 text-slate-700">
+                        {user.description}
+                      </div>
                     </div>
                   </>
-                )}
+                ) : null}
               </div>
             </TabsContent>
 
@@ -172,8 +203,8 @@ export function EnhancedUserDetailDialog({
             </TabsContent>
 
             <TabsContent value="activity" className="mt-6 flex-1 overflow-auto">
-              <div className="py-12 text-center text-gray-500">
-                <Activity className="mx-auto mb-4 h-12 w-12 text-gray-300" />
+              <div className="rounded-[24px] border border-slate-200/70 bg-slate-50/80 py-12 text-center text-slate-500">
+                <Activity className="mx-auto mb-4 h-12 w-12 text-slate-300" />
                 <p>
                   {copy.recentLoginTime}
                   {user.lastLoginAt || copy.noRecord}
@@ -202,10 +233,10 @@ function InfoField({
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm text-gray-600">{label}</label>
-      <div className="flex items-center gap-2 rounded-lg bg-gray-50 p-3">
+      <label className="mb-2 block text-sm text-slate-600">{label}</label>
+      <div className="flex items-center gap-2 rounded-[24px] border border-slate-200/70 bg-slate-50/80 p-4">
         {icon}
-        <span className="text-gray-900">{children}</span>
+        <span className="text-slate-900">{children}</span>
       </div>
     </div>
   );

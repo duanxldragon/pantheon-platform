@@ -66,16 +66,16 @@ export const PositionTable: React.FC<PositionTableProps> = ({
       width: '240px',
       render: (pos) => (
         <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-xl bg-gradient-to-br transition-all shadow-sm ${
+          <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border border-white/80 bg-gradient-to-br transition-all shadow-[0_18px_35px_-24px_rgba(15,23,42,0.5)] ${
             pos.level === 1 ? 'from-rose-500 to-rose-600' : 'from-indigo-500 to-indigo-600'
           }`}>
             <Briefcase className="w-4 h-4 text-white" />
           </div>
           <div className="flex flex-col">
-            <span className="font-bold text-gray-900 leading-tight">
+            <span className="font-bold leading-tight text-slate-900">
               {pos.name}
             </span>
-            <span className="text-[10px] text-gray-400 font-mono mt-0.5">
+            <span className="mt-0.5 font-mono text-[10px] text-slate-400">
               {pos.code}
             </span>
           </div>
@@ -87,8 +87,8 @@ export const PositionTable: React.FC<PositionTableProps> = ({
       label: t.user.department,
       width: '180px',
       render: (pos) => (
-        <div className="flex items-center gap-1.5 text-sm text-gray-600">
-          <Building className="w-3.5 h-3.5 text-gray-400" />
+        <div className="flex items-center gap-1.5 text-sm text-slate-600">
+          <Building className="h-3.5 w-3.5 text-slate-400" />
           {pos.departmentName || '-'}
         </div>
       ),
@@ -110,16 +110,16 @@ export const PositionTable: React.FC<PositionTableProps> = ({
       width: '100px',
       align: 'center',
       render: (pos) => (
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 rounded-lg border border-gray-100">
-          <Users className="w-3.5 h-3.5 text-gray-400" />
-          <span className="text-xs font-bold text-gray-700">{pos.userCount || 0}</span>
+        <div className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-200/70 bg-slate-50/80 px-3 py-1.5">
+          <Users className="h-3.5 w-3.5 text-slate-400" />
+          <span className="text-xs font-bold text-slate-700">{pos.userCount || 0}</span>
         </div>
       ),
     },
     {
       key: 'status',
       label: t.user.status,
-      width: '90px',
+      width: '112px',
       align: 'center',
       render: (pos) => (
         <Switch
@@ -136,8 +136,8 @@ export const PositionTable: React.FC<PositionTableProps> = ({
       width: '200px',
       render: (pos) => (
         <div className="flex items-start gap-1.5 max-w-[180px]">
-          <FileText className="w-3 h-3 mt-1 text-gray-300 flex-shrink-0" />
-          <span className="text-xs text-gray-500 line-clamp-2 leading-relaxed italic">
+          <FileText className="mt-1 h-3 w-3 flex-shrink-0 text-slate-300" />
+          <span className="line-clamp-2 text-xs italic leading-relaxed text-slate-500">
             {pos.description || '-'}
           </span>
         </div>
@@ -146,7 +146,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
     {
       key: 'actions',
       label: t.common.actions,
-      width: '150px',
+      width: '208px',
       align: 'right',
       render: (pos) => {
         const canUpdatePosition = hasPermission(systemPermissions.position.update);
@@ -154,7 +154,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
         const hasMoreActions = canUpdatePosition || canDeletePosition;
 
         return (
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center justify-end gap-2">
             <ActionButtons 
               actions={[
                 {
@@ -174,11 +174,18 @@ export const PositionTable: React.FC<PositionTableProps> = ({
             {hasMoreActions ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-gray-100 rounded-full">
-                    <MoreHorizontal className="w-4 h-4 text-gray-400" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 rounded-2xl border border-slate-200/70 bg-white/90 text-slate-400 shadow-sm shadow-slate-200/50 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-700"
+                  >
+                    <MoreHorizontal className="w-4 h-4 text-slate-400" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuContent
+                  align="end"
+                  className="w-40 rounded-2xl border-slate-200/80 bg-white/98 shadow-xl shadow-slate-200/70"
+                >
                   {canUpdatePosition ? (
                     <DropdownMenuItem onClick={() => onAction('edit', pos)}>
                       <Edit className="w-4 h-4 mr-2 text-amber-500" />
@@ -186,7 +193,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                     </DropdownMenuItem>
                   ) : null}
                   {canDeletePosition ? (
-                    <DropdownMenuItem className="text-red-600" onClick={() => onAction('delete', pos)}>
+                    <DropdownMenuItem className="text-rose-600 focus:text-rose-700" onClick={() => onAction('delete', pos)}>
                       <Trash2 className="w-4 h-4 mr-2" />
                       {t.common.delete}
                     </DropdownMenuItem>

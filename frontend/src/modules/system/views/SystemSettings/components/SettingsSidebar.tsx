@@ -26,9 +26,9 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ activeTab, onT
   ];
 
   return (
-    <div className="w-72 flex flex-col gap-2 pr-6 border-r border-slate-100">
-      <div className="px-4 py-2 mb-2">
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t.menu.systemSettings}</h3>
+    <div className="flex w-72 flex-col gap-2 border-r border-slate-200/80 pr-6">
+      <div className="mb-3 rounded-2xl border border-slate-200/70 bg-slate-50/85 px-4 py-3">
+        <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">{t.menu.systemSettings}</h3>
       </div>
       {menuItems.map((item) => {
         const isActive = activeTab === item.id;
@@ -37,14 +37,14 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ activeTab, onT
           <button
             key={item.id}
             onClick={() => onTabChange(item.id)}
-            className={`flex items-center gap-3 w-full p-3 rounded-2xl transition-all duration-300 group ${
+            className={`group flex w-full items-center gap-3 rounded-2xl border p-3 transition-all duration-300 ${
               isActive 
-                ? 'bg-white shadow-md shadow-slate-200/50 translate-x-1' 
-                : 'hover:bg-slate-50 text-slate-500'
+                ? 'translate-x-1 border-slate-200 bg-white shadow-[0_16px_36px_-24px_rgba(15,23,42,0.22)]' 
+                : 'border-transparent text-slate-500 hover:border-slate-200 hover:bg-slate-50/90'
             }`}
           >
             <div className={`p-2 rounded-xl transition-colors ${
-              isActive ? `${item.bg} ${item.color}` : 'bg-slate-100 text-slate-400 group-hover:bg-white'
+              isActive ? `${item.bg} ${item.color} shadow-sm` : 'bg-slate-100 text-slate-400 group-hover:bg-white'
             }`}>
               <Icon className="w-5 h-5" />
             </div>

@@ -17,6 +17,7 @@ import {
 } from '../../../../../components/ui/dialog';
 import { Input } from '../../../../../components/ui/input';
 import { ScrollArea } from '../../../../../components/ui/scroll-area';
+import { getDialogClassName, getDialogStyle } from '../../../../../shared/constants/dialogSizes';
 import { ConfirmDialog } from '../../../../../shared/components/ui/ConfirmDialog';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import type { ID, Position, User } from '../../../types';
@@ -49,25 +50,51 @@ export function PositionUsersDialog({
   const levelLabels = zh
     ? ['', 'P1-初级', 'P2-中级', 'P3-高级', 'P4-资深', 'P5-专家']
     : ['', 'P1-Junior', 'P2-Mid', 'P3-Senior', 'P4-Staff', 'P5-Expert'];
-  const copy = {
-    title: zh ? '岗位成员分配' : 'Position Assignment',
-    description: zh
-      ? '管理岗位成员，支持分配用户、移出用户，并触发相关权限刷新。'
-      : 'Manage position users, including assignment, removal, and permission refresh.',
-    currentTab: zh ? '当前成员' : 'Current Members',
-    assignTab: zh ? '分配成员' : 'Assign Members',
-    searchPlaceholder: zh ? '搜索用户名、姓名或邮箱' : 'Search by username, name, or email',
-    emptyCurrent: zh ? '当前岗位暂无成员' : 'No users assigned to this position',
-    emptyAvailable: zh ? '暂无可分配的用户' : 'No available users to assign',
-    selectedLabel: zh ? '已选' : 'Selected',
-    selectAll: zh ? '全选当前列表' : 'Select Current List',
-    assignAction: zh ? '分配到岗位' : 'Assign to Position',
-    confirmAssignTitle: zh ? '确认分配成员' : 'Confirm Assign Members',
-    confirmRemoveTitle: zh ? '确认移出成员' : 'Confirm Remove Member',
-    confirmAssignText: zh ? '确认分配' : 'Confirm Assign',
-    confirmRemoveText: zh ? '确认移出' : 'Confirm Remove',
-    cancelText: zh ? '取消' : 'Cancel',
-  };
+  const copy = zh
+    ? {
+        title: '岗位成员分配',
+        description: '管理岗位成员，支持分配用户、移出用户，并触发相关权限刷新。',
+        currentTab: '当前成员',
+        assignTab: '分配成员',
+        searchPlaceholder: '搜索用户名、姓名或邮箱',
+        emptyCurrent: '当前岗位暂无成员',
+        emptyAvailable: '暂无可分配的用户',
+        selectedLabel: '已选',
+        selectAll: '全选当前列表',
+        assignAction: '分配到岗位',
+        confirmAssignTitle: '确认分配成员',
+        confirmRemoveTitle: '确认移出成员',
+        confirmAssignText: '确认分配',
+        confirmRemoveText: '确认移出',
+        cancelText: '取消',
+        assignDescription: (positionName: string, count: number) =>
+          `本次将为岗位“${positionName}”分配 ${count} 名成员，并触发相关用户的权限刷新。`,
+        removeDescription: (positionName: string, username: string) =>
+          `本次将从岗位“${positionName}”移出成员“${username}”，并触发该用户的权限刷新。`,
+      }
+    : {
+        title: 'Position Assignment',
+        description: 'Manage position users, including assignment, removal, and permission refresh.',
+        currentTab: 'Current Members',
+        assignTab: 'Assign Members',
+        searchPlaceholder: 'Search by username, name, or email',
+        emptyCurrent: 'No users assigned to this position',
+        emptyAvailable: 'No available users to assign',
+        selectedLabel: 'Selected',
+        selectAll: 'Select Current List',
+        assignAction: 'Assign to Position',
+        confirmAssignTitle: 'Confirm Assign Members',
+        confirmRemoveTitle: 'Confirm Remove Member',
+        confirmAssignText: 'Confirm Assign',
+        confirmRemoveText: 'Confirm Remove',
+        cancelText: 'Cancel',
+        assignDescription: (positionName: string, count: number) =>
+          `This will assign ${count} users to "${positionName}" and refresh related user permissions.`,
+        removeDescription: (positionName: string, username: string) =>
+          `This will remove "${username}" from "${positionName}" and refresh that user's permissions.`,
+      };
+  const fieldClassName =
+    'h-11 rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10';
 
   const [activeTab, setActiveTab] = useState<'current' | 'assign'>('current');
   const [searchQuery, setSearchQuery] = useState('');
@@ -191,19 +218,16 @@ export function PositionUsersDialog({
     onOpenChange(nextOpen);
   };
 
+  const pendingUsername = pendingRemoveUser?.realName || pendingRemoveUser?.username || '';
   const confirmDescription =
     confirmMode === 'assign'
-      ? zh
-        ? `本次将为岗位「${position.name}」分配 ${selectedUserIds.size} 名成员，并触发相关用户的权限刷新。`
-        : `This will assign ${selectedUserIds.size} users to "${position.name}" and refresh related user permissions.`
-      : zh
-        ? `本次将从岗位「${position.name}」移出成员「${pendingRemoveUser?.realName || pendingRemoveUser?.username || ''}」，并触发该用户的权限刷新。`
-        : `This will remove "${pendingRemoveUser?.realName || pendingRemoveUser?.username || ''}" from "${position.name}" and refresh that user's permissions.`;
+      ? copy.assignDescription(position.name, selectedUserIds.size)
+      : copy.removeDescription(position.name, pendingUsername);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="flex max-h-[85vh] max-w-3xl flex-col">
-        <DialogHeader>
+      <DialogContent className={getDialogClassName('3xl', 'flex min-h-0 flex-col p-0')} style={getDialogStyle('3xl')}>
+        <DialogHeader className="border-b border-slate-100/90 bg-slate-50/70 px-6 py-5">
           <DialogTitle className="flex items-center gap-2">
             <Briefcase className="h-5 w-5 text-blue-600" />
             {position.name} - {copy.title}
@@ -211,30 +235,30 @@ export function PositionUsersDialog({
           <DialogDescription>{copy.description}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col space-y-4">
-          <div className="flex items-center gap-2">
-            {position.category && <Badge className="bg-purple-100 text-purple-700">{position.category}</Badge>}
+        <div className="flex min-h-0 flex-1 flex-col space-y-4 px-6 py-5">
+          <div className="flex flex-wrap items-center gap-2">
+            {position.category ? <Badge className="bg-purple-100 text-purple-700">{position.category}</Badge> : null}
             <Badge variant="outline" className="bg-blue-50 text-blue-700">
               {levelLabels[position.level] || `P${position.level}`}
             </Badge>
-            {position.departmentName && (
-              <Badge variant="outline" className="bg-gray-50 text-gray-700">
+            {position.departmentName ? (
+              <Badge variant="outline" className="bg-slate-50 text-slate-700">
                 {position.departmentName}
               </Badge>
-            )}
+            ) : null}
           </div>
 
-          <div className="flex gap-2 border-b border-gray-200">
+          <div className="inline-flex w-fit items-center gap-1 rounded-2xl border border-slate-200/70 bg-slate-100/85 p-1">
             <Button
               variant={activeTab === 'current' ? 'default' : 'ghost'}
-              className={activeTab === 'current' ? 'rounded-none border-b-2 border-blue-600' : 'rounded-none'}
+              className={activeTab === 'current' ? 'rounded-xl px-4 shadow-sm' : 'rounded-xl px-4 text-slate-600 hover:bg-white/70'}
               onClick={() => setActiveTab('current')}
             >
               {copy.currentTab} ({currentUsers.length})
             </Button>
             <Button
               variant={activeTab === 'assign' ? 'default' : 'ghost'}
-              className={activeTab === 'assign' ? 'rounded-none border-b-2 border-blue-600' : 'rounded-none'}
+              className={activeTab === 'assign' ? 'rounded-xl px-4 shadow-sm' : 'rounded-xl px-4 text-slate-600 hover:bg-white/70'}
               onClick={() => setActiveTab('assign')}
             >
               {copy.assignTab} ({availableUsers.length})
@@ -242,12 +266,12 @@ export function PositionUsersDialog({
           </div>
 
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder={copy.searchPlaceholder}
-              className="pl-10"
+              className={`${fieldClassName} pl-10`}
             />
           </div>
 
@@ -261,14 +285,19 @@ export function PositionUsersDialog({
                       user={user}
                       badgeText={user.departmentName}
                       action={
-                        <Button size="sm" variant="ghost" onClick={() => openRemoveConfirm(user)}>
-                          <UserMinus className="h-4 w-4 text-red-500" />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-10 w-10 rounded-2xl hover:bg-rose-50"
+                          onClick={() => openRemoveConfirm(user)}
+                        >
+                          <UserMinus className="h-4 w-4 text-rose-500" />
                         </Button>
                       }
                     />
                   ))
                 ) : (
-                  <EmptyState icon={<Briefcase className="mb-3 h-12 w-12 text-gray-300" />} text={copy.emptyCurrent} />
+                  <EmptyState icon={<Briefcase className="mb-3 h-12 w-12 text-slate-300" />} text={copy.emptyCurrent} />
                 )}
               </div>
             </ScrollArea>
@@ -282,7 +311,11 @@ export function PositionUsersDialog({
                       return (
                         <Card
                           key={userId}
-                          className="cursor-pointer p-4 transition-shadow hover:shadow-md"
+                          className={`cursor-pointer rounded-[24px] border p-4 transition-all duration-200 ${
+                            selectedUserIds.has(userId)
+                              ? 'border-blue-200 bg-blue-50/75 shadow-sm shadow-blue-100/60'
+                              : 'border-slate-200/70 bg-white/92 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white'
+                          }`}
                           onClick={() => toggleUser(userId)}
                         >
                           <div className="flex items-center justify-between">
@@ -295,18 +328,16 @@ export function PositionUsersDialog({
                               <AvatarBadge>{user.realName.slice(0, 1)}</AvatarBadge>
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <p className="text-gray-900">{user.realName}</p>
-                                  <Badge variant="outline" className="bg-gray-50 text-xs">
+                                  <p className="text-slate-900">{user.realName}</p>
+                                  <Badge variant="outline" className="bg-slate-50 text-xs">
                                     {user.username}
                                   </Badge>
                                 </div>
                                 <div className="mt-1 flex items-center gap-2">
-                                  <p className="text-sm text-gray-500">{user.email}</p>
-                                  {user.departmentName && (
-                                    <Badge className="bg-blue-100 text-xs text-blue-700">
-                                      {user.departmentName}
-                                    </Badge>
-                                  )}
+                                  <p className="text-sm text-slate-500">{user.email}</p>
+                                  {user.departmentName ? (
+                                    <Badge className="bg-blue-100 text-xs text-blue-700">{user.departmentName}</Badge>
+                                  ) : null}
                                 </div>
                               </div>
                             </div>
@@ -315,20 +346,29 @@ export function PositionUsersDialog({
                       );
                     })
                   ) : (
-                    <EmptyState icon={<UserPlus className="mb-3 h-12 w-12 text-gray-300" />} text={copy.emptyAvailable} />
+                    <EmptyState icon={<UserPlus className="mb-3 h-12 w-12 text-slate-300" />} text={copy.emptyAvailable} />
                   )}
                 </div>
               </ScrollArea>
 
-              <DialogFooter className="flex items-center justify-between gap-2">
-                <div className="text-xs text-gray-500">
+              <DialogFooter className="border-t border-slate-100/90 bg-slate-50/80 px-4 py-4 sm:justify-between">
+                <div className="text-xs text-slate-500">
                   {copy.selectedLabel} {selectedUserIds.size} / {filteredAvailableUsers.length}
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" onClick={selectAllDisplayed} disabled={filteredAvailableUsers.length === 0}>
+                  <Button
+                    variant="outline"
+                    onClick={selectAllDisplayed}
+                    disabled={filteredAvailableUsers.length === 0}
+                    className="rounded-2xl border-slate-200 bg-white/90 px-5 hover:bg-white"
+                  >
                     {copy.selectAll}
                   </Button>
-                  <Button onClick={openAssignConfirm} disabled={selectedUserIds.size === 0} className="gap-2">
+                  <Button
+                    onClick={openAssignConfirm}
+                    disabled={selectedUserIds.size === 0}
+                    className="gap-2 rounded-2xl px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                  >
                     <UserPlus className="h-4 w-4" />
                     {copy.assignAction}
                   </Button>
@@ -365,20 +405,20 @@ function UserCard({
   action: ReactNode;
 }) {
   return (
-    <Card className="p-4 transition-shadow hover:shadow-md">
+    <Card className="rounded-[24px] border border-slate-200/70 bg-white/92 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <AvatarBadge>{user.realName.slice(0, 1)}</AvatarBadge>
           <div>
             <div className="flex items-center gap-2">
-              <p className="text-gray-900">{user.realName}</p>
-              <Badge variant="outline" className="bg-gray-50 text-xs">
+              <p className="text-slate-900">{user.realName}</p>
+              <Badge variant="outline" className="bg-slate-50 text-xs">
                 {user.username}
               </Badge>
             </div>
             <div className="mt-1 flex items-center gap-2">
-              <p className="text-sm text-gray-500">{user.email}</p>
-              {badgeText && <Badge className="bg-blue-100 text-xs text-blue-700">{badgeText}</Badge>}
+              <p className="text-sm text-slate-500">{user.email}</p>
+              {badgeText ? <Badge className="bg-blue-100 text-xs text-blue-700">{badgeText}</Badge> : null}
             </div>
           </div>
         </div>
@@ -390,7 +430,7 @@ function UserCard({
 
 function AvatarBadge({ children }: { children: string }) {
   return (
-    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700">
+    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
       {children}
     </div>
   );
@@ -398,7 +438,7 @@ function AvatarBadge({ children }: { children: string }) {
 
 function EmptyState({ icon, text }: { icon: ReactNode; text: string }) {
   return (
-    <div className="py-12 text-center text-gray-500">
+    <div className="py-12 text-center text-slate-500">
       <div className="flex justify-center">{icon}</div>
       <p>{text}</p>
     </div>

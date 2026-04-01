@@ -28,6 +28,8 @@ export const MenuSearchForm: React.FC<MenuSearchFormProps> = ({
   onFilterChange,
 }) => {
   const { t } = useLanguageStore();
+  const fieldClassName =
+    'h-11 rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10';
 
   const handleReset = () => {
     onSearchChange('');
@@ -38,15 +40,15 @@ export const MenuSearchForm: React.FC<MenuSearchFormProps> = ({
   };
 
   return (
-    <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-gray-100 p-4 mb-5 shadow-sm">
+    <div className="mb-5 rounded-[26px] border border-slate-200/70 bg-white/72 p-4 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
       <div className="flex flex-wrap items-center gap-4">
         <div className="relative flex-1 min-w-[280px]">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
             placeholder={t.systemManagement.menuManagement.searchPlaceholder}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-10 h-11 border-gray-200 focus:border-primary/40 focus:ring-primary/10 transition-all rounded-xl bg-white/50"
+            className={`${fieldClassName} pl-10`}
           />
         </div>
 
@@ -55,13 +57,13 @@ export const MenuSearchForm: React.FC<MenuSearchFormProps> = ({
             value={filters.type || 'all'}
             onValueChange={(val) => onFilterChange({ ...filters, type: val })}
           >
-            <SelectTrigger className="h-11 border-gray-200 rounded-xl bg-white/50">
+            <SelectTrigger className={fieldClassName}>
               <div className="flex items-center gap-2">
-                <LayoutGrid className="w-4 h-4 text-gray-400" />
+                <LayoutGrid className="h-4 w-4 text-slate-400" />
                 <SelectValue placeholder={t.systemManagement.menuManagement.typePlaceholder} />
               </div>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-2xl border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/60">
               <SelectItem value="all">{t.systemManagement.menuManagement.typeAll}</SelectItem>
               <SelectItem value="directory">{t.systemManagement.menuManagement.typeDirectory}</SelectItem>
               <SelectItem value="menu">{t.systemManagement.menuManagement.typeMenu}</SelectItem>
@@ -75,13 +77,13 @@ export const MenuSearchForm: React.FC<MenuSearchFormProps> = ({
             value={filters.status || 'all'}
             onValueChange={(val) => onFilterChange({ ...filters, status: val })}
           >
-            <SelectTrigger className="h-11 border-gray-200 rounded-xl bg-white/50">
+            <SelectTrigger className={fieldClassName}>
               <div className="flex items-center gap-2">
-                <ToggleLeft className="w-4 h-4 text-gray-400" />
+                <ToggleLeft className="h-4 w-4 text-slate-400" />
                 <SelectValue placeholder={t.user.status} />
               </div>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-2xl border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/60">
               <SelectItem value="all">{t.systemManagement.menuManagement.statusAll}</SelectItem>
               <SelectItem value="active">{t.status.enabled}</SelectItem>
               <SelectItem value="inactive">{t.status.disabled}</SelectItem>
@@ -92,7 +94,7 @@ export const MenuSearchForm: React.FC<MenuSearchFormProps> = ({
         <Button
           variant="outline"
           onClick={handleReset}
-          className="h-11 px-5 border-gray-200 text-gray-600 hover:bg-white hover:text-primary rounded-xl transition-all shadow-sm active:scale-95"
+          className="h-11 rounded-2xl border-slate-200/80 bg-white/90 px-5 text-slate-600 shadow-sm shadow-slate-200/50 transition-all active:scale-95 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-primary"
         >
           <RotateCcw className="w-4 h-4 mr-2 opacity-70" />
           {t.common.reset}
@@ -101,4 +103,3 @@ export const MenuSearchForm: React.FC<MenuSearchFormProps> = ({
     </div>
   );
 };
-

@@ -4,6 +4,7 @@ import { http } from '../../../api/client';
 interface BackendMenu {
   id: string;
   name: string;
+  title?: string;
   code: string;
   path: string;
   icon?: string;
@@ -28,6 +29,7 @@ function mapMenu(m: BackendMenu): Menu {
   return {
     id: m.id,
     name: m.name,
+    title: m.title,
     code: m.code,
     path: m.path,
     icon: m.icon || '',
@@ -96,5 +98,13 @@ export const menuApi = {
 
   deleteMenu: async (id: string): Promise<void> => {
     await http.delete(`/v1/system/menus/${id}`);
+  },
+
+  batchDeleteMenus: async (ids: string[]): Promise<void> => {
+    await http.post('/v1/system/menus/batch-delete', { menu_ids: ids });
+  },
+
+  batchUpdateMenuStatus: async (ids: string[], status: 'active' | 'inactive'): Promise<void> => {
+    await http.patch('/v1/system/menus/status', { menu_ids: ids, status });
   },
 };

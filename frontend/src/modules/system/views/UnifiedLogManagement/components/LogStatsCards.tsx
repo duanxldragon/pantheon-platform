@@ -1,10 +1,11 @@
-import React from 'react';
+﻿import React from 'react';
 import { CheckCircle2, FileText, XCircle } from 'lucide-react';
 
 import { Card } from '../../../../../components/ui/card';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 
 interface LogStatsProps {
+  activeTab: 'login' | 'operation';
   stats: {
     total: number;
     success: number;
@@ -13,16 +14,27 @@ interface LogStatsProps {
   loading?: boolean;
 }
 
-export const LogStatsCards: React.FC<LogStatsProps> = ({ stats, loading }) => {
-  const { t } = useLanguageStore();
+export const LogStatsCards: React.FC<LogStatsProps> = ({ activeTab, stats, loading }) => {
+  const { t, language } = useLanguageStore();
+  const zh = language === 'zh';
+  const currentTabLabel =
+    activeTab === 'login'
+      ? zh
+        ? '登录日志'
+        : 'Login Logs'
+      : zh
+        ? '操作日志'
+        : 'Operation Logs';
+  const completionRate = stats.total > 0 ? Math.round((stats.success / stats.total) * 100) : 0;
 
   const cards = [
     {
-      label: t.systemManagement.logs.stats.total,
+      label: currentTabLabel,
       value: stats.total,
       icon: FileText,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
+      hint: zh ? '当前筛选结果' : 'Current filtered results',
     },
     {
       label: t.modules.deploy.status.success,
@@ -30,6 +42,7 @@ export const LogStatsCards: React.FC<LogStatsProps> = ({ stats, loading }) => {
       icon: CheckCircle2,
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-50',
+      hint: zh ? `占比 ${completionRate}%` : `${completionRate}% of total`,
     },
     {
       label: t.modules.deploy.status.failed,
@@ -37,6 +50,14 @@ export const LogStatsCards: React.FC<LogStatsProps> = ({ stats, loading }) => {
       icon: XCircle,
       color: 'text-rose-600',
       bgColor: 'bg-rose-50',
+      hint:
+        stats.failed > 0
+          ? zh
+            ? '建议优先排查'
+            : 'Needs attention'
+          : zh
+            ? '当前无失败'
+            : 'No failures currently',
     },
   ];
 
@@ -45,14 +66,15 @@ export const LogStatsCards: React.FC<LogStatsProps> = ({ stats, loading }) => {
       {cards.map((card, index) => (
         <Card
           key={index}
-          className="p-4 border-none shadow-sm bg-white/80 backdrop-blur-sm group hover:shadow-md transition-all duration-300"
+          className="group rounded-[24px] border border-slate-200/70 bg-white/88 p-4 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.24)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_48px_-30px_rgba(15,23,42,0.28)]"
         >
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{card.label}</p>
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{card.label}</p>
               <div className="flex items-baseline gap-2">
                 <p className={`text-2xl font-bold ${card.color}`}>{loading ? '--' : card.value.toLocaleString()}</p>
               </div>
+              <p className="text-xs text-slate-400">{loading ? '...' : card.hint}</p>
             </div>
             <div
               className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 duration-300 ${card.bgColor}`}
@@ -65,4 +87,5 @@ export const LogStatsCards: React.FC<LogStatsProps> = ({ stats, loading }) => {
     </div>
   );
 };
+
 

@@ -1,31 +1,19 @@
-﻿import React from 'react';
+import React from 'react';
+
+import { Edit, Eye, Lock, MoreHorizontal, Settings, Shield, Trash2, Users } from 'lucide-react';
+
 import { Badge } from '../../../../../components/ui/badge';
-import { Switch } from '../../../../../components/ui/switch';
-import { 
-  Shield, 
-  Users, 
-  Settings, 
-  Edit, 
-  Trash2, 
-  Eye, 
-  MoreHorizontal,
-  Lock,
-  LockOpen,
-  FileText
-} from 'lucide-react';
-import { 
-  EnhancedDataTable, 
-  Column 
-} from '../../../../../shared/components/ui/EnhancedDataTable';
-import { ActionButtons } from '../../../../../shared/components/ui/ActionButtons';
-import { 
+import { Button } from '../../../../../components/ui/button';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSeparator
 } from '../../../../../components/ui/dropdown-menu';
-import { Button } from '../../../../../components/ui/button';
+import { Switch } from '../../../../../components/ui/switch';
+import { ActionButtons } from '../../../../../shared/components/ui/ActionButtons';
+import { Column, EnhancedDataTable } from '../../../../../shared/components/ui/EnhancedDataTable';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import { useAuthStore } from '../../../../auth/store/authStore';
 import { systemPermissions } from '../../../constants/permissions';
@@ -50,10 +38,28 @@ export const RoleTable: React.FC<RoleTableProps> = ({
   onSelectionChange,
   onAction,
   onStatusChange,
-  pagination
+  pagination,
 }) => {
-  const { t } = useLanguageStore();
+  const { t, language } = useLanguageStore();
+  const zh = language === 'zh';
   const hasPermission = useAuthStore((state) => state.hasPermission);
+  const copy = zh
+    ? {
+        builtIn: '系统内置',
+        custom: '自定义',
+        stats: '权限/成员',
+        configurePermissions: '权限配置',
+        viewDetails: '查看详情',
+        members: '成员列表',
+      }
+    : {
+        builtIn: 'Built-in',
+        custom: 'Custom',
+        stats: 'Perms/Users',
+        configurePermissions: 'Configure Permissions',
+        viewDetails: 'View Details',
+        members: 'Members',
+      };
 
   const columns: Column<Role>[] = [
     {
@@ -62,25 +68,19 @@ export const RoleTable: React.FC<RoleTableProps> = ({
       width: '240px',
       render: (role) => (
         <div className="flex items-center gap-3">
-          <div className={`p-2.5 rounded-xl bg-gradient-to-br transition-all shadow-sm ${
-            role.type === 'system' 
-              ? 'from-amber-400 to-amber-600 shadow-amber-100' 
-              : 'from-blue-500 to-blue-600 shadow-blue-100'
-          }`}>
-            <Shield className="w-4 h-4 text-white" />
+          <div
+            className={`flex h-11 w-11 items-center justify-center rounded-2xl border border-white/80 bg-gradient-to-br shadow-[0_18px_35px_-24px_rgba(15,23,42,0.5)] transition-all ${
+              role.type === 'system' ? 'from-amber-400 to-amber-600' : 'from-blue-500 to-blue-600'
+            }`}
+          >
+            <Shield className="h-4 w-4 text-white" />
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
-              <span className="font-bold text-gray-900 leading-tight">
-                {role.name}
-              </span>
-              {role.type === 'system' && (
-                <Lock className="w-3 h-3 text-amber-500" />
-              )}
+              <span className="leading-tight font-bold text-slate-900">{role.name}</span>
+              {role.type === 'system' ? <Lock className="h-3 w-3 text-amber-500" /> : null}
             </div>
-            <span className="text-[10px] text-gray-400 font-mono mt-0.5">
-              {role.code}
-            </span>
+            <span className="mt-0.5 font-mono text-[10px] text-slate-400">{role.code}</span>
           </div>
         </div>
       ),
@@ -89,55 +89,58 @@ export const RoleTable: React.FC<RoleTableProps> = ({
       key: 'type',
       label: t.common.info,
       width: '120px',
-        render: (role) => (
-          role.type === 'system' ? (
-            <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-100 font-medium">
-              Built-in
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="bg-blue-50/50 text-blue-600 border-blue-100 font-medium">
-              Custom
-            </Badge>
-          )
-        ),
-      },
-      {
-        key: 'stats',
-        label: "Perms/Users",
-        width: '180px',
-        render: (role) => {
-          const canQueryRole = hasPermission(systemPermissions.role.query);
-          return (
-          <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 text-xs text-gray-500">
-            <Settings className="w-3.5 h-3.5 text-blue-400" />
-            <span className="font-bold text-blue-600">{role.menuIds?.length || 0}</span>
-          </div>
-          <div className="w-px h-3 bg-gray-200" />
-          <div
-            className={`flex items-center gap-1 text-xs transition-colors ${
-              canQueryRole
-                ? 'text-gray-500 cursor-pointer hover:text-primary'
-                : 'text-gray-300 cursor-not-allowed'
-            }`}
-            onClick={() => {
-              if (!canQueryRole) {
-                return;
-              }
-              onAction('members', role);
-            }}
+      render: (role) =>
+        role.type === 'system' ? (
+          <Badge
+            variant="secondary"
+            className="rounded-full border border-amber-100 bg-amber-50 px-2.5 py-1 font-semibold text-amber-700"
           >
-            <Users className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="font-bold text-gray-700">{role.userCount || 0}</span>
+            {copy.builtIn}
+          </Badge>
+        ) : (
+          <Badge
+            variant="outline"
+            className="rounded-full border border-blue-100 bg-blue-50/70 px-2.5 py-1 font-semibold text-blue-600"
+          >
+            {copy.custom}
+          </Badge>
+        ),
+    },
+    {
+      key: 'stats',
+      label: copy.stats,
+      width: '180px',
+      render: (role) => {
+        const canQueryRole = hasPermission(systemPermissions.role.query);
+        return (
+          <div className="inline-flex items-center gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/80 px-3 py-1.5">
+            <div className="flex items-center gap-1 text-xs text-slate-500">
+              <Settings className="h-3.5 w-3.5 text-blue-400" />
+              <span className="font-bold text-blue-600">{role.menuIds?.length || 0}</span>
+            </div>
+            <div className="h-3 w-px bg-slate-200" />
+            <div
+              className={`flex items-center gap-1 text-xs transition-colors ${
+                canQueryRole ? 'cursor-pointer text-slate-500 hover:text-primary' : 'cursor-not-allowed text-slate-300'
+              }`}
+              onClick={() => {
+                if (!canQueryRole) {
+                  return;
+                }
+                onAction('members', role);
+              }}
+            >
+              <Users className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="font-bold text-slate-700">{role.userCount || 0}</span>
+            </div>
           </div>
-        </div>
         );
       },
     },
     {
       key: 'status',
       label: t.user.status,
-      width: '90px',
+      width: '112px',
       align: 'center',
       render: (role) => {
         const canUpdateRole = hasPermission(systemPermissions.role.update);
@@ -145,7 +148,7 @@ export const RoleTable: React.FC<RoleTableProps> = ({
           <Switch
             checked={role.status === 'active'}
             onCheckedChange={(checked) => onStatusChange(role, checked)}
-            className="data-[state=checked]:bg-green-500 scale-90"
+            className="scale-90 data-[state=checked]:bg-green-500"
             disabled={!canUpdateRole || (role.type === 'system' && role.code === 'super_admin')}
           />
         );
@@ -156,70 +159,74 @@ export const RoleTable: React.FC<RoleTableProps> = ({
       label: t.modules.deploy.description,
       width: '220px',
       render: (role) => (
-        <span className="text-xs text-gray-500 line-clamp-1 italic max-w-[200px]">
-          {role.description || '-'}
-        </span>
+        <span className="line-clamp-2 max-w-[200px] text-xs leading-6 text-slate-500">{role.description || '-'}</span>
       ),
     },
     {
       key: 'actions',
       label: t.common.actions,
-      width: '180px',
+      width: '220px',
       align: 'right',
       render: (role) => {
         const canQueryRole = hasPermission(systemPermissions.role.query);
-        const canUpdateRole = hasPermission(systemPermissions.role.update);
         const canDeleteRole = hasPermission(systemPermissions.role.delete);
         const hasMoreActions = canQueryRole || canDeleteRole;
 
         return (
-          <div className="flex items-center justify-end gap-1">
-            <ActionButtons 
+          <div className="flex items-center justify-end gap-2">
+            <ActionButtons
               actions={[
                 {
-                  icon: <Settings className="w-4 h-4 text-primary" />,
-                  label: "Configure Permissions",
+                  icon: <Settings className="h-4 w-4 text-primary" />,
+                  label: copy.configurePermissions,
                   onClick: () => onAction('permission', role),
                   permission: systemPermissions.role.assignPermission,
                 },
                 {
-                  icon: <Edit className="w-4 h-4 text-amber-500" />,
+                  icon: <Edit className="h-4 w-4 text-amber-500" />,
                   label: t.common.edit,
                   onClick: () => onAction('edit', role),
                   permission: systemPermissions.role.update,
                 },
-              ]} 
+              ]}
             />
             {hasMoreActions ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-gray-100 rounded-full">
-                    <MoreHorizontal className="w-4 h-4 text-gray-400" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 rounded-2xl border border-slate-200/70 bg-white/90 text-slate-400 shadow-sm shadow-slate-200/50 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-700"
+                  >
+                    <MoreHorizontal className="h-4 w-4 text-slate-400" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuContent
+                  align="end"
+                  className="w-44 rounded-2xl border-slate-200/80 bg-white/98 shadow-xl shadow-slate-200/70"
+                >
                   {canQueryRole ? (
                     <DropdownMenuItem onClick={() => onAction('detail', role)}>
-                      <Eye className="w-4 h-4 mr-2 text-blue-500" />
-                      View Details
+                      <Eye className="mr-2 h-4 w-4 text-blue-500" />
+                      {copy.viewDetails}
                     </DropdownMenuItem>
                   ) : null}
                   {canQueryRole ? (
                     <DropdownMenuItem onClick={() => onAction('members', role)}>
-                      <Users className="w-4 h-4 mr-2 text-emerald-500" />
-                      Members
+                      <Users className="mr-2 h-4 w-4 text-emerald-500" />
+                      {copy.members}
                     </DropdownMenuItem>
                   ) : null}
-                  {(canQueryRole && canDeleteRole) ? <DropdownMenuSeparator /> : null}
+                  {canQueryRole && canDeleteRole ? <DropdownMenuSeparator /> : null}
                   {canDeleteRole ? (
-                    <DropdownMenuItem 
-                      className="text-red-600" 
+                    <DropdownMenuItem
+                      className="text-rose-600 focus:text-rose-700"
                       onClick={() => onAction('delete', role)}
                       disabled={role.type === 'system'}
                     >
-                      <Trash2 className="w-4 h-4 mr-2" />
+                      <Trash2 className="mr-2 h-4 w-4" />
                       {t.common.delete}
-                      {role.type === 'system' && <Lock className="w-3 h-3 ml-auto opacity-50" />}
+                      {role.type === 'system' ? <Lock className="ml-auto h-3 w-3 opacity-50" /> : null}
                     </DropdownMenuItem>
                   ) : null}
                 </DropdownMenuContent>
@@ -244,4 +251,3 @@ export const RoleTable: React.FC<RoleTableProps> = ({
     />
   );
 };
-

@@ -73,10 +73,10 @@ export const UserTable: React.FC<UserTableProps> = ({
             )}
           </div>
           <div className="flex flex-col">
-            <span className="font-semibold text-gray-900 leading-tight">
+            <span className="font-semibold text-slate-900 leading-tight">
               {user.username}
             </span>
-            <span className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+            <span className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
               <UserIcon className="w-3 h-3" />
               {user.realName}
             </span>
@@ -90,11 +90,11 @@ export const UserTable: React.FC<UserTableProps> = ({
       width: '220px',
       render: (user) => (
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2 text-xs text-gray-600">
+          <div className="flex items-center gap-2 text-xs text-slate-600">
             <Mail className="w-3 h-3 opacity-60" />
             {user.email}
           </div>
-          <div className="flex items-center gap-2 text-xs text-gray-600">
+          <div className="flex items-center gap-2 text-xs text-slate-600">
             <Phone className="w-3 h-3 opacity-60" />
             {user.phone}
           </div>
@@ -107,11 +107,11 @@ export const UserTable: React.FC<UserTableProps> = ({
       width: '180px',
       render: (user) => (
         <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+          <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
             <Building2 className="w-3.5 h-3.5 text-primary opacity-70" />
             {user.departmentName}
           </div>
-          <span className="text-xs text-gray-400 pl-5">
+          <span className="text-xs text-slate-400 pl-5">
             {user.positionName}
           </span>
         </div>
@@ -127,7 +127,7 @@ export const UserTable: React.FC<UserTableProps> = ({
             <Badge 
               key={index} 
               variant="secondary" 
-              className="text-[10px] px-1.5 py-0 bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100"
+              className="border-blue-100 bg-blue-50 px-1.5 py-0 text-[10px] text-blue-600 hover:bg-blue-100"
             >
               {role}
             </Badge>
@@ -138,7 +138,7 @@ export const UserTable: React.FC<UserTableProps> = ({
     {
       key: 'status',
       label: t.user.status,
-      width: '100px',
+      width: '112px',
       align: 'center',
       render: (user) => {
         const canUpdateUser = hasPermission(systemPermissions.user.update);
@@ -146,7 +146,7 @@ export const UserTable: React.FC<UserTableProps> = ({
           <Switch
             checked={user.status === 'active'}
             onCheckedChange={(checked) => onStatusChange(user, checked)}
-            className="data-[state=checked]:bg-green-500"
+            className="scale-90 data-[state=checked]:bg-green-500"
             disabled={!canUpdateUser}
           />
         );
@@ -155,15 +155,15 @@ export const UserTable: React.FC<UserTableProps> = ({
     {
       key: 'actions',
       label: t.common.actions,
-      width: '160px',
-      align: 'center',
+      width: '220px',
+      align: 'right',
       render: (user) => {
         const canUpdateUser = hasPermission(systemPermissions.user.update);
         const canDeleteUser = hasPermission(systemPermissions.user.delete);
         const hasMoreActions = canUpdateUser || canDeleteUser;
 
         return (
-          <div className="flex items-center justify-center gap-1">
+          <div className="flex items-center justify-end gap-2">
             <ActionButtons 
               actions={[
                 {
@@ -190,11 +190,11 @@ export const UserTable: React.FC<UserTableProps> = ({
             {hasMoreActions ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-gray-100 rounded-full">
-                    <MoreHorizontal className="w-4 h-4 text-gray-400" />
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl border border-transparent bg-white text-slate-400 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-700">
+                    <MoreHorizontal className="w-4 h-4 text-slate-400" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuContent align="end" className="w-44 rounded-xl border-slate-200">
                   {canUpdateUser ? (
                     <DropdownMenuItem onClick={() => onAction('assign-role', user)}>
                       <Shield className="w-4 h-4 mr-2 text-primary" />
@@ -209,7 +209,7 @@ export const UserTable: React.FC<UserTableProps> = ({
                   ) : null}
                   {canUpdateUser && canDeleteUser ? <DropdownMenuSeparator /> : null}
                   {canDeleteUser ? (
-                    <DropdownMenuItem className="text-red-600" onClick={() => onAction('delete', user)}>
+                    <DropdownMenuItem className="text-rose-600 focus:text-rose-700" onClick={() => onAction('delete', user)}>
                       <Trash2 className="w-4 h-4 mr-2" />
                       {t.common.delete}
                     </DropdownMenuItem>
@@ -236,4 +236,5 @@ export const UserTable: React.FC<UserTableProps> = ({
     />
   );
 };
+
 

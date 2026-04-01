@@ -16,6 +16,7 @@ import { useAuthStore } from '../../../auth/store/authStore';
 import { QueryAccessBoundary } from '../../../../shared/components/QueryAccessBoundary';
 import { useActionPermissionDialogGuard } from '../../../../shared/hooks/useActionPermissionDialogGuard';
 import { usePermissionConfirmGuard } from '../../../../shared/hooks/usePermissionConfirmGuard';
+import { getMenuLabel } from '../../../../shared/constants/viewsConfig';
 import { systemPermissions } from '../../constants/permissions';
 import { createEntityFeedback } from '../../utils/feedback';
 
@@ -56,8 +57,94 @@ export function MenuManagement() {
   const { t, language } = useLanguageStore();
   const zh = language === 'zh';
   const menuMessages = createEntityFeedback(zh, { zh: '菜单', en: 'Menu', enPlural: 'menus' });
+  const copy = zh
+    ? {
+        validation: {
+          nameRequired: '请输入菜单名称。',
+          codeRequired: '请输入菜单编码。',
+          typeRequired: '请选择菜单类型。',
+          pathRequired: '请输入路由路径。',
+          parentMissing: '所选上级菜单不存在，请重新选择。',
+          parentInactive: '上级菜单已被禁用，请先启用上级菜单。',
+          parentSelf: '上级菜单不能选择自己。',
+          directoryParent: '目录类型只能挂载在目录下。',
+          buttonParentRequired: '按钮类型必须选择一个菜单作为父级。',
+          buttonParentType: '按钮类型只能挂载在菜单节点下。',
+          menuParentType: '菜单类型不能挂载在按钮节点下。',
+          externalPath: '外链菜单的路由路径必须以 http:// 或 https:// 开头。',
+          componentRequired: '普通菜单必须配置组件路径。',
+        },
+        actionLabels: {
+          add: '新增',
+          edit: '编辑',
+          delete: '删除',
+          import: '导入',
+          export: '导出',
+          batchEnable: '批量启用',
+          batchDisable: '批量禁用',
+          batchStatusUpdate: '批量状态变更',
+          batchDelete: '批量删除',
+        },
+        titles: {
+          statusNote: '状态变更说明',
+          enableImpact: '启用风险提示',
+          disableImpact: '禁用风险提示',
+          confirmBatchDelete: '确认批量删除菜单',
+          confirmDelete: '确认删除',
+          expandAll: '全部展开',
+          collapseAll: '全部收起',
+        },
+        buttons: {
+          batchEnable: (count: number) => `批量启用 (${count})`,
+          batchDisable: (count: number) => `批量禁用 (${count})`,
+          batchDelete: (count: number) => `批量删除 (${count})`,
+        },
+      }
+    : {
+        validation: {
+          nameRequired: 'Please enter the menu name.',
+          codeRequired: 'Please enter the menu code.',
+          typeRequired: 'Please select the menu type.',
+          pathRequired: 'Please enter the route path.',
+          parentMissing: 'The selected parent menu does not exist.',
+          parentInactive: 'The selected parent menu is inactive.',
+          parentSelf: 'The parent menu cannot be itself.',
+          directoryParent: 'A directory can only be placed under another directory.',
+          buttonParentRequired: 'A button must have a parent menu.',
+          buttonParentType: 'A button can only be placed under a menu node.',
+          menuParentType: 'A menu cannot be placed under a button node.',
+          externalPath: 'External menu paths must start with http:// or https://.',
+          componentRequired: 'A regular menu must have a component path.',
+        },
+        actionLabels: {
+          add: 'create',
+          edit: 'edit',
+          delete: 'delete',
+          import: 'import',
+          export: 'export',
+          batchEnable: 'batch enable',
+          batchDisable: 'batch disable',
+          batchStatusUpdate: 'batch status update',
+          batchDelete: 'batch delete',
+        },
+        titles: {
+          statusNote: 'Status change note',
+          enableImpact: 'Enable impact preview',
+          disableImpact: 'Disable impact preview',
+          confirmBatchDelete: 'Confirm batch delete menus',
+          confirmDelete: 'Delete',
+          expandAll: 'Expand all',
+          collapseAll: 'Collapse all',
+        },
+        buttons: {
+          batchEnable: (count: number) => `Enable (${count})`,
+          batchDisable: (count: number) => `Disable (${count})`,
+          batchDelete: (count: number) => `Delete (${count})`,
+        },
+      };
   const hasPermission = useAuthStore((state) => state.hasPermission);
   const canQueryMenu = hasPermission(systemPermissions.menu.query);
+  const getMenuDisplayName = (menu?: Partial<Menu> | null) => getMenuLabel(menu, language, t) || menu?.name || '';
   
   // 1. 数据加载
   const { menus, reload } = useMenus({ enabled: canQueryMenu });
@@ -102,8 +189,10 @@ export function MenuManagement() {
   // 3. 搜索过滤逻辑
   const filteredMenus = useMemo(() => {
     return menus.filter(m => {
+      const menuLabel = getMenuDisplayName(m);
       const matchesSearch = !searchQuery || 
         m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        menuLabel.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (m.path && m.path.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (m.permission && m.permission.toLowerCase().includes(searchQuery.toLowerCase()));
       
@@ -112,7 +201,7 @@ export function MenuManagement() {
 
       return matchesSearch && matchesType && matchesStatus;
     });
-  }, [menus, searchQuery, filters]);
+  }, [filters, menus, searchQuery]);
 
   // 4. 树形逻辑 Hook
   const {
@@ -181,55 +270,55 @@ export function MenuManagement() {
     const parentMenu = parentId ? menus.find((menu) => String(menu.id) === parentId) : undefined;
 
     if (!normalized.name) {
-      return zh ? '请输入菜单名称。' : 'Please enter the menu name.';
+      return copy.validation.nameRequired;
     }
     if (!normalized.code) {
-      return zh ? '请输入菜单编码。' : 'Please enter the menu code.';
+      return copy.validation.codeRequired;
     }
     if (!normalized.type) {
-      return zh ? '请选择菜单类型。' : 'Please select the menu type.';
+      return copy.validation.typeRequired;
     }
     if (!normalized.path) {
-      return zh ? '请输入路由路径。' : 'Please enter the route path.';
+      return copy.validation.pathRequired;
     }
 
     if (parentId) {
       if (!parentMenu) {
-        return zh ? '所选上级菜单不存在，请重新选择。' : 'The selected parent menu does not exist.';
+        return copy.validation.parentMissing;
       }
       if (parentMenu.status !== 'active') {
-        return zh ? '上级菜单已被禁用，请先启用上级菜单。' : 'The selected parent menu is inactive.';
+        return copy.validation.parentInactive;
       }
       if (currentMenu && String(currentMenu.id) === parentId) {
-        return zh ? '上级菜单不能选择自己。' : 'The parent menu cannot be itself.';
+        return copy.validation.parentSelf;
       }
     }
 
     if (normalized.type === 'directory') {
       if (parentMenu && parentMenu.type !== 'directory') {
-        return zh ? '目录类型只能挂载在目录下。' : 'A directory can only be placed under another directory.';
+        return copy.validation.directoryParent;
       }
     }
 
     if (normalized.type === 'button') {
       if (!parentId) {
-        return zh ? '按钮类型必须选择一个菜单作为父级。' : 'A button must have a parent menu.';
+        return copy.validation.buttonParentRequired;
       }
       if (!parentMenu || parentMenu.type !== 'menu') {
-        return zh ? '按钮类型只能挂载在菜单节点下。' : 'A button can only be placed under a menu node.';
+        return copy.validation.buttonParentType;
       }
     }
 
     if (normalized.type === 'menu') {
       if (parentMenu?.type === 'button') {
-        return zh ? '菜单类型不能挂载在按钮节点下。' : 'A menu cannot be placed under a button node.';
+        return copy.validation.menuParentType;
       }
       if (normalized.external) {
         if (!/^https?:\/\//i.test(normalized.path || '')) {
-          return zh ? '外链菜单的路由路径必须以 http:// 或 https:// 开头。' : 'External menu paths must start with http:// or https://.';
+          return copy.validation.externalPath;
         }
       } else if (!normalized.component) {
-        return zh ? '普通菜单必须配置组件路径。' : 'A regular menu must have a component path.';
+        return copy.validation.componentRequired;
       }
     }
 
@@ -238,7 +327,7 @@ export function MenuManagement() {
 
   const handlers = {
     onSubmit: async () => {
-      if (!ensureActionPermission(dialogs.add ? canCreateMenu : canUpdateMenu, dialogs.add ? (zh ? '新增' : 'create') : (zh ? '编辑' : 'edit'))) return;
+      if (!ensureActionPermission(dialogs.add ? canCreateMenu : canUpdateMenu, dialogs.add ? copy.actionLabels.add : copy.actionLabels.edit)) return;
       try {
         const normalizedFormData = normalizeMenuFormData(formData);
         const validationMessage = validateMenuFormData(normalizedFormData, selectedMenu);
@@ -272,10 +361,10 @@ export function MenuManagement() {
     },
     onDelete: async () => {
       if (!selectedMenu) return;
-      if (!ensureActionPermission(canDeleteMenu, zh ? '删除' : 'delete')) return;
+      if (!ensureActionPermission(canDeleteMenu, copy.actionLabels.delete)) return;
       const impact = getMenuDeleteImpact(String(selectedMenu.id));
       if (impact.childCount > 0) {
-        toast.error(buildMenuDeleteBlockedMessage(selectedMenu.name, impact.childCount));
+        toast.error(buildMenuDeleteBlockedMessage(getMenuDisplayName(selectedMenu), impact.childCount));
         return;
       }
       try {
@@ -289,12 +378,12 @@ export function MenuManagement() {
       }
     },
     onImport: async (file: File) => {
-      if (!ensureActionPermission(canCreateMenu, zh ? '导入' : 'import')) return;
+      if (!ensureActionPermission(canCreateMenu, copy.actionLabels.import)) return;
       await csvHandler.handleImport(file);
       setDialogOpen('import', false);
     },
     onExport: async (_options: any) => {
-      if (!ensureActionPermission(canExportMenu, zh ? '导出' : 'export')) return;
+      if (!ensureActionPermission(canExportMenu, copy.actionLabels.export)) return;
       await csvHandler.handleExport(menus);
       setDialogOpen('export', false);
     }
@@ -352,23 +441,24 @@ export function MenuManagement() {
 
   const buildMenuDeleteDescription = (menu: Menu) => {
     const impact = getMenuDeleteImpact(String(menu.id));
+    const menuName = getMenuDisplayName(menu);
     if (zh) {
       if (impact.childCount > 0) {
-        return `菜单「${menu.name}」仍有 ${impact.childCount} 个下级菜单，前端已阻断删除。请先处理子菜单。`;
+        return `菜单「${menuName}」仍有 ${impact.childCount} 个下级菜单，前端已阻断删除。请先处理子菜单。`;
       }
       if (impact.affectedRoleCount > 0) {
-        return `确认删除菜单「${menu.name}」？预计影响 ${impact.affectedRoleCount} 个角色、${impact.affectedUserCount} 名角色成员的动态菜单与权限快照，并触发刷新。`;
+        return `确认删除菜单「${menuName}」？预计影响 ${impact.affectedRoleCount} 个角色、${impact.affectedUserCount} 名角色成员的动态菜单与权限快照，并触发刷新。`;
       }
-      return `确认删除菜单「${menu.name}」？当前未关联角色，删除后立即生效且不可恢复。`;
+      return `确认删除菜单「${menuName}」？当前未关联角色，删除后立即生效且不可恢复。`;
     }
 
     if (impact.childCount > 0) {
-      return `Menu "${menu.name}" still has ${impact.childCount} child menus. Deletion is blocked until child menus are handled.`;
+      return `Menu "${menuName}" still has ${impact.childCount} child menus. Deletion is blocked until child menus are handled.`;
     }
     if (impact.affectedRoleCount > 0) {
-      return `Delete menu "${menu.name}"? This is expected to affect ${impact.affectedRoleCount} roles and ${impact.affectedUserCount} role members, and refresh their menu snapshot.`;
+      return `Delete menu "${menuName}"? This is expected to affect ${impact.affectedRoleCount} roles and ${impact.affectedUserCount} role members, and refresh their menu snapshot.`;
     }
-    return `Delete menu "${menu.name}"? It is not linked to any role and the action cannot be undone.`;
+    return `Delete menu "${menuName}"? It is not linked to any role and the action cannot be undone.`;
   };
 
   const buildMenuBatchDeleteDescription = (items: MenuNode[]) => {
@@ -386,18 +476,19 @@ export function MenuManagement() {
 
   const buildMenuStatusCopy = (menu: Menu, enabled: boolean) => {
     const impact = getMenuDeleteImpact(String(menu.id));
+    const menuName = getMenuDisplayName(menu);
     if (zh) {
       return {
         title: enabled ? '确认启用菜单' : '确认禁用菜单',
         description:
           impact.affectedRoleCount > 0
-            ? `菜单「${menu.name}」状态变更将影响 ${impact.affectedRoleCount} 个角色、${impact.affectedUserCount} 名角色成员，并触发动态菜单刷新。`
-            : `菜单「${menu.name}」状态变更将立即生效。当前未关联角色。`,
+            ? `菜单「${menuName}」状态变更将影响 ${impact.affectedRoleCount} 个角色、${impact.affectedUserCount} 名角色成员，并触发动态菜单刷新。`
+            : `菜单「${menuName}」状态变更将立即生效。当前未关联角色。`,
         confirmText: enabled ? '确认启用' : '确认禁用',
         success:
           impact.affectedRoleCount > 0
-            ? `已${enabled ? '启用' : '禁用'}菜单「${menu.name}」，影响 ${impact.affectedRoleCount} 个角色、${impact.affectedUserCount} 名角色成员`
-            : `已${enabled ? '启用' : '禁用'}菜单「${menu.name}」`,
+            ? `已${enabled ? '启用' : '禁用'}菜单「${menuName}」，影响 ${impact.affectedRoleCount} 个角色、${impact.affectedUserCount} 名角色成员`
+            : `已${enabled ? '启用' : '禁用'}菜单「${menuName}」`,
       };
     }
 
@@ -405,13 +496,13 @@ export function MenuManagement() {
       title: enabled ? 'Confirm enable menu' : 'Confirm disable menu',
       description:
         impact.affectedRoleCount > 0
-          ? `Changing menu "${menu.name}" will affect ${impact.affectedRoleCount} roles and ${impact.affectedUserCount} role members, and refresh their menu snapshot.`
-          : `Changing menu "${menu.name}" takes effect immediately. It is not linked to any role.`,
+          ? `Changing menu "${menuName}" will affect ${impact.affectedRoleCount} roles and ${impact.affectedUserCount} role members, and refresh their menu snapshot.`
+          : `Changing menu "${menuName}" takes effect immediately. It is not linked to any role.`,
       confirmText: enabled ? 'Enable' : 'Disable',
       success:
         impact.affectedRoleCount > 0
-          ? `Menu "${menu.name}" ${enabled ? 'enabled' : 'disabled'}. ${impact.affectedRoleCount} roles and ${impact.affectedUserCount} role members were affected.`
-          : `Menu "${menu.name}" ${enabled ? 'enabled' : 'disabled'}.`,
+          ? `Menu "${menuName}" ${enabled ? 'enabled' : 'disabled'}. ${impact.affectedRoleCount} roles and ${impact.affectedUserCount} role members were affected.`
+          : `Menu "${menuName}" ${enabled ? 'enabled' : 'disabled'}.`,
     };
   };
 
@@ -430,7 +521,7 @@ export function MenuManagement() {
         fieldDescription: zh
           ? '修改状态后，保存时会再次确认；若菜单已分配给角色，将触发动态菜单刷新。'
           : 'If you change the status, saving will require confirmation and may refresh dynamic menus for linked roles.',
-        title: zh ? '状态变更说明' : 'Status change note',
+        title: copy.titles.statusNote,
         description: zh
           ? '当前未修改状态；若后续切换启用或禁用，系统会根据角色引用情况提示影响范围。'
           : 'Status is unchanged. If you switch it later, the system will preview the impact based on linked roles.',
@@ -444,7 +535,7 @@ export function MenuManagement() {
       fieldDescription: zh
         ? '修改状态后，保存时会再次确认；若菜单已分配给角色，将触发动态菜单刷新。'
         : 'If you change the status, saving will require confirmation and may refresh dynamic menus for linked roles.',
-      title: enabled ? (zh ? '启用风险提示' : 'Enable impact preview') : (zh ? '禁用风险提示' : 'Disable impact preview'),
+      title: enabled ? copy.titles.enableImpact : copy.titles.disableImpact,
       description: impact.affectedRoleCount > 0
         ? (
           zh
@@ -526,9 +617,9 @@ export function MenuManagement() {
   const openMenuBatchDeleteConfirm = (items: MenuNode[], action: () => Promise<void>) => {
     setActionConfirm({
       open: true,
-      title: zh ? '确认批量删除菜单' : 'Confirm batch delete menus',
+      title: copy.titles.confirmBatchDelete,
       description: buildMenuBatchDeleteDescription(items),
-      confirmText: zh ? '确认删除' : 'Delete',
+      confirmText: copy.titles.confirmDelete,
       variant: 'danger',
       guard: 'delete',
       action: async () => {
@@ -548,11 +639,11 @@ export function MenuManagement() {
     pageTitle: t.menu.systemMenus,
     dialogs,
     guardedDialogs: {
-      add: { label: zh ? '新增' : 'create', allowed: canCreateMenu },
-      edit: { label: zh ? '编辑' : 'edit', allowed: canUpdateMenu },
-      delete: { label: zh ? '删除' : 'delete', allowed: canDeleteMenu },
-      import: { label: zh ? '导入' : 'import', allowed: canCreateMenu },
-      export: { label: zh ? '导出' : 'export', allowed: canExportMenu },
+      add: { label: copy.actionLabels.add, allowed: canCreateMenu },
+      edit: { label: copy.actionLabels.edit, allowed: canUpdateMenu },
+      delete: { label: copy.actionLabels.delete, allowed: canDeleteMenu },
+      import: { label: copy.actionLabels.import, allowed: canCreateMenu },
+      export: { label: copy.actionLabels.export, allowed: canExportMenu },
     },
     closeDialogs: (names) => {
       setDialogs((prev) => {
@@ -569,14 +660,14 @@ export function MenuManagement() {
     guard: actionConfirm.guard,
     pageTitle: t.menu.systemMenus,
     guards: {
-      update: { label: zh ? '批量状态变更' : 'batch status update', allowed: canUpdateMenu },
-      delete: { label: zh ? '批量删除' : 'batch delete', allowed: canDeleteMenu },
+      update: { label: copy.actionLabels.batchStatusUpdate, allowed: canUpdateMenu },
+      delete: { label: copy.actionLabels.batchDelete, allowed: canDeleteMenu },
     },
     closeConfirm: closeActionConfirm,
   });
 
   const handleBatchMenuStatus = (enabled: boolean) => {
-    if (!ensureActionPermission(canUpdateMenu, zh ? `批量${enabled ? '启用' : '禁用'}` : `batch ${enabled ? 'enable' : 'disable'}`)) return;
+    if (!ensureActionPermission(canUpdateMenu, enabled ? copy.actionLabels.batchEnable : copy.actionLabels.batchDisable)) return;
     const targetMenus = enabled ? menusToEnable : menusToDisable;
     if (targetMenus.length === 0) {
       return;
@@ -584,10 +675,9 @@ export function MenuManagement() {
 
     openMenuBatchStatusConfirm(targetMenus, enabled, async () => {
       try {
-        await Promise.all(
-          targetMenus.map((menu) =>
-            api.updateMenu(String(menu.id), { status: enabled ? 'active' : 'inactive' }),
-          ),
+        await api.batchUpdateMenuStatus(
+          targetMenus.map((menu) => String(menu.id)),
+          enabled ? 'active' : 'inactive',
         );
         setSelectedMenus([]);
         await reload();
@@ -599,7 +689,7 @@ export function MenuManagement() {
   };
 
   const handleBatchDelete = () => {
-    if (!ensureActionPermission(canDeleteMenu, zh ? '批量删除' : 'batch delete')) return;
+    if (!ensureActionPermission(canDeleteMenu, copy.actionLabels.batchDelete)) return;
     if (selectedMenus.length === 0) {
       return;
     }
@@ -607,7 +697,7 @@ export function MenuManagement() {
     const selectedMenuIds = new Set(selectedMenus.map((menu) => String(menu.id)));
     const blockedMenus = selectedMenus
       .map((menu) => ({
-        name: menu.name,
+        name: getMenuDisplayName(menu),
         childCount: getMenuDeleteImpact(String(menu.id), selectedMenuIds).childCount,
       }))
       .filter((menu) => menu.childCount > 0);
@@ -619,10 +709,7 @@ export function MenuManagement() {
 
     openMenuBatchDeleteConfirm(selectedMenus, async () => {
       try {
-        const menusToDelete = [...selectedMenus].sort((left, right) => (right.level || 0) - (left.level || 0));
-        for (const menu of menusToDelete) {
-          await api.deleteMenu(String(menu.id));
-        }
+        await api.batchDeleteMenus(selectedMenus.map((menu) => String(menu.id)));
         setSelectedMenus([]);
         resetMenuForm();
         await reload();
@@ -637,62 +724,85 @@ export function MenuManagement() {
     <PageLayout
       title={t.menu.systemMenus}
       actions={canQueryMenu ? (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-[26px] border border-slate-200/70 bg-white/72 p-3 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
           {selectedMenus.length > 0 && (
             <>
               {canUpdateMenu && menusToEnable.length > 0 ? (
                 <Button
                   variant="outline"
                   onClick={() => handleBatchMenuStatus(true)}
-                  className="gap-2 border-emerald-100 text-emerald-700 hover:bg-emerald-50 transition-all shadow-sm"
+                  className="h-11 gap-2 rounded-2xl border-emerald-200/80 bg-emerald-50/80 px-4 text-emerald-700 shadow-sm shadow-emerald-100/60 transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50"
                 >
                   <Power className="w-4 h-4" />
-                  {zh ? `批量启用 (${menusToEnable.length})` : `Enable (${menusToEnable.length})`}
+                  {copy.buttons.batchEnable(menusToEnable.length)}
                 </Button>
               ) : null}
               {canUpdateMenu && menusToDisable.length > 0 ? (
                 <Button
                   variant="outline"
                   onClick={() => handleBatchMenuStatus(false)}
-                  className="gap-2 border-amber-100 text-amber-700 hover:bg-amber-50 transition-all shadow-sm"
+                  className="h-11 gap-2 rounded-2xl border-amber-200/80 bg-amber-50/80 px-4 text-amber-700 shadow-sm shadow-amber-100/60 transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50"
                 >
                   <PowerOff className="w-4 h-4" />
-                  {zh ? `批量禁用 (${menusToDisable.length})` : `Disable (${menusToDisable.length})`}
+                  {copy.buttons.batchDisable(menusToDisable.length)}
                 </Button>
               ) : null}
               {canDeleteMenu ? (
                 <Button
                   variant="outline"
                   onClick={handleBatchDelete}
-                  className="gap-2 border-red-100 text-red-600 hover:bg-red-50 transition-all shadow-sm"
+                  className="h-11 gap-2 rounded-2xl border-rose-200/80 bg-rose-50/80 px-4 text-rose-600 shadow-sm shadow-rose-100/60 transition-all hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-50"
                 >
                   <Trash2 className="w-4 h-4" />
-                  {zh ? `批量删除 (${selectedMenus.length})` : `Delete (${selectedMenus.length})`}
+                  {copy.buttons.batchDelete(selectedMenus.length)}
                 </Button>
               ) : null}
             </>
           )}
-          <Button variant="outline" size="icon" onClick={expandAll} className="h-10 w-10 border-gray-200" title="全部展开">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={expandAll}
+            className="h-11 w-11 rounded-2xl border-slate-200/80 bg-white/90 text-slate-500 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900"
+            title={copy.titles.expandAll}
+          >
             <ChevronDown className="w-4 h-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={collapseAll} className="h-10 w-10 border-gray-200 mr-2" title="全部收起">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={collapseAll}
+            className="mr-1 h-11 w-11 rounded-2xl border-slate-200/80 bg-white/90 text-slate-500 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900"
+            title={copy.titles.collapseAll}
+          >
             <ChevronRight className="w-4 h-4" />
           </Button>
 
           {canCreateMenu ? (
-            <Button variant="outline" onClick={() => setDialogOpen('import', true)} className="gap-2 border-gray-100 bg-white shadow-sm">
+            <Button
+              variant="outline"
+              onClick={() => setDialogOpen('import', true)}
+              className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+            >
               <Upload className="w-4 h-4" />
               {t.actions.import}
             </Button>
           ) : null}
           {canExportMenu ? (
-            <Button variant="outline" onClick={() => setDialogOpen('export', true)} className="gap-2 border-gray-100 bg-white shadow-sm">
+            <Button
+              variant="outline"
+              onClick={() => setDialogOpen('export', true)}
+              className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+            >
               <Download className="w-4 h-4" />
               {t.actions.export}
             </Button>
           ) : null}
           {canCreateMenu ? (
-            <Button onClick={openAddDialog} className="gap-2 bg-primary shadow-sm hover:shadow-md transition-all active:scale-95">
+            <Button
+              onClick={openAddDialog}
+              className="h-11 gap-2 rounded-2xl bg-primary px-4 shadow-[0_16px_30px_-18px_rgba(var(--primary),0.7)] transition-all active:scale-95 hover:-translate-y-0.5 hover:bg-primary/92 hover:shadow-[0_18px_34px_-18px_rgba(var(--primary),0.75)]"
+            >
               <Plus className="w-4 h-4" />
               {t.actions.add}
             </Button>
@@ -717,7 +827,7 @@ export function MenuManagement() {
       />
 
       {/* 2. 数据列表展示区（统一使用树形表格） */}
-      <Card className="border-none shadow-sm overflow-hidden bg-white/80 backdrop-blur-xl p-0">
+      <Card className="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/88 p-0 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.28)] backdrop-blur-sm">
         <MenuTreeTable
           data={flattenedDisplayData}
           expandedKeys={expandedKeys}
@@ -728,7 +838,7 @@ export function MenuManagement() {
           onStatusChange={async (menu, enabled) => {
             openMenuStatusConfirm(menu, enabled, async () => {
               try {
-                await api.updateMenu(String(menu.id), { status: enabled ? 'active' : 'inactive' });
+                await api.batchUpdateMenuStatus([String(menu.id)], enabled ? 'active' : 'inactive');
                 await reload();
               } catch {
                 toast.error(menuMessages.statusUpdateFailed);
@@ -778,6 +888,7 @@ export function MenuManagement() {
     </PageLayout>
   );
 }
+
 
 
 

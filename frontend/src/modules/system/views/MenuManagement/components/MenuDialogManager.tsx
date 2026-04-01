@@ -48,7 +48,11 @@ export const MenuDialogManager: React.FC<MenuDialogManagerProps> = ({
   deleteDescription,
   statusHint,
 }) => {
-  const { t } = useLanguageStore();
+  const { t, language } = useLanguageStore();
+  const zh = language === 'zh';
+  const templateHeaders = zh
+    ? ['名称', '编码', '上级ID', '类型', '路径', '图标', '权限标识', '排序']
+    : ['Name', 'Code', 'ParentId', 'Type', 'Path', 'Icon', 'Permission', 'Sort'];
 
   return (
     <>
@@ -84,7 +88,7 @@ export const MenuDialogManager: React.FC<MenuDialogManagerProps> = ({
         mode="import"
         resourceName={t.menu.systemMenus}
         onImport={handlers.onImport}
-        templateHeaders={['Name', 'Code', 'ParentId', 'Type', 'Path', 'Icon', 'Permission', 'Sort']}
+        templateHeaders={templateHeaders}
       />
 
       <DataImportExportDialog

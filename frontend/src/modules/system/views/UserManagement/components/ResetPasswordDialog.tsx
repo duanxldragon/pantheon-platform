@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Info, Key } from 'lucide-react';
-
 import { Alert, AlertDescription } from '../../../../../components/ui/alert';
 import { Input } from '../../../../../components/ui/input';
 import { FormDialog } from '../../../../../shared/components/ui/FormDialog';
@@ -31,29 +30,40 @@ export function ResetPasswordDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const copy = {
-    emptyPassword: zh ? '请输入新密码' : 'Please enter a new password',
-    passwordTooShort: zh ? '密码长度至少为 6 位' : 'Password must be at least 6 characters',
-    mismatch: zh ? '两次输入的密码不一致' : 'The two passwords do not match',
-    failed: zh ? '密码重置失败，请稍后重试' : 'Failed to reset password. Please try again later.',
-    title: zh ? '重置密码' : 'Reset Password',
-    description:
-      realName || username
-        ? zh
-          ? `为 ${realName || username} 重置登录密码`
-          : `Reset sign-in password for ${realName || username}`
-        : zh
-          ? '重置用户登录密码'
-          : 'Reset user sign-in password',
-    cancel: zh ? '取消' : 'Cancel',
-    submit: zh ? '确认重置' : 'Confirm Reset',
-    submitting: zh ? '重置中...' : 'Resetting...',
-    tip: zh ? '建议使用强密码，并在重置后通知用户及时修改。' : 'Use a strong password and ask the user to change it after reset.',
-    newPassword: zh ? '新密码' : 'New Password',
-    confirmPassword: zh ? '确认密码' : 'Confirm Password',
-    newPasswordPlaceholder: zh ? '请输入新密码' : 'Enter new password',
-    confirmPasswordPlaceholder: zh ? '请再次输入新密码' : 'Enter the new password again',
-  };
+  const copy = zh
+    ? {
+        emptyPassword: '请输入新密码',
+        passwordTooShort: '密码长度至少为 6 位',
+        mismatch: '两次输入的密码不一致',
+        failed: '密码重置失败，请稍后重试',
+        title: '重置密码',
+        description: realName || username ? `为 ${realName || username} 重置登录密码` : '重置用户登录密码',
+        cancel: '取消',
+        submit: '确认重置',
+        submitting: '重置中...',
+        tip: '建议使用强密码，并在重置后通知用户及时修改。',
+        newPassword: '新密码',
+        confirmPassword: '确认密码',
+        newPasswordPlaceholder: '请输入新密码',
+        confirmPasswordPlaceholder: '请再次输入新密码',
+      }
+    : {
+        emptyPassword: 'Please enter a new password',
+        passwordTooShort: 'Password must be at least 6 characters',
+        mismatch: 'The two passwords do not match',
+        failed: 'Failed to reset password. Please try again later.',
+        title: 'Reset Password',
+        description:
+          realName || username ? `Reset sign-in password for ${realName || username}` : 'Reset user sign-in password',
+        cancel: 'Cancel',
+        submit: 'Confirm Reset',
+        submitting: 'Resetting...',
+        tip: 'Use a strong password and ask the user to change it after reset.',
+        newPassword: 'New Password',
+        confirmPassword: 'Confirm Password',
+        newPasswordPlaceholder: 'Enter new password',
+        confirmPasswordPlaceholder: 'Enter the new password again',
+      };
 
   const resetState = () => {
     setPassword('');
@@ -111,12 +121,12 @@ export function ResetPasswordDialog({
       cancelText={copy.cancel}
       submitText={copy.submit}
       submittingText={copy.submitting}
-      width="max-w-md"
+      width="sm:max-w-[520px]"
     >
       <div className="space-y-6">
-        <Alert className="border-blue-200 bg-blue-50">
+        <Alert className="rounded-[24px] border border-blue-200/70 bg-blue-50/85 shadow-sm shadow-blue-100/60">
           <Info className="h-4 w-4 text-blue-600" />
-          <AlertDescription className="ml-2 text-sm text-blue-800">{copy.tip}</AlertDescription>
+          <AlertDescription className="ml-2 text-sm text-blue-900/80">{copy.tip}</AlertDescription>
         </Alert>
 
         <FormField label={copy.newPassword} required>
@@ -139,11 +149,11 @@ export function ResetPasswordDialog({
           />
         </FormField>
 
-        {error && (
-          <Alert variant="destructive">
+        {error ? (
+          <Alert variant="destructive" className="rounded-[24px] border border-rose-200/80 bg-rose-50/90 shadow-sm shadow-rose-100/60">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
-        )}
+        ) : null}
       </div>
     </FormDialog>
   );
@@ -164,18 +174,18 @@ function PasswordInput({
 }) {
   return (
     <div className="relative">
-      <Key className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+      <Key className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
       <Input
         type={visible ? 'text' : 'password'}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="bg-white pl-10 pr-10"
+        className="h-11 rounded-2xl border-slate-200/80 bg-white/90 pl-10 pr-11 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10"
       />
       <button
         type="button"
         onClick={onToggleVisible}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+        className="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-600"
       >
         {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
       </button>

@@ -16,38 +16,48 @@ export function TenantStatsCards({ stats }: TenantStatsProps) {
   const { language } = useLanguageStore();
   const zh = language === 'zh';
 
+  const copy = zh
+    ? {
+        total: { label: '租户总数', desc: '当前平台已接入的租户数量' },
+        active: { label: '运行中', desc: '状态正常、可持续登录使用' },
+        suspended: { label: '已停用', desc: '被停用或策略限制的租户' },
+        warning: { label: '资源预警', desc: '用户配额接近上限的租户' },
+      }
+    : {
+        total: { label: 'Total Tenants', desc: 'Tenants currently onboarded' },
+        active: { label: 'Active', desc: 'Healthy tenants that can sign in normally' },
+        suspended: { label: 'Suspended', desc: 'Tenants suspended or restricted by policy' },
+        warning: { label: 'Warnings', desc: 'Tenants nearing their user quota limit' },
+      };
+
   const items = [
     {
-      label: zh ? '租户总数' : 'Total Tenants',
+      ...copy.total,
       value: stats.total,
       icon: Building2,
       color: 'text-blue-600',
       bg: 'bg-blue-50',
-      desc: zh ? '当前平台已接入的租户数量' : 'Tenants currently onboarded',
     },
     {
-      label: zh ? '运行中' : 'Active',
+      ...copy.active,
       value: stats.active,
       icon: Zap,
       color: 'text-emerald-600',
       bg: 'bg-emerald-50',
-      desc: zh ? '状态正常、可持续登录使用' : 'Healthy tenants that can sign in normally',
     },
     {
-      label: zh ? '已停用' : 'Suspended',
+      ...copy.suspended,
       value: stats.suspended,
       icon: ShieldAlert,
       color: 'text-rose-600',
       bg: 'bg-rose-50',
-      desc: zh ? '被停用或策略限制的租户' : 'Tenants suspended or restricted by policy',
     },
     {
-      label: zh ? '资源预警' : 'Warnings',
+      ...copy.warning,
       value: stats.warning,
       icon: Activity,
       color: 'text-amber-600',
       bg: 'bg-amber-50',
-      desc: zh ? '用户配额接近上限的租户' : 'Tenants nearing their user quota limit',
     },
   ];
 

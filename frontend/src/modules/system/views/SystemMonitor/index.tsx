@@ -1,26 +1,27 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+
+import { CheckCircle2, Download, RefreshCw, Users, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { RefreshCw, Download, CheckCircle2, XCircle, Users } from 'lucide-react';
 
 import { PageLayout } from '../../../../components/layouts/PageLayout';
+import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import { Card } from '../../../../components/ui/card';
-import { Badge } from '../../../../components/ui/badge';
-import { useLanguageStore } from '../../../../stores/languageStore';
-import { useAuthStore } from '../../../auth/store/authStore';
 import { QueryAccessBoundary } from '../../../../shared/components/QueryAccessBoundary';
 import { useActionPermissionDialogGuard } from '../../../../shared/hooks/useActionPermissionDialogGuard';
+import { useLanguageStore } from '../../../../stores/languageStore';
+import { useAuthStore } from '../../../auth/store/authStore';
 import { api } from '../../api';
 import type { MonitorOverview } from '../../api/monitorApi';
 import { systemPermissions } from '../../constants/permissions';
 import { createEntityFeedback } from '../../utils/feedback';
 
 function formatDuration(sec: number): string {
-  const s = Math.max(0, Math.floor(sec));
-  const days = Math.floor(s / 86400);
-  const hours = Math.floor((s % 86400) / 3600);
-  const minutes = Math.floor((s % 3600) / 60);
-  const seconds = s % 60;
+  const secondsTotal = Math.max(0, Math.floor(sec));
+  const days = Math.floor(secondsTotal / 86400);
+  const hours = Math.floor((secondsTotal % 86400) / 3600);
+  const minutes = Math.floor((secondsTotal % 3600) / 60);
+  const seconds = secondsTotal % 60;
   const parts: string[] = [];
   if (days) parts.push(`${days}d`);
   if (hours || days) parts.push(`${hours}h`);
@@ -30,33 +31,41 @@ function formatDuration(sec: number): string {
 }
 
 function formatBytes(bytes: number): string {
-  const b = Math.max(0, Number(bytes) || 0);
+  const normalizedBytes = Math.max(0, Number(bytes) || 0);
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let v = b;
-  let i = 0;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
-    i += 1;
+  let value = normalizedBytes;
+  let index = 0;
+
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024;
+    index += 1;
   }
-  return `${v.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+
+  return `${value.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
 function downloadJson(name: string, data: unknown) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
   URL.revokeObjectURL(url);
 }
 
 export function SystemMonitor() {
-  const { t } = useLanguageStore();
+  const { t, language } = useLanguageStore();
   const i18n = t.systemManagement.monitor;
-  const zh = t.language === 'zh';
+  const zh = language === 'zh';
+  const copy = {
+    exportSnapshot: zh ? '导出监控快照' : 'Export Snapshot',
+    master: zh ? '主库' : 'Master',
+    redisAndUsers: i18n.redisOnlineTitle || (zh ? 'Redis 与在线用户' : 'Redis & Online Users'),
+    onlineUsers: i18n.onlineUsers || (zh ? '在线用户' : 'Online Users'),
+  };
   const monitorOverviewMessages = createEntityFeedback(zh, { zh: '监控概览', en: 'Monitor overview' });
   const monitorSnapshotMessages = createEntityFeedback(zh, { zh: '监控快照', en: 'Monitor snapshot' });
   const hasPermission = useAuthStore((state) => state.hasPermission);
@@ -65,6 +74,10 @@ export function SystemMonitor() {
 
   const [loading, setLoading] = useState(false);
   const [overview, setOverview] = useState<MonitorOverview | null>(null);
+  const summaryCardClass =
+    'h-full rounded-[24px] border border-slate-200/70 bg-white/88 p-5 shadow-[0_20px_48px_-32px_rgba(15,23,42,0.25)] backdrop-blur-sm';
+  const panelCardClass =
+    'h-full rounded-[28px] border border-slate-200/70 bg-white/88 p-5 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.28)] backdrop-blur-sm';
   const { ensureActionPermission } = useActionPermissionDialogGuard({
     pageTitle: i18n.pageTitle,
     dialogs: {},
@@ -78,6 +91,7 @@ export function SystemMonitor() {
       setLoading(false);
       return;
     }
+
     setLoading(true);
     try {
       const data = await api.getOverview();
@@ -95,46 +109,43 @@ export function SystemMonitor() {
       return;
     }
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canQueryMonitor]);
 
   return (
     <PageLayout
       title={i18n.pageTitle}
       description={i18n.pageDescription}
-      actions={canQueryMonitor ? (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void load()}
-            className="gap-2 border-gray-200"
-            disabled={loading}
-          >
-            <RefreshCw className="w-4 h-4 text-primary" />
-            {i18n.refresh}
-          </Button>
-          {canExportMonitor ? (
+      actions={
+        canQueryMonitor ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-[26px] border border-slate-200/70 bg-white/72 p-3 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
             <Button
               variant="outline"
-              size="sm"
-              onClick={() => {
-                if (!ensureActionPermission(canExportMonitor, zh ? '导出监控快照' : 'export snapshot')) return;
-                if (!overview) {
-                  return;
-                }
-                downloadJson(`monitor-snapshot-${new Date().toISOString()}.json`, overview);
-                toast.success(monitorSnapshotMessages.exportSuccess);
-              }}
-              className="gap-2 border-gray-200"
-              disabled={!overview}
+              onClick={() => void load()}
+              className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+              disabled={loading}
             >
-              <Download className="w-4 h-4" />
-              {i18n.exportSnapshot}
+              <RefreshCw className="h-4 w-4 text-primary" />
+              {i18n.refresh}
             </Button>
-          ) : null}
-        </div>
-      ) : undefined}
+            {canExportMonitor ? (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (!ensureActionPermission(canExportMonitor, copy.exportSnapshot)) return;
+                  if (!overview) return;
+                  downloadJson(`monitor-snapshot-${new Date().toISOString()}.json`, overview);
+                  toast.success(monitorSnapshotMessages.exportSuccess);
+                }}
+                className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+                disabled={!overview}
+              >
+                <Download className="h-4 w-4" />
+                {i18n.exportSnapshot}
+              </Button>
+            ) : null}
+          </div>
+        ) : undefined
+      }
     >
       {!canQueryMonitor ? (
         <QueryAccessBoundary
@@ -143,137 +154,133 @@ export function SystemMonitor() {
           queryPermission={systemPermissions.monitor.query}
         />
       ) : (
-      <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <div className="text-xs text-gray-500">{i18n.uptime}</div>
-          <div className="mt-2 text-xl font-semibold text-gray-900">
-            {overview ? formatDuration(overview.uptime_sec) : '-'}
-          </div>
-          {overview?.timestamp && (
-            <div className="mt-1 text-[11px] text-gray-400">{new Date(overview.timestamp).toLocaleString()}</div>
-          )}
-        </Card>
-        <Card className="p-4">
-          <div className="text-xs text-gray-500">{i18n.goroutines}</div>
-          <div className="mt-2 text-xl font-semibold text-gray-900">{overview?.goroutines ?? '-'}</div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-xs text-gray-500">{i18n.goVersion}</div>
-          <div className="mt-2 text-sm font-semibold text-gray-900 break-all">{overview?.go_version ?? '-'}</div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-xs text-gray-500">{i18n.numCPU}</div>
-          <div className="mt-2 text-xl font-semibold text-gray-900">{overview?.num_cpu ?? '-'}</div>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
-        <Card className="p-4 lg:col-span-1">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-gray-900">{t.systemManagement.monitor.coreResourcesTitle}</div>
-            <Badge variant="outline">{overview?.tenant_id ? `tenant: ${overview.tenant_id}` : 'master'}</Badge>
-          </div>
-          <div className="mt-4 space-y-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-500">{i18n.memoryAlloc}</span>
-              <span className="font-medium text-gray-900">
-                {overview ? formatBytes(overview.memory.alloc) : '-'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-500">{i18n.heapAlloc}</span>
-              <span className="font-medium text-gray-900">
-                {overview ? formatBytes(overview.memory.heap_alloc) : '-'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-500">{i18n.memorySys}</span>
-              <span className="font-medium text-gray-900">
-                {overview ? formatBytes(overview.memory.sys) : '-'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-500">GC</span>
-              <span className="font-medium text-gray-900">{overview?.memory.num_gc ?? '-'}</span>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4 lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <div className="text-sm font-semibold text-gray-900">{i18n.serviceHealthTitle}</div>
-            {overview?.services?.every((s) => s.ok) ? (
-              <Badge className="bg-emerald-100 text-emerald-700">{i18n.allServicesRunning}</Badge>
-            ) : (
-              <Badge className="bg-rose-100 text-rose-700">{t.status.warning}</Badge>
-            )}
+        <>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className={summaryCardClass}>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{i18n.uptime}</div>
+              <div className="mt-3 text-2xl font-semibold text-slate-900">
+                {overview ? formatDuration(overview.uptime_sec) : '-'}
+              </div>
+              {overview?.timestamp ? (
+                <div className="mt-2 text-[11px] text-slate-400">{new Date(overview.timestamp).toLocaleString()}</div>
+              ) : null}
+            </Card>
+            <Card className={summaryCardClass}>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{i18n.goroutines}</div>
+              <div className="mt-3 text-2xl font-semibold text-slate-900">{overview?.goroutines ?? '-'}</div>
+            </Card>
+            <Card className={summaryCardClass}>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{i18n.goVersion}</div>
+              <div className="mt-3 break-all text-sm font-semibold text-slate-900">{overview?.go_version ?? '-'}</div>
+            </Card>
+            <Card className={summaryCardClass}>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{i18n.numCPU}</div>
+              <div className="mt-3 text-2xl font-semibold text-slate-900">{overview?.num_cpu ?? '-'}</div>
+            </Card>
           </div>
 
-          <div className="space-y-2">
-            {(overview?.services || []).map((s) => (
-              <div key={s.name} className="flex items-start justify-between gap-4 p-3 border rounded-lg bg-white">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    {s.ok ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    ) : (
-                      <XCircle className="w-4 h-4 text-rose-600" />
-                    )}
-                    <span className="font-medium text-gray-900">{s.name}</span>
-                    <Badge variant="outline">{s.ok ? t.status.healthy : t.status.error}</Badge>
+          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <Card className={`${panelCardClass} lg:col-span-1`}>
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold text-slate-900">{i18n.coreResourcesTitle}</div>
+                <Badge variant="outline" className="rounded-full border-slate-200 bg-white/90 px-3 py-1">
+                  {overview?.tenant_id ? `tenant: ${overview.tenant_id}` : copy.master}
+                </Badge>
+              </div>
+              <div className="mt-4 space-y-3 text-sm">
+                <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/85 px-4 py-3">
+                  <span className="text-slate-500">{i18n.memoryAlloc}</span>
+                  <span className="font-semibold text-slate-900">{overview ? formatBytes(overview.memory.alloc) : '-'}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/85 px-4 py-3">
+                  <span className="text-slate-500">{i18n.heapAlloc}</span>
+                  <span className="font-semibold text-slate-900">{overview ? formatBytes(overview.memory.heap_alloc) : '-'}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/85 px-4 py-3">
+                  <span className="text-slate-500">{i18n.memorySys}</span>
+                  <span className="font-semibold text-slate-900">{overview ? formatBytes(overview.memory.sys) : '-'}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/85 px-4 py-3">
+                  <span className="text-slate-500">GC</span>
+                  <span className="font-semibold text-slate-900">{overview?.memory.num_gc ?? '-'}</span>
+                </div>
+              </div>
+            </Card>
+
+            <Card className={`${panelCardClass} lg:col-span-2`}>
+              <div className="mb-4 flex items-center justify-between">
+                <div className="text-sm font-semibold text-slate-900">{i18n.serviceHealthTitle}</div>
+                {overview?.services?.every((service) => service.ok) ? (
+                  <Badge className="rounded-full bg-emerald-100 text-emerald-700">{i18n.allServicesRunning}</Badge>
+                ) : (
+                  <Badge className="rounded-full bg-rose-100 text-rose-700">{t.status.warning}</Badge>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                {(overview?.services || []).map((service) => (
+                  <div
+                    key={service.name}
+                    className="flex items-start justify-between gap-4 rounded-2xl border border-slate-100 bg-white/92 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-200 hover:shadow-sm"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        {service.ok ? (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-rose-600" />
+                        )}
+                        <span className="font-medium text-slate-900">{service.name}</span>
+                        <Badge variant="outline" className="rounded-full bg-slate-50">
+                          {service.ok ? t.status.healthy : t.status.error}
+                        </Badge>
+                      </div>
+                      {service.error ? <div className="mt-1 break-all text-xs text-rose-700">{service.error}</div> : null}
+                    </div>
+                    <div className="rounded-full bg-slate-50 px-3 py-1 text-xs text-slate-500">{service.latency_ms} ms</div>
                   </div>
-                  {s.error && <div className="mt-1 text-xs text-rose-700 break-all">{s.error}</div>}
+                ))}
+
+                {!overview?.services?.length ? (
+                  <div className="py-10 text-center text-sm text-slate-500">{t.common.noData}</div>
+                ) : null}
+              </div>
+            </Card>
+
+            <Card className={panelCardClass}>
+              <div className="mb-4 flex items-center justify-between">
+                <div className="text-sm font-semibold text-slate-900">{copy.redisAndUsers}</div>
+              </div>
+              <div className="space-y-4">
+                {overview?.redis ? (
+                  <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white/92 p-4">
+                    <div className="flex items-center gap-2">
+                      {overview.redis.ok ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-rose-600" />
+                      )}
+                      <span className="font-medium text-slate-900">Redis</span>
+                      <Badge variant="outline" className="rounded-full bg-slate-50">
+                        {overview.redis.ok ? t.status.healthy : t.status.error}
+                      </Badge>
+                    </div>
+                    <div className="rounded-full bg-slate-50 px-3 py-1 text-xs text-slate-500">{overview.redis.latency_ms} ms</div>
+                  </div>
+                ) : null}
+
+                <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white/92 p-4">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-blue-600" />
+                    <span className="font-medium text-slate-900">{copy.onlineUsers}</span>
+                  </div>
+                  <Badge className="rounded-full bg-blue-100 text-blue-700">{overview?.online?.count ?? '-'}</Badge>
                 </div>
-                <div className="text-xs text-gray-500 whitespace-nowrap">{s.latency_ms} ms</div>
               </div>
-            ))}
-
-            {!overview?.services?.length && (
-              <div className="text-sm text-gray-500 py-10 text-center">{t.common.noData}</div>
-            )}
+            </Card>
           </div>
-        </Card>
-
-        {/* Redis Status & Online Users */}
-        <Card className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="text-sm font-semibold text-gray-900">{i18n.redisOnlineTitle || 'Redis & Online Users'}</div>
-          </div>
-          <div className="space-y-4">
-            {/* Redis Status */}
-            {overview?.redis && (
-              <div className="flex items-center justify-between p-3 border rounded-lg bg-white">
-                <div className="flex items-center gap-2">
-                  {overview.redis.ok ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  ) : (
-                    <XCircle className="w-4 h-4 text-rose-600" />
-                  )}
-                  <span className="font-medium text-gray-900">Redis</span>
-                  <Badge variant="outline">{overview.redis.ok ? t.status.healthy : t.status.error}</Badge>
-                </div>
-                <div className="text-xs text-gray-500">{overview.redis.latency_ms} ms</div>
-              </div>
-            )}
-
-            {/* Online Users */}
-            <div className="flex items-center justify-between p-3 border rounded-lg bg-white">
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-blue-600" />
-                <span className="font-medium text-gray-900">{i18n.onlineUsers || 'Online Users'}</span>
-              </div>
-              <Badge className="bg-blue-100 text-blue-700">
-                {overview?.online?.count ?? '-'}
-              </Badge>
-            </div>
-          </div>
-        </Card>
-      </div>
-      </>
+        </>
       )}
     </PageLayout>
   );
 }
-
-

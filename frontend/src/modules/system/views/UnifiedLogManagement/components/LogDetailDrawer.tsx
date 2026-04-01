@@ -4,7 +4,8 @@ import { format } from 'date-fns';
 import { enUS, zhCN } from 'date-fns/locale';
 
 import { Badge } from '../../../../../components/ui/badge';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '../../../../../components/ui/sheet';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../../../../components/ui/dialog';
+import { getDialogClassName, getDialogStyle } from '../../../../../shared/constants/dialogSizes';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import {
   getAuditDetailEntries,
@@ -25,6 +26,12 @@ interface LogDetailDrawerProps {
 export const LogDetailDrawer: React.FC<LogDetailDrawerProps> = ({ log, open, onOpenChange }) => {
   const { t, language } = useLanguageStore();
   const dateLocale = language === 'zh' ? zhCN : enUS;
+  const idLabel = language === 'zh' ? '编号' : 'ID';
+  const overviewLabel = language === 'zh' ? '概览' : 'Overview';
+  const statusLabel = language === 'zh' ? '状态' : 'Status';
+  const targetLabel = language === 'zh' ? '对象' : 'Target';
+  const requestSummaryLabel = language === 'zh' ? '请求摘要' : 'Request Summary';
+  const loginSummaryLabel = language === 'zh' ? '登录摘要' : 'Login Summary';
 
   if (!log) {
     return null;
@@ -41,19 +48,36 @@ export const LogDetailDrawer: React.FC<LogDetailDrawerProps> = ({ log, open, onO
     icon: React.ComponentType<{ className?: string }>;
     color?: string;
   }) => (
-    <div className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100 group">
+    <div className="group flex items-start gap-3 rounded-[24px] border border-slate-200/70 bg-white/92 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white">
       <div
-        className={`mt-0.5 p-2 rounded-lg bg-white shadow-sm border border-gray-100 group-hover:scale-110 transition-transform ${
-          color || 'text-gray-400'
+        className={`mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200/70 bg-slate-50/90 transition-transform group-hover:scale-105 ${
+          color || 'text-slate-400'
         }`}
       >
-        <Icon className="w-4 h-4" />
+        <Icon className="h-4 w-4" />
       </div>
-      <div className="flex flex-col gap-0.5 min-w-0">
-        <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{label}</span>
-        <span className="text-sm text-gray-700 font-semibold break-all">
+      <div className="min-w-0 flex flex-col gap-0.5">
+        <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400">{label}</span>
+        <span className="break-all text-sm font-semibold text-slate-700">
           {value === undefined || value === null || value === '' ? '-' : value}
         </span>
+      </div>
+    </div>
+  );
+
+  const SummaryCard = ({
+    label,
+    value,
+    accent,
+  }: {
+    label: string;
+    value?: string | number | null;
+    accent?: string;
+  }) => (
+    <div className="rounded-[24px] border border-slate-200/70 bg-white/92 p-4 shadow-[0_18px_36px_-32px_rgba(15,23,42,0.24)]">
+      <div className="text-[11px] font-medium uppercase tracking-wider text-slate-400">{label}</div>
+      <div className={`mt-2 break-all text-sm font-semibold ${accent || 'text-slate-900'}`}>
+        {value === undefined || value === null || value === '' ? '-' : value}
       </div>
     </div>
   );
@@ -64,12 +88,12 @@ export const LogDetailDrawer: React.FC<LogDetailDrawerProps> = ({ log, open, onO
     }
 
     return (
-      <section className="bg-slate-900 p-5 rounded-2xl shadow-inner space-y-3">
-        <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-          <FileJson className="w-3 h-3" /> {title}
+      <section className="space-y-3 rounded-[28px] bg-slate-900 p-5 shadow-inner">
+        <h4 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+          <FileJson className="h-3 w-3" /> {title}
         </h4>
-        <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 overflow-auto">
-          <pre className="text-emerald-400 font-mono text-xs leading-relaxed whitespace-pre-wrap break-all">{value}</pre>
+        <div className="overflow-auto rounded-2xl border border-slate-700/50 bg-slate-800/50 p-4">
+          <pre className="whitespace-pre-wrap break-all font-mono text-xs leading-relaxed text-emerald-400">{value}</pre>
         </div>
       </section>
     );
@@ -81,34 +105,69 @@ export const LogDetailDrawer: React.FC<LogDetailDrawerProps> = ({ log, open, onO
   const detailMap = log.kind === 'operation' ? parseAuditDetail(log.detail) : {};
   const detailEntries =
     log.kind === 'operation'
-      ? getAuditDetailEntries(log.detail).filter(
-          (item) => !['affected_users', 'affected_roles', 'refresh_strategy', 'session_strategy'].includes(item.key)
+      ? getAuditDetailEntries(log.detail, language).filter(
+          (item) => !['affected_users', 'affected_roles', 'refresh_strategy', 'session_strategy'].includes(item.key),
         )
       : [];
   const resourceBadgeClass = log.kind === 'operation' ? getAuditResourceBadgeClass(log.resource) : '';
 
   const timestamp = log.kind === 'login' ? log.loginAt : log.createdAt;
   const formatted = format(new Date(timestamp), 'yyyy-MM-dd HH:mm:ss', { locale: dateLocale });
+  const statusText =
+    log.status === 'success'
+      ? t.modules.deploy.status.success
+      : log.status === 'failure'
+        ? t.modules.deploy.status.failed
+        : log.status;
+  const targetText =
+    log.kind === 'operation'
+      ? `${log.resourceName || log.resource || '-'}${log.resourceId ? ` / ${log.resourceId}` : ''}`
+      : `${log.browser || '-'} / ${log.os || '-'}`;
+  const summaryText =
+    log.kind === 'operation' ? `${log.method || ''} ${log.requestUrl || ''}`.trim() : log.message || '-';
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-2xl overflow-y-auto custom-scrollbar bg-slate-50/50 backdrop-blur-xl border-l border-white/20 shadow-2xl">
-        <SheetHeader className="mb-6">
-          <div className="flex items-center gap-2 mb-2 flex-wrap">
-            <Badge className={tagClass}>{log.kind === 'login' ? t.systemManagement.logs.tabLogin : t.systemManagement.logs.tabOperation}</Badge>
-            <div className="h-1 w-1 rounded-full bg-gray-300" />
-            <span className="text-xs text-gray-400">ID: {log.id}</span>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className={getDialogClassName('2xl', 'flex min-h-0 flex-col p-0')} style={getDialogStyle('2xl')}>
+        <DialogHeader className="sticky top-0 z-10 mb-0 shrink-0 border-b border-slate-100/90 bg-slate-50/90 px-6 py-5 text-left backdrop-blur-sm">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <Badge className={tagClass}>
+              {log.kind === 'login' ? t.systemManagement.logs.tabLogin : t.systemManagement.logs.tabOperation}
+            </Badge>
+            <div className="h-1 w-1 rounded-full bg-slate-300" />
+            <span className="text-xs text-slate-400">
+              {idLabel}: {log.id}
+            </span>
           </div>
-          <SheetTitle className="text-xl font-bold text-slate-900">{title}</SheetTitle>
-          <SheetDescription>{description}</SheetDescription>
-        </SheetHeader>
+          <DialogTitle className="text-xl font-bold text-slate-900">{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
 
-        <div className="space-y-6">
-          <section className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100/50 space-y-1">
-            <h4 className="px-3 pb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <User className="w-3 h-3" /> {t.systemManagement.logs.sections.userEnv}
+        <div className="custom-scrollbar flex-1 space-y-6 overflow-y-auto px-6 pb-6 pt-6">
+          <section className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <SummaryCard
+              label={overviewLabel}
+              value={log.kind === 'operation' ? log.summary || log.operation : log.username}
+              accent="text-slate-900"
+            />
+            <SummaryCard
+              label={statusLabel}
+              value={statusText}
+              accent={log.status === 'success' ? 'text-emerald-600' : log.status === 'failure' ? 'text-rose-600' : 'text-slate-900'}
+            />
+            <SummaryCard label={targetLabel} value={targetText} accent="text-cyan-700" />
+            <SummaryCard
+              label={log.kind === 'operation' ? requestSummaryLabel : loginSummaryLabel}
+              value={summaryText}
+              accent="text-slate-700"
+            />
+          </section>
+
+          <section className="space-y-2 rounded-[28px] border border-slate-200/70 bg-white/92 p-4 shadow-[0_18px_36px_-32px_rgba(15,23,42,0.24)]">
+            <h4 className="flex items-center gap-2 px-3 pb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              <User className="h-3 w-3" /> {t.systemManagement.logs.sections.userEnv}
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <DetailItem label={t.systemManagement.logs.fields.username} value={log.username} icon={User} color="text-blue-500" />
               <DetailItem label={t.systemManagement.logs.fields.time} value={formatted} icon={Clock} color="text-amber-500" />
               <DetailItem label={t.systemManagement.logs.fields.ip} value={log.ip} icon={Globe} color="text-emerald-500" />
@@ -116,21 +175,21 @@ export const LogDetailDrawer: React.FC<LogDetailDrawerProps> = ({ log, open, onO
             </div>
           </section>
 
-          <section className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100/50 space-y-1">
-            <h4 className="px-3 pb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <Activity className="w-3 h-3" /> {t.systemManagement.logs.sections.bizAction}
+          <section className="space-y-2 rounded-[28px] border border-slate-200/70 bg-white/92 p-4 shadow-[0_18px_36px_-32px_rgba(15,23,42,0.24)]">
+            <h4 className="flex items-center gap-2 px-3 pb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              <Activity className="h-3 w-3" /> {t.systemManagement.logs.sections.bizAction}
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {log.kind === 'operation' ? (
                 <>
                   <DetailItem label={t.systemManagement.logs.fields.module} value={log.module} icon={Shield} color="text-purple-500" />
                   <DetailItem label={t.systemManagement.logs.fields.operation} value={log.summary || log.operation} icon={Terminal} color="text-slate-700" />
-                  <div className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100 group">
-                    <div className="mt-0.5 p-2 rounded-lg bg-white shadow-sm border border-gray-100 group-hover:scale-110 transition-transform text-cyan-600">
-                      <Shield className="w-4 h-4" />
+                  <div className="group flex items-start gap-3 rounded-[24px] border border-slate-200/70 bg-white/92 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white">
+                    <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200/70 bg-slate-50/90 text-cyan-600 transition-transform group-hover:scale-105">
+                      <Shield className="h-4 w-4" />
                     </div>
-                    <div className="flex flex-col gap-1 min-w-0">
-                      <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">
+                    <div className="min-w-0 flex flex-col gap-1">
+                      <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
                         {t.systemManagement.logs.fields.resource}
                       </span>
                       <Badge variant="outline" className={`w-fit ${resourceBadgeClass}`}>
@@ -160,29 +219,30 @@ export const LogDetailDrawer: React.FC<LogDetailDrawerProps> = ({ log, open, onO
             </div>
           </section>
 
-          {log.kind === 'operation' && (detailMap.affected_users || detailMap.affected_roles || detailMap.refresh_strategy || detailMap.session_strategy) ? (
-            <section className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100/50 space-y-3">
-              <h4 className="px-3 pb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <Shield className="w-3 h-3" /> {t.systemManagement.logs.sections.impactScope}
+          {log.kind === 'operation' &&
+          (detailMap.affected_users || detailMap.affected_roles || detailMap.refresh_strategy || detailMap.session_strategy) ? (
+            <section className="space-y-3 rounded-[28px] border border-slate-200/70 bg-white/92 p-4 shadow-[0_18px_36px_-32px_rgba(15,23,42,0.24)]">
+              <h4 className="flex items-center gap-2 px-3 pb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                <Shield className="h-3 w-3" /> {t.systemManagement.logs.sections.impactScope}
               </h4>
               <div className="flex flex-wrap gap-2 px-3">
                 {detailMap.affected_users ? (
-                  <Badge className="bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-50">
+                  <Badge className="border border-blue-100 bg-blue-50 text-blue-700 hover:bg-blue-50">
                     {t.systemManagement.logs.impact.users.replace('{count}', detailMap.affected_users)}
                   </Badge>
                 ) : null}
                 {detailMap.affected_roles ? (
-                  <Badge className="bg-purple-50 text-purple-700 border border-purple-100 hover:bg-purple-50">
+                  <Badge className="border border-purple-100 bg-purple-50 text-purple-700 hover:bg-purple-50">
                     {t.systemManagement.logs.impact.roles.replace('{count}', detailMap.affected_roles)}
                   </Badge>
                 ) : null}
                 {isRefreshStrategy(detailMap.refresh_strategy) ? (
-                  <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-50">
+                  <Badge className="border border-emerald-100 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
                     {t.systemManagement.logs.impact.authRefresh}
                   </Badge>
                 ) : null}
                 {isRevokeStrategy(detailMap.session_strategy) ? (
-                  <Badge className="bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-50">
+                  <Badge className="border border-amber-100 bg-amber-50 text-amber-700 hover:bg-amber-50">
                     {t.systemManagement.logs.impact.sessionRevoke}
                   </Badge>
                 ) : null}
@@ -191,11 +251,11 @@ export const LogDetailDrawer: React.FC<LogDetailDrawerProps> = ({ log, open, onO
           ) : null}
 
           {log.kind === 'operation' && detailEntries.length > 0 ? (
-            <section className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100/50 space-y-3">
-              <h4 className="px-3 pb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <Info className="w-3 h-3" /> {t.systemManagement.logs.fields.detail}
+            <section className="space-y-3 rounded-[28px] border border-slate-200/70 bg-white/92 p-4 shadow-[0_18px_36px_-32px_rgba(15,23,42,0.24)]">
+              <h4 className="flex items-center gap-2 px-3 pb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                <Info className="h-3 w-3" /> {t.systemManagement.logs.fields.detail}
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {detailEntries.map((item) => (
                   <DetailItem key={item.key} label={item.label} value={item.value} icon={Info} color="text-slate-500" />
                 ))}
@@ -211,19 +271,19 @@ export const LogDetailDrawer: React.FC<LogDetailDrawerProps> = ({ log, open, onO
           ) : null}
 
           {(log.kind === 'operation' && log.errorMsg) || (log.kind === 'login' && log.message) ? (
-            <section className="bg-slate-900 p-5 rounded-2xl shadow-inner space-y-3">
-              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <Terminal className="w-3 h-3" /> {t.systemManagement.logs.sections.detailNote}
+            <section className="space-y-3 rounded-[28px] bg-slate-900 p-5 shadow-inner">
+              <h4 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                <Terminal className="h-3 w-3" /> {t.systemManagement.logs.sections.detailNote}
               </h4>
-              <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
-                <pre className="text-emerald-400 font-mono text-xs leading-relaxed whitespace-pre-wrap break-all">
+              <div className="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-4">
+                <pre className="whitespace-pre-wrap break-all font-mono text-xs leading-relaxed text-emerald-400">
                   {log.kind === 'operation' ? log.errorMsg : log.message}
                 </pre>
               </div>
             </section>
           ) : null}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 };

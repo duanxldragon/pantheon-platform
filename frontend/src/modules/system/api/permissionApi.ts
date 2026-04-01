@@ -88,7 +88,12 @@ export const permissionApi = {
   },
 
   batchDeletePermissions: async (ids: string[]): Promise<boolean> => {
-    await Promise.all(ids.map((id) => http.delete(`/v1/system/permissions/${id}`)));
+    await http.post('/v1/system/permissions/batch-delete', { permission_ids: ids });
+    return true;
+  },
+
+  batchUpdatePermissionStatus: async (ids: string[], status: 'active' | 'inactive'): Promise<boolean> => {
+    await http.patch('/v1/system/permissions/status', { permission_ids: ids, status });
     return true;
   },
 };

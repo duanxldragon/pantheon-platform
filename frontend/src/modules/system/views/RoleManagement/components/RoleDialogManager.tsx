@@ -41,7 +41,13 @@ export const RoleDialogManager: React.FC<RoleDialogManagerProps> = ({
   onPermissionSuccess,
   deleteDescription,
 }) => {
-  const { t } = useLanguageStore();
+  const { t, language } = useLanguageStore();
+  const zh = language === 'zh';
+  const copy = {
+    importHeaders: zh
+      ? ['角色名称', '角色编码', '角色说明', '状态', '类型', '排序']
+      : ['Name', 'Code', 'Description', 'Status', 'Type', 'Sort'],
+  };
 
   return (
     <>
@@ -107,7 +113,7 @@ export const RoleDialogManager: React.FC<RoleDialogManagerProps> = ({
         mode="import"
         resourceName={t.menu.systemRoles}
         onImport={handlers.onImport}
-        templateHeaders={['Name', 'Code', 'Description', 'Status', 'Type', 'Sort']}
+        templateHeaders={copy.importHeaders}
       />
 
       <DataImportExportDialog

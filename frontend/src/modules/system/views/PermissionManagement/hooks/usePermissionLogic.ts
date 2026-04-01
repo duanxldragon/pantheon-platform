@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Permission } from '../../../types';
+import { normalizePermissionModule } from '../moduleLocalization';
 
 export function usePermissionLogic(initialPermissions: Permission[]) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -18,7 +19,8 @@ export function usePermissionLogic(initialPermissions: Permission[]) {
         p.code.toLowerCase().includes(searchQuery.toLowerCase());
       
       const matchesType = filterType === 'all' || p.type === filterType;
-      const matchesModule = filterModule === 'all' || p.module === filterModule;
+      const matchesModule =
+        filterModule === 'all' || normalizePermissionModule(p.module) === filterModule;
 
       return matchesSearch && matchesType && matchesModule;
     });
@@ -43,7 +45,13 @@ export function usePermissionLogic(initialPermissions: Permission[]) {
 
   // 4. 模块提取
   const modules = useMemo(() => {
-    return Array.from(new Set(initialPermissions.map(p => p.module)));
+    return Array.from(
+      new Set(
+        initialPermissions
+          .map((permission) => normalizePermissionModule(permission.module))
+          .filter(Boolean),
+      ),
+    );
   }, [initialPermissions]);
 
   return {

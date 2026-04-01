@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 import { Input } from '../../../../../components/ui/input';
 import { Textarea } from '../../../../../components/ui/textarea';
@@ -70,12 +70,12 @@ export const DictDialogManager: React.FC<DictDialogManagerProps> = ({
         cancelText={t.common.cancel}
         submittingText={t.common.loading}
         loading={!!loading}
-        width="max-w-lg"
+        width="sm:max-w-[720px]"
       >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <FormField label={t.systemManagement.dictionary.fields.type} required>
-              <Input value={selectedTypeCode} disabled className="bg-gray-50" />
+              <Input value={selectedTypeCode} disabled className="bg-slate-50" />
             </FormField>
             <FormField label={t.systemManagement.dictionary.fields.sort} required>
               <Input
@@ -150,7 +150,7 @@ export const DictDialogManager: React.FC<DictDialogManagerProps> = ({
         cancelText={t.common.cancel}
         submittingText={t.common.loading}
         loading={!!loading}
-        width="max-w-lg"
+        width="sm:max-w-[720px]"
       >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -196,7 +196,7 @@ export const DictDialogManager: React.FC<DictDialogManagerProps> = ({
           </FormField>
 
           {!dialogs.addType ? (
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-slate-400">
               {t.systemManagement.dictionary.currentType}: {selectedTypeName || '-'} ({selectedTypeCode || '-'})
             </div>
           ) : null}
@@ -217,3 +217,4 @@ export const DictDialogManager: React.FC<DictDialogManagerProps> = ({
     </>
   );
 };
+

@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../../../../components/ui/dialog';
+import { getDialogClassName, getDialogStyle } from '../../../../../shared/constants/dialogSizes';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import type { Role } from '../../../types';
 
@@ -20,14 +21,32 @@ interface RoleDetailDialogProps {
 }
 
 export function RoleDetailDialog({ role, open, onOpenChange }: RoleDetailDialogProps) {
-  const { t } = useLanguageStore();
+  const { t, language } = useLanguageStore();
+  const zh = language === 'zh';
+  const copy = zh
+    ? {
+        description: '角色说明',
+        linkedUsers: '关联用户数',
+        menuCount: '菜单权限数',
+        roleType: '角色类型',
+        systemRole: '系统角色',
+        customRole: '自定义角色',
+      }
+    : {
+        description: 'Role Description',
+        linkedUsers: 'Linked Users',
+        menuCount: 'Menu Permissions',
+        roleType: 'Role Type',
+        systemRole: 'Built-in Role',
+        customRole: 'Custom Role',
+      };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      <DialogContent className={getDialogClassName('xl', 'p-0')} style={getDialogStyle('xl')}>
+        <DialogHeader className="border-b border-slate-100/90 bg-slate-50/70 px-6 py-5">
           <DialogTitle className="flex items-center gap-3">
-            <div className="rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 p-2">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-[0_16px_30px_-20px_rgba(37,99,235,0.45)]">
               <Shield className="h-5 w-5 text-white" />
             </div>
             {role.name}
@@ -35,9 +54,9 @@ export function RoleDetailDialog({ role, open, onOpenChange }: RoleDetailDialogP
           <DialogDescription>{role.code}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-4 px-6 py-5">
           <div className="grid grid-cols-2 gap-4">
-            <DetailItem icon={<Settings className="h-4 w-4" />} label="角色说明">
+            <DetailItem icon={<Settings className="h-4 w-4" />} label={copy.description}>
               {role.description || '-'}
             </DetailItem>
 
@@ -45,27 +64,27 @@ export function RoleDetailDialog({ role, open, onOpenChange }: RoleDetailDialogP
               {role.status === 'active' ? (
                 <Badge className="bg-green-100 text-green-700">{t.status.enabled}</Badge>
               ) : (
-                <Badge className="bg-gray-100 text-gray-700">{t.status.disabled}</Badge>
+                <Badge className="bg-slate-100 text-slate-700">{t.status.disabled}</Badge>
               )}
             </DetailItem>
 
-            <DetailItem icon={<Users className="h-4 w-4" />} label="关联用户数">
+            <DetailItem icon={<Users className="h-4 w-4" />} label={copy.linkedUsers}>
               {role.userCount}
             </DetailItem>
 
-            <DetailItem icon={<Shield className="h-4 w-4" />} label="菜单权限数">
+            <DetailItem icon={<Shield className="h-4 w-4" />} label={copy.menuCount}>
               {role.menuIds?.length || 0}
             </DetailItem>
           </div>
 
-          <DetailItem icon={<Settings className="h-4 w-4" />} label="角色类型">
+          <DetailItem icon={<Settings className="h-4 w-4" />} label={copy.roleType}>
             {role.type === 'system' ? (
-              <Badge variant="outline" className="border-orange-200 bg-orange-50 text-orange-700">
-                系统角色
+              <Badge variant="outline" className="rounded-full border-orange-200 bg-orange-50 text-orange-700">
+                {copy.systemRole}
               </Badge>
             ) : (
-              <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">
-                自定义角色
+              <Badge variant="outline" className="rounded-full border-blue-200 bg-blue-50 text-blue-700">
+                {copy.customRole}
               </Badge>
             )}
           </DetailItem>
@@ -89,12 +108,12 @@ function DetailItem({
   children: ReactNode;
 }) {
   return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-2 text-sm text-gray-500">
+    <div className="space-y-2 rounded-[24px] border border-slate-200/70 bg-slate-50/80 p-4">
+      <div className="flex items-center gap-2 text-sm text-slate-500">
         {icon}
         {label}
       </div>
-      <div className="text-sm font-medium">{children}</div>
+      <div className="text-sm font-medium text-slate-900">{children}</div>
     </div>
   );
 }

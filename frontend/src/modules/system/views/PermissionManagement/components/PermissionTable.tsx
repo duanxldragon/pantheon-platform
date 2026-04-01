@@ -8,6 +8,7 @@ import { useLanguageStore } from '../../../../../stores/languageStore';
 import { useAuthStore } from '../../../../auth/store/authStore';
 import { systemPermissions } from '../../../constants/permissions';
 import type { Permission } from '../../../types';
+import { getPermissionModuleLabel } from '../moduleLocalization';
 
 interface PermissionTableProps {
   data: Permission[];
@@ -30,7 +31,7 @@ export const PermissionTable: React.FC<PermissionTableProps> = ({
   onStatusChange,
   pagination,
 }) => {
-  const { t } = useLanguageStore();
+  const { t, language } = useLanguageStore();
   const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const getTypeInfo = (type: string) => {
@@ -65,11 +66,11 @@ export const PermissionTable: React.FC<PermissionTableProps> = ({
       width: '240px',
       render: (permission) => (
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-slate-900 rounded-lg shadow-sm group-hover:scale-110 transition-transform">
-            <Lock className="w-3.5 h-3.5 text-emerald-400" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200/70 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 shadow-[0_16px_30px_-22px_rgba(15,23,42,0.85)] transition-transform duration-200 group-hover:scale-105">
+            <Lock className="h-3.5 w-3.5 text-emerald-300" />
           </div>
           <code
-            className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 select-all cursor-pointer hover:bg-white transition-colors"
+            className="inline-flex min-h-9 items-center rounded-2xl border border-slate-200/80 bg-slate-50/90 px-3 py-1 font-mono text-[11px] font-semibold text-slate-700 transition-colors select-all cursor-pointer hover:border-slate-300 hover:bg-white"
             title={t.systemManagement.permissionManagement.clickToCopy}
           >
             {permission.code}
@@ -90,7 +91,10 @@ export const PermissionTable: React.FC<PermissionTableProps> = ({
       render: (permission) => {
         const info = getTypeInfo(permission.type);
         return (
-          <Badge variant="outline" className={`font-medium gap-1 px-2 py-0 ${info.color}`}>
+          <Badge
+            variant="outline"
+            className={`gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${info.color}`}
+          >
             <info.icon className="w-2.5 h-2.5" />
             {info.label}
           </Badge>
@@ -102,16 +106,16 @@ export const PermissionTable: React.FC<PermissionTableProps> = ({
       label: t.systemManagement.permissionManagement.module,
       width: '140px',
       render: (permission) => (
-        <div className="flex items-center gap-1.5 text-sm text-slate-500 font-medium">
-          <Folder className="w-3.5 h-3.5 text-amber-400" />
-          {permission.module}
+        <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200/70 bg-slate-50/80 px-3 py-1.5 text-sm font-medium text-slate-600">
+          <Folder className="h-3.5 w-3.5 text-amber-500" />
+          <span className="truncate">{getPermissionModuleLabel(permission.module, language)}</span>
         </div>
       ),
     },
     {
       key: 'status',
       label: t.user.status,
-      width: '90px',
+      width: '112px',
       align: 'center',
       render: (permission) => (
         <Switch
@@ -127,7 +131,7 @@ export const PermissionTable: React.FC<PermissionTableProps> = ({
       label: t.systemManagement.permissionManagement.description,
       width: '220px',
       render: (permission) => (
-        <span className="text-xs text-slate-400 italic line-clamp-1">{permission.description || '-'}</span>
+        <span className="line-clamp-2 text-xs leading-6 text-slate-500">{permission.description || '-'}</span>
       ),
     },
     {
@@ -135,8 +139,8 @@ export const PermissionTable: React.FC<PermissionTableProps> = ({
       label: t.common.createdAt,
       width: '160px',
       render: (permission) => (
-        <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono">
-          <Clock className="w-3 h-3 opacity-50" />
+        <div className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-200/70 bg-slate-50/80 px-3 py-1.5 font-mono text-[11px] text-slate-500">
+          <Clock className="h-3 w-3 opacity-60" />
           {permission.createdAt}
         </div>
       ),
@@ -144,7 +148,7 @@ export const PermissionTable: React.FC<PermissionTableProps> = ({
     {
       key: 'actions',
       label: t.common.actions,
-      width: '120px',
+      width: '168px',
       align: 'right',
       render: (permission) => (
         <ActionButtons

@@ -44,6 +44,8 @@ export function DepartmentForm({ data = {}, departments, users, onChange }: Depa
     ...defaultFormData,
     ...data,
   });
+  const fieldClassName =
+    'rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10';
 
   useEffect(() => {
     setFormData({
@@ -73,36 +75,64 @@ export function DepartmentForm({ data = {}, departments, users, onChange }: Depa
       ? departments.find((department) => String(department.id) === String(formData.parentId))
       : undefined;
 
-  const copy = {
-    name: zh ? '部门名称' : 'Department Name',
-    code: zh ? '部门编码' : 'Department Code',
-    codeDescription: zh ? '用于系统内部唯一标识部门。' : 'Used as the unique internal identifier for the department.',
-    parent: zh ? '上级部门' : 'Parent Department',
-    parentDescription: zh ? '上级部门必须存在且处于启用状态。' : 'The parent department must exist and stay active.',
-    leader: zh ? '负责人' : 'Leader',
-    leaderDescription: zh ? '负责人以用户身份保存，便于后续权限与组织关系扩展。' : 'The leader is stored as a user identity for future permission and organization linkage.',
-    phone: zh ? '联系电话' : 'Phone',
-    email: zh ? '邮箱' : 'Email',
-    sort: zh ? '排序' : 'Sort',
-    status: zh ? '状态' : 'Status',
-    description: zh ? '部门说明' : 'Department Description',
-    namePlaceholder: zh ? '请输入部门名称' : 'Enter department name',
-    codePlaceholder: zh ? '请输入部门编码' : 'Enter department code',
-    parentPlaceholder: zh ? '请选择上级部门，不选则为顶级部门' : 'Select a parent department, or leave empty for top level',
-    leaderPlaceholder: zh ? '请选择负责人' : 'Select leader',
-    none: zh ? '无' : 'None',
-    phonePlaceholder: zh ? '请输入联系电话' : 'Enter contact phone',
-    emailPlaceholder: zh ? '请输入邮箱' : 'Enter email address',
-    sortPlaceholder: zh ? '数字越小越靠前' : 'Smaller numbers appear first',
-    descriptionPlaceholder: zh ? '请输入部门说明' : 'Enter department description',
-    active: zh ? '启用' : 'Active',
-    inactive: zh ? '禁用' : 'Inactive',
-    relationTitle: zh ? '层级关系提示' : 'Hierarchy Hint',
-    relationDescription: zh
-      ? '部门不能选择自己或自己的下级部门作为父级；保存时会按后端规则再次校验。'
-      : 'A department cannot choose itself or one of its descendants as the parent; the backend validates this again on save.',
-    currentParentPrefix: zh ? '当前父级：' : 'Current parent: ',
-  };
+  const copy = zh
+    ? {
+        name: '部门名称',
+        code: '部门编码',
+        codeDescription: '用于系统内部唯一标识部门。',
+        parent: '上级部门',
+        parentDescription: '上级部门必须存在并处于启用状态。',
+        leader: '负责人',
+        leaderDescription: '负责人以用户身份保存，便于后续权限与组织关系扩展。',
+        phone: '联系电话',
+        email: '邮箱',
+        sort: '排序',
+        status: '状态',
+        description: '部门说明',
+        namePlaceholder: '请输入部门名称',
+        codePlaceholder: '请输入部门编码',
+        parentPlaceholder: '请选择上级部门，不选则为顶级部门',
+        leaderPlaceholder: '请选择负责人',
+        none: '无',
+        phonePlaceholder: '请输入联系电话',
+        emailPlaceholder: '请输入邮箱地址',
+        sortPlaceholder: '数字越小越靠前',
+        descriptionPlaceholder: '请输入部门说明',
+        active: '启用',
+        inactive: '禁用',
+        relationTitle: '层级关系提示',
+        relationDescription: '部门不能选择自己或自己的下级部门作为父级；保存时后端会再次校验。',
+        currentParentPrefix: '当前父级：',
+      }
+    : {
+        name: 'Department Name',
+        code: 'Department Code',
+        codeDescription: 'Used as the unique internal identifier for the department.',
+        parent: 'Parent Department',
+        parentDescription: 'The parent department must exist and stay active.',
+        leader: 'Leader',
+        leaderDescription: 'The leader is stored as a user identity for future permission and organization linkage.',
+        phone: 'Phone',
+        email: 'Email',
+        sort: 'Sort',
+        status: 'Status',
+        description: 'Department Description',
+        namePlaceholder: 'Enter department name',
+        codePlaceholder: 'Enter department code',
+        parentPlaceholder: 'Select a parent department, or leave empty for top level',
+        leaderPlaceholder: 'Select leader',
+        none: 'None',
+        phonePlaceholder: 'Enter contact phone',
+        emailPlaceholder: 'Enter email address',
+        sortPlaceholder: 'Smaller numbers appear first',
+        descriptionPlaceholder: 'Enter department description',
+        active: 'Active',
+        inactive: 'Inactive',
+        relationTitle: 'Hierarchy Hint',
+        relationDescription:
+          'A department cannot choose itself or one of its descendants as the parent; the backend validates this again on save.',
+        currentParentPrefix: 'Current parent: ',
+      };
 
   return (
     <div className="space-y-6">
@@ -112,7 +142,7 @@ export function DepartmentForm({ data = {}, departments, users, onChange }: Depa
             value={formData.name}
             onChange={(event) => updateField('name', event.target.value)}
             placeholder={copy.namePlaceholder}
-            className="bg-white"
+            className={fieldClassName}
           />
         </FormField>
 
@@ -121,7 +151,7 @@ export function DepartmentForm({ data = {}, departments, users, onChange }: Depa
             value={formData.code}
             onChange={(event) => updateField('code', event.target.value)}
             placeholder={copy.codePlaceholder}
-            className="bg-white"
+            className={fieldClassName}
           />
         </FormField>
 
@@ -148,7 +178,7 @@ export function DepartmentForm({ data = {}, departments, users, onChange }: Depa
               updateField('leader', leader?.realName || leader?.username || '');
             }}
           >
-            <SelectTrigger className="bg-white">
+            <SelectTrigger className={fieldClassName}>
               <SelectValue placeholder={copy.leaderPlaceholder} />
             </SelectTrigger>
             <SelectContent>
@@ -167,7 +197,7 @@ export function DepartmentForm({ data = {}, departments, users, onChange }: Depa
             value={formData.phone}
             onChange={(event) => updateField('phone', event.target.value)}
             placeholder={copy.phonePlaceholder}
-            className="bg-white"
+            className={fieldClassName}
           />
         </FormField>
 
@@ -177,7 +207,7 @@ export function DepartmentForm({ data = {}, departments, users, onChange }: Depa
             value={formData.email}
             onChange={(event) => updateField('email', event.target.value)}
             placeholder={copy.emailPlaceholder}
-            className="bg-white"
+            className={fieldClassName}
           />
         </FormField>
 
@@ -187,13 +217,13 @@ export function DepartmentForm({ data = {}, departments, users, onChange }: Depa
             value={formData.sort}
             onChange={(event) => updateField('sort', Number(event.target.value) || 0)}
             placeholder={copy.sortPlaceholder}
-            className="bg-white"
+            className={fieldClassName}
           />
         </FormField>
 
         <FormField label={copy.status} required>
           <Select value={formData.status} onValueChange={(value) => updateField('status', value as DepartmentFormData['status'])}>
-            <SelectTrigger className="bg-white">
+            <SelectTrigger className={fieldClassName}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -204,7 +234,7 @@ export function DepartmentForm({ data = {}, departments, users, onChange }: Depa
         </FormField>
       </div>
 
-      <Alert className="border-slate-200 bg-slate-50">
+      <Alert className="rounded-[28px] border border-slate-200/80 bg-slate-50/85 shadow-[0_18px_36px_-32px_rgba(15,23,42,0.28)]">
         <AlertCircle className="h-4 w-4 text-slate-600" />
         <AlertTitle className="text-slate-900">{copy.relationTitle}</AlertTitle>
         <AlertDescription className="text-slate-700">
@@ -218,7 +248,7 @@ export function DepartmentForm({ data = {}, departments, users, onChange }: Depa
           value={formData.description}
           onChange={(event) => updateField('description', event.target.value)}
           placeholder={copy.descriptionPlaceholder}
-          className="resize-none bg-white"
+          className={`resize-none ${fieldClassName}`}
           rows={3}
         />
       </FormField>

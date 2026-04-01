@@ -53,6 +53,85 @@ export function UserManagement() {
   const zh = language === 'zh';
   const userMessages = createEntityFeedback(zh, { zh: '用户', en: 'User', enPlural: 'users' });
   const resetPasswordMessages = createResetPasswordMessages(zh);
+  const copy = zh
+    ? {
+        validation: {
+          usernameRequired: '请输入用户名。',
+          realNameRequired: '请输入姓名。',
+          emailRequired: '请输入邮箱地址。',
+          emailInvalid: '请输入正确的邮箱地址。',
+          phoneRequired: '请输入手机号。',
+          departmentRequired: '请选择所属部门。',
+          departmentMissing: '所选部门不存在，请重新选择。',
+          departmentInactive: '所属部门已被禁用，请先启用部门。',
+          roleRequired: '请至少分配一个角色。',
+          roleInvalid: '存在无效角色，请重新选择。',
+          passwordRequired: '新建用户时必须设置初始密码。',
+        },
+        actionLabels: {
+          add: '新增',
+          edit: '编辑',
+          delete: '删除',
+          resetPassword: '重置密码',
+          roleAssignment: '角色分配',
+          import: '导入',
+          export: '导出',
+          detail: '详情',
+          roleGuard: '角色分配授权',
+          batchEnable: '批量启用',
+          batchDisable: '批量禁用',
+          batchDelete: '批量删除',
+          batchStatusUpdate: '批量状态变更',
+        },
+        buttons: {
+          batchEnable: (count: number) => `批量启用 (${count})`,
+          batchDisable: (count: number) => `批量禁用 (${count})`,
+          batchDelete: (count: number) => `批量删除 (${count})`,
+        },
+        confirms: {
+          batchDeleteTitle: '确认批量删除用户',
+          deleteText: '确认删除',
+        },
+      }
+    : {
+        validation: {
+          usernameRequired: 'Please enter the username.',
+          realNameRequired: 'Please enter the real name.',
+          emailRequired: 'Please enter the email address.',
+          emailInvalid: 'Please enter a valid email address.',
+          phoneRequired: 'Please enter the phone number.',
+          departmentRequired: 'Please select a department.',
+          departmentMissing: 'The selected department does not exist.',
+          departmentInactive: 'The selected department is inactive.',
+          roleRequired: 'Please assign at least one role.',
+          roleInvalid: 'One or more selected roles are invalid.',
+          passwordRequired: 'An initial password is required when creating a user.',
+        },
+        actionLabels: {
+          add: 'create',
+          edit: 'edit',
+          delete: 'delete',
+          resetPassword: 'reset password',
+          roleAssignment: 'role assignment',
+          import: 'import',
+          export: 'export',
+          detail: 'details',
+          roleGuard: 'role assignment',
+          batchEnable: 'batch enable',
+          batchDisable: 'batch disable',
+          batchDelete: 'batch delete',
+          batchStatusUpdate: 'batch status update',
+        },
+        buttons: {
+          batchEnable: (count: number) => `Enable (${count})`,
+          batchDisable: (count: number) => `Disable (${count})`,
+          batchDelete: (count: number) => `Delete (${count})`,
+        },
+        confirms: {
+          batchDeleteTitle: 'Confirm batch delete users',
+          deleteText: 'Delete',
+        },
+      };
   const authUser = useAuthStore((state) => state.user);
   const hasPermission = useAuthStore((state) => state.hasPermission);
   const canQueryUser = hasPermission(systemPermissions.user.query);
@@ -161,6 +240,25 @@ export function UserManagement() {
     description: data.description?.trim(),
     roleIds: Array.from(new Set((data.roleIds || []).filter(Boolean))),
   });
+
+  const buildUserUpdatePayload = (
+    data: Partial<UserFormData>,
+    user: User,
+  ): Partial<User> => {
+    const normalized = normalizeUserFormData(data) as Partial<User>;
+
+    if (normalized.realName === user.realName) {
+      delete normalized.realName;
+    }
+    if (normalized.email === user.email) {
+      delete normalized.email;
+    }
+    if (normalized.phone === user.phone) {
+      delete normalized.phone;
+    }
+
+    return normalized;
+  };
 
   const isCurrentLoginUser = (userId?: User['id']) =>
     userId != null && authUser?.id != null && String(userId) === String(authUser.id);
@@ -327,38 +425,38 @@ export function UserManagement() {
     const roleIds = (normalized.roleIds || []).map((id) => String(id));
 
     if (!normalized.username) {
-      return zh ? '请输入用户名。' : 'Please enter the username.';
+      return copy.validation.usernameRequired;
     }
     if (!normalized.realName) {
-      return zh ? '请输入姓名。' : 'Please enter the real name.';
+      return copy.validation.realNameRequired;
     }
     if (!normalized.email) {
-      return zh ? '请输入邮箱地址。' : 'Please enter the email address.';
+      return copy.validation.emailRequired;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized.email)) {
-      return zh ? '请输入正确的邮箱地址。' : 'Please enter a valid email address.';
+      return copy.validation.emailInvalid;
     }
     if (!normalized.phone) {
-      return zh ? '请输入手机号。' : 'Please enter the phone number.';
+      return copy.validation.phoneRequired;
     }
     if (!departmentId) {
-      return zh ? '请选择所属部门。' : 'Please select a department.';
+      return copy.validation.departmentRequired;
     }
 
     const department = departments.find((item) => String(item.id) === departmentId);
     if (!department) {
-      return zh ? '所选部门不存在，请重新选择。' : 'The selected department does not exist.';
+      return copy.validation.departmentMissing;
     }
     if (department.status !== 'active') {
-      return zh ? '所属部门已被禁用，请先启用部门。' : 'The selected department is inactive.';
+      return copy.validation.departmentInactive;
     }
     if (roleIds.length === 0) {
-      return zh ? '请至少分配一个角色。' : 'Please assign at least one role.';
+      return copy.validation.roleRequired;
     }
 
     const missingRole = roleIds.find((roleId) => !roles.some((role) => String(role.id) === roleId));
     if (missingRole) {
-      return zh ? '存在无效角色，请重新选择。' : 'One or more selected roles are invalid.';
+      return copy.validation.roleInvalid;
     }
 
     const inactiveRole = roles.find(
@@ -371,7 +469,7 @@ export function UserManagement() {
     }
 
     if (!isEdit && !normalized.password) {
-      return zh ? '新建用户时必须设置初始密码。' : 'An initial password is required when creating a user.';
+      return copy.validation.passwordRequired;
     }
 
     return null;
@@ -379,7 +477,7 @@ export function UserManagement() {
 
   const handlers = {
     onAdd: async () => {
-      if (!ensureActionPermission(canCreateUser, zh ? '新增' : 'create')) return;
+      if (!ensureActionPermission(canCreateUser, copy.actionLabels.add)) return;
       try {
         const normalizedFormData = normalizeUserFormData(formData);
         const validationMessage = validateUserFormData(normalizedFormData, false);
@@ -399,9 +497,10 @@ export function UserManagement() {
     },
     onEdit: async () => {
       if (!currentUser) return;
-      if (!ensureActionPermission(canUpdateUser, zh ? '编辑' : 'edit')) return;
+      if (!ensureActionPermission(canUpdateUser, copy.actionLabels.edit)) return;
       try {
         const normalizedFormData = normalizeUserFormData(formData);
+        const updatePayload = buildUserUpdatePayload(formData, currentUser);
         const validationMessage = validateUserFormData(normalizedFormData, true);
         if (validationMessage) {
           toast.error(validationMessage);
@@ -411,7 +510,7 @@ export function UserManagement() {
         const nextStatus = normalizedFormData.status;
         if (nextStatus && nextStatus !== currentUser.status) {
           openUserStatusConfirm(currentUser, nextStatus === 'active', async () => {
-            await api.updateUser(String(currentUser.id), normalizedFormData as Partial<User>);
+            await api.updateUser(String(currentUser.id), updatePayload);
             setDialogOpen('edit', false);
             resetUserForm();
             await reload();
@@ -419,7 +518,7 @@ export function UserManagement() {
           return;
         }
 
-        await api.updateUser(String(currentUser.id), normalizedFormData as Partial<User>);
+        await api.updateUser(String(currentUser.id), updatePayload);
         toast.success(userMessages.updateSuccess);
         setDialogOpen('edit', false);
         resetUserForm();
@@ -430,7 +529,7 @@ export function UserManagement() {
     },
     onDelete: async () => {
       if (!currentUser) return;
-      if (!ensureActionPermission(canDeleteUser, zh ? '删除' : 'delete')) return;
+      if (!ensureActionPermission(canDeleteUser, copy.actionLabels.delete)) return;
       if (isCurrentLoginUser(currentUser.id)) {
         toast.error(buildUserDeleteBlockedMessage([currentUser]));
         return;
@@ -447,7 +546,7 @@ export function UserManagement() {
     },
     onResetPassword: async (pwd: string) => {
       if (!currentUser) return;
-      if (!ensureActionPermission(canUpdateUser, zh ? '重置密码' : 'reset password')) return;
+      if (!ensureActionPermission(canUpdateUser, copy.actionLabels.resetPassword)) return;
       try {
         await api.resetPassword(String(currentUser.id), pwd);
         toast.success(resetPasswordMessages.success);
@@ -460,7 +559,7 @@ export function UserManagement() {
       if (!currentUser) {
         return;
       }
-      if (!ensureActionPermission(canUpdateUser, zh ? '角色分配' : 'role assignment')) return;
+      if (!ensureActionPermission(canUpdateUser, copy.actionLabels.roleAssignment)) return;
 
       const nextRoleNames = roles
         .filter((role) => roleIds.some((roleId) => String(roleId) === String(role.id)))
@@ -487,12 +586,12 @@ export function UserManagement() {
       await reload();
     },
     onImport: async (file: File) => {
-      if (!ensureActionPermission(canCreateUser, zh ? '导入' : 'import')) return;
+      if (!ensureActionPermission(canCreateUser, copy.actionLabels.import)) return;
       await csvHandler.handleImport(file);
       setDialogOpen('import', false);
     },
     onExport: async (options: any) => {
-      if (!ensureActionPermission(canExportUser, zh ? '导出' : 'export')) return;
+      if (!ensureActionPermission(canExportUser, copy.actionLabels.export)) return;
       const dataToExport = options.scope === 'selected' && selectedUsers.length > 0
         ? selectedUsers
         : users;
@@ -512,8 +611,8 @@ export function UserManagement() {
     pageTitle: t.menu.systemUsers,
     dialogs,
     protectedDialogs: {
-      detail: zh ? '详情' : 'details',
-      role: zh ? '角色分配授权' : 'role assignment',
+      detail: copy.actionLabels.detail,
+      role: copy.actionLabels.roleGuard,
     },
     closeDialogs: closeProtectedDialogs,
   });
@@ -521,13 +620,13 @@ export function UserManagement() {
     pageTitle: t.menu.systemUsers,
     dialogs,
     guardedDialogs: {
-      add: { label: zh ? '新增' : 'create', allowed: canCreateUser },
-      edit: { label: zh ? '编辑' : 'edit', allowed: canUpdateUser },
-      delete: { label: zh ? '删除' : 'delete', allowed: canDeleteUser },
-      resetPassword: { label: zh ? '重置密码' : 'reset password', allowed: canUpdateUser },
-      role: { label: zh ? '角色分配' : 'role assignment', allowed: canUpdateUser },
-      import: { label: zh ? '导入' : 'import', allowed: canCreateUser },
-      export: { label: zh ? '导出' : 'export', allowed: canExportUser },
+      add: { label: copy.actionLabels.add, allowed: canCreateUser },
+      edit: { label: copy.actionLabels.edit, allowed: canUpdateUser },
+      delete: { label: copy.actionLabels.delete, allowed: canDeleteUser },
+      resetPassword: { label: copy.actionLabels.resetPassword, allowed: canUpdateUser },
+      role: { label: copy.actionLabels.roleAssignment, allowed: canUpdateUser },
+      import: { label: copy.actionLabels.import, allowed: canCreateUser },
+      export: { label: copy.actionLabels.export, allowed: canExportUser },
     },
     closeDialogs: closeProtectedDialogs,
   });
@@ -536,14 +635,14 @@ export function UserManagement() {
     guard: statusConfirm.guard,
     pageTitle: t.menu.systemUsers,
     guards: {
-      update: { label: zh ? '批量状态变更' : 'batch status update', allowed: canUpdateUser },
-      delete: { label: zh ? '批量删除' : 'batch delete', allowed: canDeleteUser },
+      update: { label: copy.actionLabels.batchStatusUpdate, allowed: canUpdateUser },
+      delete: { label: copy.actionLabels.batchDelete, allowed: canDeleteUser },
     },
     closeConfirm: closeStatusConfirm,
   });
 
   const handleBatchDelete = async () => {
-    if (!ensureActionPermission(canDeleteUser, zh ? '批量删除' : 'batch delete')) return;
+    if (!ensureActionPermission(canDeleteUser, copy.actionLabels.batchDelete)) return;
     const blockedUsers = selectedUsers.filter((user) => isCurrentLoginUser(user.id));
     if (blockedUsers.length > 0) {
       toast.error(buildUserDeleteBlockedMessage(blockedUsers, true));
@@ -552,9 +651,9 @@ export function UserManagement() {
 
     setStatusConfirm({
       open: true,
-      title: zh ? '确认批量删除用户' : 'Confirm batch delete users',
+      title: copy.confirms.batchDeleteTitle,
       description: buildUserBatchDeleteDescription(selectedUsers),
-      confirmText: zh ? '确认删除' : 'Delete',
+      confirmText: copy.confirms.deleteText,
       variant: 'danger',
       guard: 'delete',
       action: async () => {
@@ -572,7 +671,7 @@ export function UserManagement() {
   };
 
   const handleBatchUserStatus = (enabled: boolean) => {
-    if (!ensureActionPermission(canUpdateUser, zh ? `批量${enabled ? '启用' : '禁用'}` : `batch ${enabled ? 'enable' : 'disable'}`)) return;
+    if (!ensureActionPermission(canUpdateUser, enabled ? copy.actionLabels.batchEnable : copy.actionLabels.batchDisable)) return;
     const targetUsers = enabled ? selectedUsersToEnable : selectedUsersToDisable;
     if (targetUsers.length === 0) {
       return;
@@ -597,55 +696,66 @@ export function UserManagement() {
     <PageLayout
       title={t.menu.systemUsers}
       actions={canQueryUser ? (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-[26px] border border-slate-200/70 bg-white/72 p-3 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
           {selectedUsers.length > 0 && (
             <>
               {canUpdateUser && selectedUsersToEnable.length > 0 ? (
                 <Button
                   variant="outline"
                   onClick={() => handleBatchUserStatus(true)}
-                  className="gap-2 border-emerald-100 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                  className="h-11 gap-2 rounded-2xl border-emerald-200/80 bg-emerald-50/80 px-4 text-emerald-700 shadow-sm shadow-emerald-100/60 transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800"
                 >
                   <Power className="w-4 h-4" />
-                  {zh ? `批量启用 (${selectedUsersToEnable.length})` : `Enable (${selectedUsersToEnable.length})`}
+                  {copy.buttons.batchEnable(selectedUsersToEnable.length)}
                 </Button>
               ) : null}
               {canUpdateUser && selectedUsersToDisable.length > 0 ? (
                 <Button
                   variant="outline"
                   onClick={() => handleBatchUserStatus(false)}
-                  className="gap-2 border-amber-100 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+                  className="h-11 gap-2 rounded-2xl border-amber-200/80 bg-amber-50/80 px-4 text-amber-700 shadow-sm shadow-amber-100/60 transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-800"
                 >
                   <PowerOff className="w-4 h-4" />
-                  {zh ? `批量禁用 (${selectedUsersToDisable.length})` : `Disable (${selectedUsersToDisable.length})`}
+                  {copy.buttons.batchDisable(selectedUsersToDisable.length)}
                 </Button>
               ) : null}
               {canDeleteUser ? (
                 <Button 
                   variant="outline" 
                   onClick={handleBatchDelete} 
-                  className="gap-2 border-red-100 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  className="h-11 gap-2 rounded-2xl border-rose-200/80 bg-rose-50/80 px-4 text-rose-600 shadow-sm shadow-rose-100/60 transition-all hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700"
                 >
                   <Trash2 className="w-4 h-4" />
-                  {t.actions.delete} ({selectedUsers.length})
+                  {copy.buttons.batchDelete(selectedUsers.length)}
                 </Button>
               ) : null}
             </>
           )}
           {canCreateUser ? (
-            <Button variant="outline" onClick={() => setDialogOpen('import', true)} className="gap-2 border-gray-200">
+            <Button
+              variant="outline"
+              onClick={() => setDialogOpen('import', true)}
+              className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+            >
               <Upload className="w-4 h-4" />
               {t.actions.import}
             </Button>
           ) : null}
           {canExportUser ? (
-            <Button variant="outline" onClick={() => setDialogOpen('export', true)} className="gap-2 border-gray-200">
+            <Button
+              variant="outline"
+              onClick={() => setDialogOpen('export', true)}
+              className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+            >
               <Download className="w-4 h-4" />
               {t.actions.export}
             </Button>
           ) : null}
           {canCreateUser ? (
-            <Button onClick={openAddDialog} className="gap-2 shadow-sm bg-primary hover:bg-primary/90 transition-all active:scale-95">
+            <Button
+              onClick={openAddDialog}
+              className="h-11 gap-2 rounded-2xl bg-primary px-4 shadow-[0_16px_30px_-18px_rgba(var(--primary),0.7)] transition-all active:scale-95 hover:-translate-y-0.5 hover:bg-primary/92 hover:shadow-[0_18px_34px_-18px_rgba(var(--primary),0.75)]"
+            >
               <UserPlus className="w-4 h-4" />
               {t.actions.add}
             </Button>
@@ -674,7 +784,7 @@ export function UserManagement() {
       />
 
       {/* 2. 数据列表展示区 */}
-      <Card className="border-none shadow-sm overflow-hidden bg-white/80 backdrop-blur-sm">
+      <Card className="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/88 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.28)] backdrop-blur-sm">
         <UserTable
           data={paginatedData}
           selectedItems={selectedUsers}
@@ -738,6 +848,7 @@ export function UserManagement() {
     </PageLayout>
   );
 }
+
 
 
 

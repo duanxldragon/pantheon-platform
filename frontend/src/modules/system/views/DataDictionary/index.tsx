@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, Loader2, Pencil, Plus, RefreshCcw, Trash2, Upload } from 'lucide-react';
+import { Download, Loader2, Pencil, Plus, RefreshCcw, Search, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { PageLayout } from '../../../../components/layouts/PageLayout';
@@ -89,12 +89,89 @@ export function DataDictionary() {
   const dictionaryMessages = createEntityFeedback(zh, { zh: '数据字典', en: 'Dictionary' });
   const dictionaryItemMessages = createEntityFeedback(zh, { zh: '字典项', en: 'Dictionary item', enPlural: 'dictionary items' });
   const dictionaryTypeMessages = createEntityFeedback(zh, { zh: '字典类型', en: 'Dictionary type', enPlural: 'dictionary types' });
-  const selectTypeFirstMessage = zh ? '请先选择一个字典类型' : 'Please select a dictionary type first';
-  const dictionaryTypeRequiredMessage = zh ? '未选择字典类型' : 'Dictionary type is required';
-  const dictionaryItemRequiredMessage = zh ? '请填写完整的字典项信息' : 'Please complete dictionary item fields';
-  const dictionaryTypeFormRequiredMessage = zh ? '请填写完整的字典类型信息' : 'Please complete dictionary type fields';
-  const dictionaryInvalidFileMessage = zh ? '无效的数据字典文件格式' : 'Invalid data dictionary file format';
-  const dictionaryItemStatusUpdatedMessage = zh ? '字典项状态更新成功' : 'Dictionary item status updated';
+  const copy = zh
+    ? {
+        pageTitle: '数据字典',
+        pageDescription: '维护系统字典类型和字典项，支撑菜单、状态、枚举等基础配置。',
+        actions: {
+          refresh: '刷新',
+          import: '导入',
+          export: '导出',
+          addType: '新增类型',
+          addItem: '新增字典项',
+          editType: '编辑类型',
+          deleteType: '删除类型',
+        },
+        fields: {
+          selectType: '请选择字典类型',
+          typeHint: '选择左侧类型后即可管理对应字典项。',
+          searchPlaceholder: '搜索字典标签、值或备注',
+          prev: '上一页',
+          next: '下一页',
+          page: '第',
+        },
+        messages: {
+          selectTypeFirst: '请先选择一个字典类型',
+          typeRequired: '未选择字典类型',
+          itemRequired: '请填写完整的字典项信息',
+          typeFormRequired: '请填写完整的字典类型信息',
+          invalidFile: '无效的数据字典文件格式',
+          itemStatusUpdated: '字典项状态更新成功',
+        },
+        permissionLabels: {
+          addItem: '新增字典项',
+          editItem: '编辑字典项',
+          deleteItem: '删除字典项',
+          addType: '新增字典类型',
+          editType: '编辑字典类型',
+          deleteType: '删除字典类型',
+          export: '导出',
+          import: '导入',
+          enableItem: '字典项启用',
+          disableItem: '字典项禁用',
+        },
+      }
+    : {
+        pageTitle: 'Data Dictionary',
+        pageDescription: 'Manage dictionary types and items used by statuses, enums, and base metadata.',
+        actions: {
+          refresh: 'Refresh',
+          import: 'Import',
+          export: 'Export',
+          addType: 'Add Type',
+          addItem: 'Add Item',
+          editType: 'Edit Type',
+          deleteType: 'Delete Type',
+        },
+        fields: {
+          selectType: 'Select a dictionary type',
+          typeHint: 'Choose a type from the left to manage dictionary items.',
+          searchPlaceholder: 'Search label, value, or remark',
+          prev: 'Previous',
+          next: 'Next',
+          page: 'Page',
+        },
+        messages: {
+          selectTypeFirst: 'Please select a dictionary type first',
+          typeRequired: 'Dictionary type is required',
+          itemRequired: 'Please complete dictionary item fields',
+          typeFormRequired: 'Please complete dictionary type fields',
+          invalidFile: 'Invalid data dictionary file format',
+          itemStatusUpdated: 'Dictionary item status updated',
+        },
+        permissionLabels: {
+          addItem: 'add item',
+          editItem: 'edit item',
+          deleteItem: 'delete item',
+          addType: 'add type',
+          editType: 'edit type',
+          deleteType: 'delete type',
+          export: 'export',
+          import: 'import',
+          enableItem: 'item enable',
+          disableItem: 'item disable',
+        },
+      };
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasPermission = useAuthStore((state) => state.hasPermission);
   const canQueryDictionary = hasPermission(systemPermissions.dictionary.query);
@@ -215,9 +292,9 @@ export function DataDictionary() {
   }, [canQueryDictionary, selectedTypeCode, page, searchTerm]);
 
   const openAddItem = () => {
-    if (!ensureActionPermission(canCreateDictionary, zh ? '新增字典项' : 'add item')) return;
+    if (!ensureActionPermission(canCreateDictionary, copy.permissionLabels.addItem)) return;
     if (!selectedType) {
-      toast.info(selectTypeFirstMessage);
+      toast.info(copy.messages.selectTypeFirst);
       return;
     }
     setSelectedItem(null);
@@ -226,28 +303,28 @@ export function DataDictionary() {
   };
 
   const openEditItem = (item: DictItem) => {
-    if (!ensureActionPermission(canUpdateDictionary, zh ? '编辑字典项' : 'edit item')) return;
+    if (!ensureActionPermission(canUpdateDictionary, copy.permissionLabels.editItem)) return;
     setSelectedItem(item);
     setItemForm(item);
     setDialogOpen('edit', true);
   };
 
   const openDeleteItem = (item: DictItem) => {
-    if (!ensureActionPermission(canDeleteDictionary, zh ? '删除字典项' : 'delete item')) return;
+    if (!ensureActionPermission(canDeleteDictionary, copy.permissionLabels.deleteItem)) return;
     setSelectedItem(item);
     setDialogOpen('delete', true);
   };
 
   const openAddType = () => {
-    if (!ensureActionPermission(canCreateDictionary, zh ? '新增字典类型' : 'add type')) return;
+    if (!ensureActionPermission(canCreateDictionary, copy.permissionLabels.addType)) return;
     setSelectedTypeForm(defaultTypeForm);
     setDialogOpen('addType', true);
   };
 
   const openEditType = () => {
-    if (!ensureActionPermission(canUpdateDictionary, zh ? '编辑字典类型' : 'edit type')) return;
+    if (!ensureActionPermission(canUpdateDictionary, copy.permissionLabels.editType)) return;
     if (!selectedType) {
-      toast.info(selectTypeFirstMessage);
+      toast.info(copy.messages.selectTypeFirst);
       return;
     }
     setSelectedTypeForm({
@@ -260,9 +337,9 @@ export function DataDictionary() {
   };
 
   const openDeleteType = () => {
-    if (!ensureActionPermission(canDeleteDictionary, zh ? '删除字典类型' : 'delete type')) return;
+    if (!ensureActionPermission(canDeleteDictionary, copy.permissionLabels.deleteType)) return;
     if (!selectedType) {
-      toast.info(selectTypeFirstMessage);
+      toast.info(copy.messages.selectTypeFirst);
       return;
     }
     setDialogOpen('deleteType', true);
@@ -274,13 +351,13 @@ export function DataDictionary() {
   };
 
   const handleSubmitItem = async () => {
-    if (!ensureActionPermission(dialogs.add ? canCreateDictionary : canUpdateDictionary, dialogs.add ? (zh ? '新增字典项' : 'add item') : (zh ? '编辑字典项' : 'edit item'))) return;
+    if (!ensureActionPermission(dialogs.add ? canCreateDictionary : canUpdateDictionary, dialogs.add ? copy.permissionLabels.addItem : copy.permissionLabels.editItem)) return;
     if (!selectedType) {
-      toast.error(dictionaryTypeRequiredMessage);
+      toast.error(copy.messages.typeRequired);
       return;
     }
     if (!itemForm.dictLabel || !itemForm.dictValue) {
-      toast.error(dictionaryItemRequiredMessage);
+      toast.error(copy.messages.itemRequired);
       return;
     }
 
@@ -318,7 +395,7 @@ export function DataDictionary() {
 
   const handleDeleteItem = async () => {
     if (!selectedItem) return;
-    if (!ensureActionPermission(canDeleteDictionary, zh ? '删除字典项' : 'delete item')) return;
+    if (!ensureActionPermission(canDeleteDictionary, copy.permissionLabels.deleteItem)) return;
     try {
       setLoading(true);
       await dictApi.deleteData(selectedItem.id);
@@ -333,9 +410,9 @@ export function DataDictionary() {
   };
 
   const handleSubmitType = async () => {
-    if (!ensureActionPermission(dialogs.addType ? canCreateDictionary : canUpdateDictionary, dialogs.addType ? (zh ? '新增字典类型' : 'add type') : (zh ? '编辑字典类型' : 'edit type'))) return;
+    if (!ensureActionPermission(dialogs.addType ? canCreateDictionary : canUpdateDictionary, dialogs.addType ? copy.permissionLabels.addType : copy.permissionLabels.editType)) return;
     if (!selectedTypeForm.name || !selectedTypeForm.code) {
-      toast.error(dictionaryTypeFormRequiredMessage);
+      toast.error(copy.messages.typeFormRequired);
       return;
     }
 
@@ -362,7 +439,7 @@ export function DataDictionary() {
 
   const handleDeleteType = async () => {
     if (!selectedType) return;
-    if (!ensureActionPermission(canDeleteDictionary, zh ? '删除字典类型' : 'delete type')) return;
+    if (!ensureActionPermission(canDeleteDictionary, copy.permissionLabels.deleteType)) return;
     try {
       setLoading(true);
       await dictApi.deleteType(selectedType.id);
@@ -378,7 +455,7 @@ export function DataDictionary() {
 
   const handleItemStatusChange = async (item: DictItem, enabled: boolean) => {
     if (!selectedType) return;
-    if (!ensureActionPermission(canUpdateDictionary, zh ? `字典项${enabled ? '启用' : '禁用'}` : `item ${enabled ? 'enable' : 'disable'}`)) return;
+    if (!ensureActionPermission(canUpdateDictionary, enabled ? copy.permissionLabels.enableItem : copy.permissionLabels.disableItem)) return;
     try {
       await dictApi.updateData(item.id, {
         typeId: selectedType.id,
@@ -388,7 +465,7 @@ export function DataDictionary() {
         sort: item.sort,
         status: enabled ? 'active' : 'inactive',
       });
-      toast.success(dictionaryItemStatusUpdatedMessage);
+      toast.success(copy.messages.itemStatusUpdated);
       await loadItems(selectedType.code);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : dictionaryItemMessages.statusUpdateFailed);
@@ -396,7 +473,7 @@ export function DataDictionary() {
   };
 
   const handleExport = async () => {
-    if (!ensureActionPermission(canExportDictionary, zh ? '导出' : 'export')) return;
+    if (!ensureActionPermission(canExportDictionary, copy.permissionLabels.export)) return;
     try {
       setExporting(true);
       const latestTypes = await dictApi.listTypes({ page: 1, pageSize: 200, search: '' });
@@ -441,13 +518,13 @@ export function DataDictionary() {
   };
 
   const handleImport = async (file: File) => {
-    if (!ensureActionPermission(canImportDictionary, zh ? '导入' : 'import')) return;
+    if (!ensureActionPermission(canImportDictionary, copy.permissionLabels.import)) return;
     try {
       setImporting(true);
       const text = await file.text();
       const payload = JSON.parse(text) as ExportedDict;
       if (!Array.isArray(payload.types)) {
-        toast.error(dictionaryInvalidFileMessage);
+        toast.error(copy.messages.invalidFile);
         return;
       }
 
@@ -484,38 +561,38 @@ export function DataDictionary() {
   };
   const { lossDescription: queryLossDescription } = useQueryPermissionDialogGuard({
     canQuery: canQueryDictionary,
-    pageTitle: t?.menu?.systemDictionary || (zh ? '数据字典' : 'Data Dictionary'),
+    pageTitle: t?.menu?.systemDictionary || copy.pageTitle,
     dialogs,
     protectedDialogs: {
-      add: zh ? '新增字典项' : 'add item',
-      edit: zh ? '编辑字典项' : 'edit item',
-      delete: zh ? '删除字典项' : 'delete item',
-      addType: zh ? '新增字典类型' : 'add type',
-      editType: zh ? '编辑字典类型' : 'edit type',
-      deleteType: zh ? '删除字典类型' : 'delete type',
+      add: copy.permissionLabels.addItem,
+      edit: copy.permissionLabels.editItem,
+      delete: copy.permissionLabels.deleteItem,
+      addType: copy.permissionLabels.addType,
+      editType: copy.permissionLabels.editType,
+      deleteType: copy.permissionLabels.deleteType,
     },
     closeDialogs: closeProtectedDialogs,
   });
   const { ensureActionPermission } = useActionPermissionDialogGuard({
-    pageTitle: t?.menu?.systemDictionary || (zh ? '数据字典' : 'Data Dictionary'),
+    pageTitle: t?.menu?.systemDictionary || copy.pageTitle,
     dialogs,
     guardedDialogs: {
-      add: { label: zh ? '新增字典项' : 'add item', allowed: canCreateDictionary },
-      edit: { label: zh ? '编辑字典项' : 'edit item', allowed: canUpdateDictionary },
-      delete: { label: zh ? '删除字典项' : 'delete item', allowed: canDeleteDictionary },
-      addType: { label: zh ? '新增字典类型' : 'add type', allowed: canCreateDictionary },
-      editType: { label: zh ? '编辑字典类型' : 'edit type', allowed: canUpdateDictionary },
-      deleteType: { label: zh ? '删除字典类型' : 'delete type', allowed: canDeleteDictionary },
+      add: { label: copy.permissionLabels.addItem, allowed: canCreateDictionary },
+      edit: { label: copy.permissionLabels.editItem, allowed: canUpdateDictionary },
+      delete: { label: copy.permissionLabels.deleteItem, allowed: canDeleteDictionary },
+      addType: { label: copy.permissionLabels.addType, allowed: canCreateDictionary },
+      editType: { label: copy.permissionLabels.editType, allowed: canUpdateDictionary },
+      deleteType: { label: copy.permissionLabels.deleteType, allowed: canDeleteDictionary },
     },
     closeDialogs: closeProtectedDialogs,
   });
 
   return (
     <PageLayout
-      title={t?.menu?.systemDictionary || (zh ? '数据字典' : 'Data Dictionary')}
-      description={zh ? '维护系统字典类型和字典项，支撑菜单、状态、枚举等基础配置。' : 'Manage dictionary types and items used by statuses, enums, and base metadata.'}
+      title={t?.menu?.systemDictionary || copy.pageTitle}
+      description={copy.pageDescription}
       actions={canQueryDictionary ? (
-        <>
+        <div className="flex flex-wrap items-center gap-2 rounded-[26px] border border-slate-200/70 bg-white/72 p-3 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
           <input
             ref={fileInputRef}
             type="file"
@@ -528,48 +605,71 @@ export function DataDictionary() {
               }
             }}
           />
-          <Button variant="outline" onClick={() => void refreshAll(selectedTypeCode)} disabled={loading}>
-            <RefreshCcw className="mr-2 h-4 w-4" />
-            {zh ? '刷新' : 'Refresh'}
+          <Button
+            variant="outline"
+            onClick={() => void refreshAll(selectedTypeCode)}
+            disabled={loading}
+            className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+          >
+            <RefreshCcw className="h-4 w-4" />
+            {copy.actions.refresh}
           </Button>
           {canImportDictionary ? (
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-              {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-              {zh ? '导入' : 'Import'}
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+              className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+            >
+              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              {copy.actions.import}
             </Button>
           ) : null}
           {canExportDictionary ? (
-            <Button variant="outline" onClick={() => void handleExport()} disabled={exporting}>
-              {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-              {zh ? '导出' : 'Export'}
+            <Button
+              variant="outline"
+              onClick={() => void handleExport()}
+              disabled={exporting}
+              className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+            >
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {copy.actions.export}
             </Button>
           ) : null}
           {canCreateDictionary ? (
-            <Button variant="outline" onClick={openAddType}>
-              <Plus className="mr-2 h-4 w-4" />
-              {zh ? '新增类型' : 'Add Type'}
+            <Button
+              variant="outline"
+              onClick={openAddType}
+              className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+            >
+              <Plus className="h-4 w-4" />
+              {copy.actions.addType}
             </Button>
           ) : null}
           {canCreateDictionary ? (
-            <Button onClick={openAddItem} disabled={!selectedType}>
-              <Plus className="mr-2 h-4 w-4" />
-              {zh ? '新增字典项' : 'Add Item'}
+            <Button
+              onClick={openAddItem}
+              disabled={!selectedType}
+              className="h-11 gap-2 rounded-2xl bg-primary px-4 shadow-[0_16px_30px_-18px_rgba(var(--primary),0.7)] transition-all active:scale-95 hover:-translate-y-0.5 hover:bg-primary/92 hover:shadow-[0_18px_34px_-18px_rgba(var(--primary),0.75)]"
+            >
+              <Plus className="h-4 w-4" />
+              {copy.actions.addItem}
             </Button>
           ) : null}
-        </>
+        </div>
       ) : undefined}
     >
       {!canQueryDictionary ? (
         <QueryAccessBoundary
           viewId="system-dictionary"
-          title={t?.menu?.systemDictionary || (zh ? '数据字典' : 'Data Dictionary')}
+          title={t?.menu?.systemDictionary || copy.pageTitle}
           queryPermission={systemPermissions.dictionary.query}
           description={queryLossDescription}
           notificationDescription={queryLossDescription}
         />
       ) : (
       <>
-      <Card className="overflow-hidden border-none bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+      <Card className="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/88 p-6 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.28)] backdrop-blur-sm">
         <div className="flex min-h-[680px] gap-6">
           <DictTypeSidebar
             types={types}
@@ -580,34 +680,50 @@ export function DataDictionary() {
           />
 
           <div className="flex min-w-0 flex-1 flex-col gap-4">
-            <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+            <div className="flex items-center justify-between gap-4 rounded-[28px] border border-slate-200/70 bg-slate-50/85 p-5 shadow-inner shadow-slate-100/80">
               <div>
-                <div className="text-lg font-semibold text-slate-900">{selectedType?.name || (zh ? '请选择字典类型' : 'Select a dictionary type')}</div>
-                <div className="text-sm text-slate-500">{selectedType?.description || (zh ? '选择左侧类型后即可管理对应字典项。' : 'Choose a type from the left to manage dictionary items.')}</div>
+                <div className="text-lg font-semibold text-slate-900">{selectedType?.name || copy.fields.selectType}</div>
+                <div className="text-sm text-slate-500">{selectedType?.description || copy.fields.typeHint}</div>
               </div>
               <div className="flex items-center gap-2">
                 {canUpdateDictionary ? (
-                <Button variant="outline" size="sm" onClick={openEditType} disabled={!selectedType}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  {zh ? '编辑类型' : 'Edit Type'}
+                <Button
+                  variant="outline"
+                  onClick={openEditType}
+                  disabled={!selectedType}
+                  className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/50 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+                >
+                  <Pencil className="h-4 w-4" />
+                  {copy.actions.editType}
                 </Button>
                 ) : null}
                 {canDeleteDictionary ? (
-                <Button variant="outline" size="sm" onClick={openDeleteType} disabled={!selectedType}>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  {zh ? '删除类型' : 'Delete Type'}
+                <Button
+                  variant="outline"
+                  onClick={openDeleteType}
+                  disabled={!selectedType}
+                  className="h-11 gap-2 rounded-2xl border-rose-200/80 bg-rose-50/80 px-4 text-rose-600 shadow-sm shadow-rose-100/50 transition-all hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {copy.actions.deleteType}
                 </Button>
                 ) : null}
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="rounded-2xl border border-slate-200/70 bg-white/72 p-3 shadow-sm backdrop-blur-sm">
               <div className="relative flex-1">
-                <Input value={searchTerm} onChange={(event) => { setSearchTerm(event.target.value); setPage(1); }} placeholder={zh ? '搜索字典标签、值或备注' : 'Search label, value, or remark'} />
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  value={searchTerm}
+                  onChange={(event) => { setSearchTerm(event.target.value); setPage(1); }}
+                  placeholder={copy.fields.searchPlaceholder}
+                  className="h-11 rounded-2xl border-slate-200/80 bg-white/90 pl-10 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10"
+                />
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 rounded-2xl border border-slate-100 bg-white p-4">
+            <div className="min-h-0 flex-1 rounded-[28px] border border-slate-200/70 bg-white/92 p-4 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.22)]">
               <DictDataTable
                 data={items}
                 loading={loading}
@@ -618,15 +734,25 @@ export function DataDictionary() {
               />
             </div>
 
-            <div className="flex items-center justify-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1 || loading}>
-                {zh ? '上一页' : 'Previous'}
+            <div className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200/70 bg-slate-50/85 px-4 py-3">
+              <Button
+                variant="outline"
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={page <= 1 || loading}
+                className="h-10 rounded-2xl border-slate-200/80 bg-white/90 px-4 shadow-sm shadow-slate-200/50 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+              >
+                {copy.fields.prev}
               </Button>
               <span className="text-sm text-slate-500">
-                {zh ? '第' : 'Page'} {page} / {totalPages}
+                {copy.fields.page} {page} / {totalPages}
               </span>
-              <Button variant="outline" size="sm" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages || loading}>
-                {zh ? '下一页' : 'Next'}
+              <Button
+                variant="outline"
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                disabled={page >= totalPages || loading}
+                className="h-10 rounded-2xl border-slate-200/80 bg-white/90 px-4 shadow-sm shadow-slate-200/50 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+              >
+                {copy.fields.next}
               </Button>
             </div>
           </div>

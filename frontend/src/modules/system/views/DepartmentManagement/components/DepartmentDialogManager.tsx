@@ -44,7 +44,11 @@ export const DepartmentDialogManager: React.FC<DepartmentDialogManagerProps> = (
   handlers,
   deleteDescription,
 }) => {
-  const { t } = useLanguageStore();
+  const { t, language } = useLanguageStore();
+  const zh = language === 'zh';
+  const templateHeaders = zh
+    ? ['名称', '编码', '上级部门ID', '负责人', '电话', '邮箱', '排序']
+    : ['Name', 'Code', 'ParentId', 'Leader', 'Phone', 'Email', 'Sort'];
 
   const getCurrentMembers = () => {
     if (!selectedDepartment) return [];
@@ -113,7 +117,7 @@ export const DepartmentDialogManager: React.FC<DepartmentDialogManagerProps> = (
         mode="import"
         resourceName={t.user.department}
         onImport={handlers.onImport}
-        templateHeaders={['Name', 'Code', 'ParentId', 'Leader', 'Phone', 'Email', 'Sort']}
+        templateHeaders={templateHeaders}
       />
 
       <DataImportExportDialog

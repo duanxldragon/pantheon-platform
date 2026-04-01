@@ -43,26 +43,39 @@ export const PermissionDialogManager: React.FC<PermissionDialogManagerProps> = (
   const { language } = useLanguageStore();
   const zh = language === 'zh';
   const resourceName = zh ? '权限' : 'Permission';
-  const copy = {
-    addTitle: zh ? '新增权限' : 'Add Permission',
-    editTitle: zh ? '编辑权限' : 'Edit Permission',
-    addDescription: zh
-      ? '创建权限后，可在角色授权中分配，并影响登录后的动态权限快照。'
-      : 'New permissions can be assigned to roles and affect dynamic authorization snapshots after login.',
-    editDescription: zh
-      ? '修改权限配置后，相关角色与在线用户的权限快照会按策略刷新。'
-      : 'Changes affect related roles and online user authorization snapshots according to refresh strategy.',
-    deleteTitle: zh ? '删除权限' : 'Delete Permission',
-    deleteFallback: selectedPermission
-      ? zh
-        ? `确认删除权限「${selectedPermission.name}」？`
-        : `Are you sure you want to delete permission "${selectedPermission.name}"?`
-      : '',
-    cancelText: zh ? '取消' : 'Cancel',
-    submitText: zh ? '确认提交' : 'Submit',
-    submittingText: zh ? '提交中...' : 'Submitting...',
-    importHeaders: ['Name', 'Code', 'Type', 'Module', 'Description'],
-  };
+  const copy = zh
+    ? {
+        addTitle: '新增权限',
+        editTitle: '编辑权限',
+        addDescription: '创建权限后，可在角色授权中分配，并影响登录后的动态权限快照。',
+        editDescription: '修改权限配置后，相关角色与在线用户的权限快照会按刷新策略更新。',
+        deleteTitle: '删除权限',
+        deleteFallback: selectedPermission ? `确认删除权限“${selectedPermission.name}”吗？` : '',
+        cancelText: '取消',
+        submitText: '确认提交',
+        submittingText: '提交中...',
+        confirmDeleteText: '确认删除',
+        confirmingDeleteText: '删除中...',
+        importHeaders: ['权限名称', '权限编码', '权限类型', '所属模块', '权限说明'],
+      }
+    : {
+        addTitle: 'Add Permission',
+        editTitle: 'Edit Permission',
+        addDescription:
+          'New permissions can be assigned to roles and affect dynamic authorization snapshots after login.',
+        editDescription:
+          'Changes affect related roles and online user authorization snapshots according to refresh strategy.',
+        deleteTitle: 'Delete Permission',
+        deleteFallback: selectedPermission
+          ? `Are you sure you want to delete permission "${selectedPermission.name}"?`
+          : '',
+        cancelText: 'Cancel',
+        submitText: 'Submit',
+        submittingText: 'Submitting...',
+        confirmDeleteText: 'Delete',
+        confirmingDeleteText: 'Deleting...',
+        importHeaders: ['Name', 'Code', 'Type', 'Module', 'Description'],
+      };
 
   return (
     <>
@@ -99,8 +112,8 @@ export const PermissionDialogManager: React.FC<PermissionDialogManagerProps> = (
         title={copy.deleteTitle}
         description={deleteDescription || copy.deleteFallback}
         cancelText={copy.cancelText}
-        confirmText={zh ? '确认删除' : 'Delete'}
-        confirmingText={zh ? '删除中...' : 'Deleting...'}
+        confirmText={copy.confirmDeleteText}
+        confirmingText={copy.confirmingDeleteText}
       />
 
       <DataImportExportDialog

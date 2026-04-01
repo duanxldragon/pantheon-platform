@@ -79,4 +79,12 @@ export const deptApi = {
   deleteDepartment: async (id: string): Promise<void> => {
     await http.delete(`/v1/system/depts/${id}`);
   },
+
+  batchDeleteDepartments: async (ids: string[]): Promise<void> => {
+    await http.post('/v1/system/depts/batch-delete', { department_ids: ids });
+  },
+
+  batchUpdateDepartmentStatus: async (ids: string[], status: 'active' | 'inactive'): Promise<void> => {
+    await http.patch('/v1/system/depts/status', { department_ids: ids, status });
+  },
 };

@@ -1,26 +1,42 @@
 ﻿import { useState } from 'react';
 import { toast } from 'sonner';
-import { Download } from 'lucide-react';
 
-import { Card } from '../../../../components/ui/card';
 import { PageLayout } from '../../../../components/layouts/PageLayout';
-import { useLanguageStore } from '../../../../stores/languageStore';
-import { useAuthStore } from '../../../auth/store/authStore';
+import { Badge } from '../../../../components/ui/badge';
+import { Card } from '../../../../components/ui/card';
 import { QueryAccessBoundary } from '../../../../shared/components/QueryAccessBoundary';
 import { useActionPermissionDialogGuard } from '../../../../shared/hooks/useActionPermissionDialogGuard';
 import { useQueryPermissionDialogGuard } from '../../../../shared/hooks/useQueryPermissionDialogGuard';
-
+import { useLanguageStore } from '../../../../stores/languageStore';
+import { useAuthStore } from '../../../auth/store/authStore';
+import { systemPermissions } from '../../constants/permissions';
+import { createEntityFeedback } from '../../utils/feedback';
 import { LogDetailDrawer } from './components/LogDetailDrawer';
 import { LogFilters } from './components/LogFilters';
 import { LogStatsCards } from './components/LogStatsCards';
 import { LogTable, type UnifiedLogItem } from './components/LogTable';
 import { useLogManagement } from './hooks/useLogManagement';
-import { systemPermissions } from '../../constants/permissions';
-import { createEntityFeedback } from '../../utils/feedback';
 
 export function UnifiedLogManagement() {
-  const { t } = useLanguageStore();
-  const zh = t.language === 'zh';
+  const { t, language } = useLanguageStore();
+  const zh = language === 'zh';
+  const copy = {
+    detail: zh ? '日志详情' : 'log detail',
+    clearLogs: zh ? '清空日志' : 'clear logs',
+    export: zh ? '导出' : 'export',
+    tabSummaryTitle: zh ? '当前视图' : 'Current View',
+    tabLoginLogs: zh ? '登录日志' : 'Login Logs',
+    tabOperationLogs: zh ? '操作日志' : 'Operation Logs',
+    clearHint: zh ? '仅操作日志支持清空。' : 'Only operation logs can be cleared.',
+    exportHint: zh ? '导出会按当前页签和筛选条件生成文件。' : 'Export respects the current tab and filters.',
+    totalLabel: zh ? '总数' : 'Total',
+    loginHeaders: zh
+      ? ['用户名', 'IP 地址', '位置', '浏览器', '操作系统', '状态', '消息', '登录时间']
+      : ['Username', 'IP', 'Location', 'Browser', 'OS', 'Status', 'Message', 'Login Time'],
+    operationHeaders: zh
+      ? ['用户名', '模块', '资源', '资源 ID', '操作摘要', '请求方法', '请求 URL', 'IP 地址', '位置', '状态', '耗时(ms)', '错误信息', '创建时间']
+      : ['Username', 'Module', 'Resource', 'Resource ID', 'Summary', 'Method', 'Request URL', 'IP', 'Location', 'Status', 'Duration', 'Error Message', 'Created At'],
+  };
   const logMessages = createEntityFeedback(zh, { zh: '日志', en: 'Log', enPlural: 'logs' });
   const hasPermission = useAuthStore((state) => state.hasPermission);
   const canQueryLogs = hasPermission(systemPermissions.logs.query);
@@ -54,7 +70,7 @@ export function UnifiedLogManagement() {
     pageTitle: t.systemManagement.logs.title,
     dialogs: { detail: isDetailOpen },
     protectedDialogs: {
-      detail: zh ? '日志详情' : 'log detail',
+      detail: copy.detail,
     },
     closeDialogs: () => {
       setIsDetailOpen(false);
@@ -77,7 +93,7 @@ export function UnifiedLogManagement() {
   };
 
   const handleClearLogs = async () => {
-    if (!ensureActionPermission(canClearLogs, zh ? '清空日志' : 'clear logs')) return;
+    if (!ensureActionPermission(canClearLogs, copy.clearLogs)) return;
     if (activeTab !== 'operation') {
       toast.info(t.systemManagement.logs.onlyOperationCanClear);
       return;
@@ -90,38 +106,10 @@ export function UnifiedLogManagement() {
   };
 
   const handleExport = () => {
-    if (!ensureActionPermission(canExportLogs, zh ? '导出' : 'export')) return;
+    if (!ensureActionPermission(canExportLogs, copy.export)) return;
     try {
-      // Convert logs to CSV format
-      const headers =
-        activeTab === 'login'
-          ? [
-              zh ? '用户名' : 'Username',
-              zh ? 'IP 地址' : 'IP',
-              zh ? '位置' : 'Location',
-              zh ? '浏览器' : 'Browser',
-              zh ? '操作系统' : 'OS',
-              zh ? '状态' : 'Status',
-              zh ? '消息' : 'Message',
-              zh ? '登录时间' : 'Login Time',
-            ]
-        : [
-              zh ? '用户名' : 'Username',
-              zh ? '模块' : 'Module',
-              zh ? '资源' : 'Resource',
-              zh ? '资源 ID' : 'Resource ID',
-              zh ? '操作摘要' : 'Summary',
-              zh ? '请求方法' : 'Method',
-              zh ? '请求 URL' : 'Request URL',
-              zh ? 'IP 地址' : 'IP',
-              zh ? '位置' : 'Location',
-              zh ? '状态' : 'Status',
-              zh ? '耗时(ms)' : 'Duration',
-              zh ? '错误信息' : 'Error Message',
-              zh ? '创建时间' : 'Created At',
-            ];
-
-      const rows = items.map(item => {
+      const headers = activeTab === 'login' ? copy.loginHeaders : copy.operationHeaders;
+      const rows = items.map((item) => {
         if (item.kind === 'login') {
           return [
             item.username,
@@ -152,21 +140,19 @@ export function UnifiedLogManagement() {
         ];
       });
 
-      // Convert to CSV
       const csvContent = [
         headers.join(','),
-        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')),
+        ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')),
       ].join('\n');
 
-      // Create and download file
       const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${activeTab}-logs-${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${activeTab}-logs-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
       toast.success(logMessages.exportSuccess);
@@ -174,6 +160,9 @@ export function UnifiedLogManagement() {
       toast.error(error?.message || logMessages.exportFailed);
     }
   };
+
+  const activeTabLabel = activeTab === 'login' ? copy.tabLoginLogs : copy.tabOperationLogs;
+  const tabHint = activeTab === 'operation' ? copy.clearHint : copy.exportHint;
 
   return (
     <PageLayout title={t.systemManagement.logs.title} description={t.systemManagement.logs.description}>
@@ -187,7 +176,26 @@ export function UnifiedLogManagement() {
         />
       ) : (
         <>
-          <LogStatsCards stats={stats} loading={loading} />
+          <LogStatsCards activeTab={activeTab} stats={stats} loading={loading} />
+
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-[26px] border border-slate-200/70 bg-white/88 px-4 py-3 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.22)] backdrop-blur-sm">
+            <div className="min-w-0">
+              <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-slate-400">{copy.tabSummaryTitle}</div>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-slate-900">{activeTabLabel}</span>
+                <Badge variant="outline" className="rounded-full border-slate-200/80 bg-slate-50/90 text-slate-600 shadow-sm shadow-slate-200/30">
+                  {copy.totalLabel}: {loading ? '--' : stats.total.toLocaleString()}
+                </Badge>
+                <Badge variant="outline" className="rounded-full border-emerald-100 bg-emerald-50 text-emerald-700 shadow-sm shadow-emerald-100/30">
+                  {t.modules.deploy.status.success}: {loading ? '--' : stats.success.toLocaleString()}
+                </Badge>
+                <Badge variant="outline" className="rounded-full border-rose-100 bg-rose-50 text-rose-700 shadow-sm shadow-rose-100/30">
+                  {t.modules.deploy.status.failed}: {loading ? '--' : stats.failed.toLocaleString()}
+                </Badge>
+              </div>
+            </div>
+            <div className="text-xs text-slate-500">{tabHint}</div>
+          </div>
 
           <LogFilters
             activeTab={activeTab}
@@ -199,15 +207,14 @@ export function UnifiedLogManagement() {
             onSearchChange={setSearchTerm}
             statusFilter={statusFilter}
             onStatusChange={setStatusFilter}
-            selectedCount={selectedLogs.length}
-            onBatchDelete={handleClearLogs}
+            onClearLogs={handleClearLogs}
             onExport={handleExport}
-            canBatchDelete={canClearLogs}
+            canClearLogs={canClearLogs}
             canImport={false}
             canExport={canExportLogs}
           />
 
-          <Card className="border-none shadow-sm overflow-hidden bg-white/80 backdrop-blur-xl">
+          <Card className="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/88 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.28)] backdrop-blur-sm">
             <LogTable
               activeTab={activeTab}
               data={items}
@@ -230,5 +237,3 @@ export function UnifiedLogManagement() {
     </PageLayout>
   );
 }
-
-

@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger
 } from '../../../../../components/ui/dropdown-menu';
 import { Button } from '../../../../../components/ui/button';
+import { getMenuLabel } from '../../../../../shared/constants/viewsConfig';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import { useAuthStore } from '../../../../auth/store/authStore';
 import { systemPermissions } from '../../../constants/permissions';
@@ -44,8 +45,8 @@ interface MenuTreeTableProps {
 // Dynamic icon renderer (Lucide icon name -> component)
 const DynamicIcon = ({ name, className }: { name?: string, className?: string }) => {
   if (!name) return null;
-  // @ts-ignore
-  const IconComponent = LucideIcons[name] || LucideIcons.HelpCircle;
+  const iconMap = LucideIcons as unknown as Record<string, React.ComponentType<{ className?: string }>>;
+  const IconComponent = iconMap[name] || LucideIcons.HelpCircle;
   return <IconComponent className={className} />;
 };
 
@@ -58,8 +59,11 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
   selectedItems,
   onSelectionChange
 }) => {
-  const { t } = useLanguageStore();
+  const { t, language } = useLanguageStore();
   const hasPermission = useAuthStore((state) => state.hasPermission);
+  const copy = language === 'zh'
+    ? { routePrefix: '路由：', permissionPrefix: '权限：' }
+    : { routePrefix: 'URL:', permissionPrefix: 'Perm:' };
 
   const getTypeInfo = (type: string) => {
     switch (type) {
@@ -70,7 +74,7 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
       case 'button':
         return { label: t.systemManagement.menuManagement.typeButton, color: 'bg-amber-50 text-amber-600 border-amber-100', icon: MousePointer2 };
       default:
-        return { label: type, color: 'bg-gray-50 text-gray-600 border-gray-100', icon: FileCode };
+        return { label: type, color: 'bg-slate-50 text-slate-600 border-slate-100', icon: FileCode };
     }
   };
 
@@ -97,7 +101,7 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
                     e.stopPropagation();
                     onToggleExpand(node.id);
                   }}
-                  className="p-0.5 hover:bg-gray-100 rounded transition-colors text-gray-400 hover:text-gray-600"
+                  className="rounded-xl border border-transparent p-1.5 text-slate-400 transition-all hover:border-slate-200/80 hover:bg-white hover:text-slate-700 hover:shadow-sm"
                 >
                   {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 </button>
@@ -105,9 +109,9 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
             </div>
 
             {/* icon preview */}
-            <div className={`p-2 rounded-lg transition-colors ${
-              node.type === 'directory' ? 'bg-blue-50 text-blue-500' : 
-              node.type === 'menu' ? 'bg-emerald-50 text-emerald-500' : 'bg-amber-50 text-amber-500'
+            <div className={`flex h-10 w-10 items-center justify-center rounded-2xl border transition-colors ${
+              node.type === 'directory' ? 'border-blue-100/80 bg-blue-50 text-blue-500' : 
+              node.type === 'menu' ? 'border-emerald-100/80 bg-emerald-50 text-emerald-500' : 'border-amber-100/80 bg-amber-50 text-amber-500'
             }`}>
               {node.icon ? (
                 <DynamicIcon name={node.icon} className="w-4 h-4" />
@@ -119,14 +123,14 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
             {/* name */}
             <div className="flex flex-col overflow-hidden">
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-gray-900 truncate">
-                  {node.name}
+                <span className="font-semibold text-slate-900 truncate">
+                  {getMenuLabel(node, language, t)}
                 </span>
-                {node.external && <ExternalLink className="w-3 h-3 text-gray-400" />}
+                {node.external && <ExternalLink className="w-3 h-3 text-slate-400" />}
               </div>
-              <span className="text-[10px] text-gray-400 font-mono leading-none">
-                {node.id.split('-')[0]}...
-              </span>
+                <span className="text-[10px] text-slate-400 font-mono leading-none">
+                  {String(node.id).split('-')[0]}...
+                </span>
             </div>
           </div>
         );
@@ -139,7 +143,7 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
       render: (node) => {
         const { label, color } = getTypeInfo(node.type);
         return (
-          <Badge variant="outline" className={`font-medium px-2 py-0 ${color}`}>
+          <Badge variant="outline" className={`rounded-full px-2.5 py-1 font-medium shadow-sm ${color}`}>
             {label}
           </Badge>
         );
@@ -152,13 +156,13 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
       render: (node) => (
         <div className="flex flex-col gap-1">
           {node.path && (
-            <div className="flex items-center gap-1.5 text-[11px] font-mono text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded w-fit border border-gray-100/50">
-              <span className="opacity-50">URL:</span> {node.path}
+            <div className="flex w-fit items-center gap-1.5 rounded-full border border-slate-200/80 bg-slate-50/90 px-2.5 py-1 text-[11px] font-mono text-slate-600 shadow-sm shadow-slate-200/40">
+              <span className="opacity-50">{copy.routePrefix}</span> {node.path}
             </div>
           )}
           {node.permission && (
-            <div className="flex items-center gap-1.5 text-[11px] font-mono text-primary/70 bg-primary/5 px-1.5 py-0.5 rounded w-fit border border-primary/10">
-              <span className="opacity-50 text-gray-400">Perm:</span> {node.permission}
+            <div className="flex w-fit items-center gap-1.5 rounded-full border border-primary/15 bg-primary/5 px-2.5 py-1 text-[11px] font-mono text-primary/80 shadow-sm shadow-primary/5">
+              <span className="text-slate-400 opacity-60">{copy.permissionPrefix}</span> {node.permission}
             </div>
           )}
         </div>
@@ -167,13 +171,13 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
     {
       key: 'status',
       label: t.user.status,
-      width: '90px',
+      width: '112px',
       align: 'center',
       render: (node) => (
         <Switch
           checked={node.status === 'active'}
           onCheckedChange={(checked) => onStatusChange(node, checked)}
-          className="data-[state=checked]:bg-green-500 scale-75"
+          className="scale-90 data-[state=checked]:bg-green-500"
           disabled={!hasPermission(systemPermissions.menu.update)}
         />
       ),
@@ -184,7 +188,7 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
       width: '80px',
       align: 'center',
       render: (node) => (
-        <span className="text-xs font-mono text-gray-400 bg-gray-50 px-1.5 rounded border border-gray-100">
+        <span className="inline-flex min-w-12 items-center justify-center rounded-full border border-slate-200/80 bg-slate-50/90 px-2.5 py-1 text-xs font-mono text-slate-500 shadow-sm shadow-slate-200/40">
           {node.sort || 0}
         </span>
       )
@@ -192,7 +196,7 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
     {
       key: 'actions',
       label: t.common.actions,
-      width: '180px',
+      width: '220px',
       align: 'right',
       render: (node) => {
         const canUpdateMenu = hasPermission(systemPermissions.menu.update);
@@ -200,7 +204,7 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
         const hasMoreActions = canUpdateMenu || canDeleteMenu;
 
         return (
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center justify-end gap-2">
             <ActionButtons 
               actions={[
                 {
@@ -220,19 +224,23 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
             {hasMoreActions ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-gray-100 rounded-full">
-                    <MoreHorizontal className="w-4 h-4 text-gray-400" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 rounded-xl border border-slate-200/70 bg-white/90 text-slate-400 shadow-sm shadow-slate-200/50 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-700"
+                  >
+                    <MoreHorizontal className="w-4 h-4 text-slate-400" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuContent align="end" className="w-44 rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 shadow-xl shadow-slate-200/60">
                   {canUpdateMenu ? (
-                    <DropdownMenuItem onClick={() => onAction('edit', node)}>
+                    <DropdownMenuItem className="rounded-xl focus:bg-slate-100" onClick={() => onAction('edit', node)}>
                       <Edit className="w-4 h-4 mr-2 text-amber-500" />
                       {t.common.edit}
                     </DropdownMenuItem>
                   ) : null}
                   {canDeleteMenu ? (
-                    <DropdownMenuItem className="text-red-600" onClick={() => onAction('delete', node)}>
+                    <DropdownMenuItem className="rounded-xl text-rose-600 focus:bg-rose-50 focus:text-rose-700" onClick={() => onAction('delete', node)}>
                       <Trash2 className="w-4 h-4 mr-2" />
                       {t.common.delete}
                     </DropdownMenuItem>
