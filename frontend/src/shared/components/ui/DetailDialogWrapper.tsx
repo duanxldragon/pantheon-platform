@@ -1,4 +1,6 @@
 import { ReactNode } from 'react';
+import { X } from 'lucide-react';
+import { Button } from '../../../components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -6,8 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../../components/ui/dialog';
-import { Button } from '../../../components/ui/button';
-import { X } from 'lucide-react';
+import { type DialogSize, getDialogClassName, getDialogStyle } from '../../constants/dialogSizes';
 
 interface DetailDialogProps {
   open: boolean;
@@ -15,7 +16,7 @@ interface DetailDialogProps {
   title: string;
   description?: string;
   children: ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  size?: DialogSize;
   showCloseButton?: boolean;
   footer?: ReactNode;
 }
@@ -26,58 +27,37 @@ export function DetailDialog({
   title,
   description,
   children,
-  size = 'md',
+  size = 'lg',
   showCloseButton = true,
   footer,
 }: DetailDialogProps) {
-  const getSizeClasses = () => {
-    switch (size) {
-      case 'sm':
-        return 'sm:max-w-[425px]';
-      case 'md':
-        return 'sm:max-w-[600px]';
-      case 'lg':
-        return 'sm:max-w-[800px]';
-      case 'xl':
-        return 'sm:max-w-[1000px]';
-      case 'full':
-        return 'sm:max-w-[95vw]';
-      default:
-        return 'sm:max-w-[600px]';
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={getSizeClasses()}>
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            {title}
-            {showCloseButton && (
+      <DialogContent className={getDialogClassName(size, 'p-0')} style={getDialogStyle(size)}>
+        <DialogHeader className="border-b border-slate-100/90 px-6 py-5 text-left">
+          <DialogTitle className="flex items-center justify-between gap-4 text-xl font-semibold tracking-tight text-slate-950">
+            <span>{title}</span>
+            {showCloseButton ? (
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
                 onClick={() => onOpenChange(false)}
-                className="h-8 w-8 p-0"
+                className="h-9 w-9 rounded-xl border border-slate-200/80 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               >
                 <X className="h-4 w-4" />
               </Button>
-            )}
+            ) : null}
           </DialogTitle>
-          {description && (
-            <DialogDescription>{description}</DialogDescription>
-          )}
+          {description ? (
+            <DialogDescription className="mt-1 text-sm leading-6 text-slate-500">{description}</DialogDescription>
+          ) : null}
         </DialogHeader>
-        
-        <div className="max-h-[70vh] overflow-y-auto">
+
+        <div className="custom-scrollbar max-h-[72vh] overflow-y-auto px-6 py-5">
           {children}
         </div>
-        
-        {footer && (
-          <div className="mt-6 pt-4 border-t">
-            {footer}
-          </div>
-        )}
+
+        {footer ? <div className="border-t border-slate-100/90 bg-slate-50/80 px-6 py-4">{footer}</div> : null}
       </DialogContent>
     </Dialog>
   );

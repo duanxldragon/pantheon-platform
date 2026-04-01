@@ -7,6 +7,7 @@ import type { Tab } from '../../stores/uiStore';
 import { useUIStore } from '../../stores/uiStore';
 import { useSystemStore } from '../../stores/systemStore';
 import {
+  getMenuLabel,
   getViewBreadcrumbPath,
   getViewConfig,
   getViewConfigByComponent,
@@ -91,13 +92,15 @@ function canAccessView(
 
 function buildMenuBreadcrumb(
   menuId: string | number,
-  menus: Array<{ id: string | number; name: string; parentId?: string | number | null }>,
+  menus: Array<{ id: string | number; name: string; title?: string; path?: string; component?: string; parentId?: string | number | null }>,
+  language: string,
+  t: any,
 ): string[] {
   const trail: string[] = [];
   let current = menus.find((item) => String(item.id) === String(menuId));
 
   while (current) {
-    trail.unshift(current.name);
+    trail.unshift(getMenuLabel(current, language, t));
     if (current.parentId === undefined || current.parentId === null || current.parentId === '') {
       break;
     }
@@ -111,9 +114,9 @@ function buildTabItem(viewId: string, menus: Menu[], language: string, t: any): 
   const menu = findMatchedMenu(viewId, menus);
   return {
     id: viewId,
-    label: menu?.name || getViewLabel(viewId, language, t),
+    label: getMenuLabel(menu, language, t) || getViewLabel(viewId, language, t),
     closable: false,
-    path: menu ? buildMenuBreadcrumb(menu.id, menus) : getViewBreadcrumbPath(viewId, t),
+    path: menu ? buildMenuBreadcrumb(menu.id, menus, language, t) : getViewBreadcrumbPath(viewId, t),
   };
 }
 
@@ -156,8 +159,8 @@ export function ViewManager() {
 
   const updateTabInfo = (viewId: string) => {
     const menu = findMatchedMenu(viewId, menus);
-    const label = menu?.name || getViewLabel(viewId, language, t);
-    const breadcrumbPath = menu ? buildMenuBreadcrumb(menu.id, menus) : getViewBreadcrumbPath(viewId, t);
+    const label = getMenuLabel(menu, language, t) || getViewLabel(viewId, language, t);
+    const breadcrumbPath = menu ? buildMenuBreadcrumb(menu.id, menus, language, t) : getViewBreadcrumbPath(viewId, t);
 
     updateTabLabel(viewId, label);
     updateTabPath(viewId, breadcrumbPath);
@@ -260,8 +263,8 @@ export function useViewManager() {
     }
 
     const menu = findMatchedMenu(viewId, menus);
-    const label = menu?.name || getViewLabel(viewId, language, t);
-    const breadcrumbPath = menu ? buildMenuBreadcrumb(menu.id, menus) : getViewBreadcrumbPath(viewId, t);
+    const label = getMenuLabel(menu, language, t) || getViewLabel(viewId, language, t);
+    const breadcrumbPath = menu ? buildMenuBreadcrumb(menu.id, menus, language, t) : getViewBreadcrumbPath(viewId, t);
 
     addTab({
       id: viewId,

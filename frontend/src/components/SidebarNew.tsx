@@ -24,7 +24,7 @@ import {
 
 import { useAuthStore } from '../modules/auth/store/authStore';
 import type { Menu as SystemMenu } from '../modules/system/types';
-import { inferMenuViewId, getViewConfig, getViewConfigByComponent, inferMenuComponent } from '../shared/constants/viewsConfig';
+import { getMenuLabel, inferMenuViewId, getViewConfig, getViewConfigByComponent, inferMenuComponent } from '../shared/constants/viewsConfig';
 import { useLanguageStore } from '../stores/languageStore';
 import { useSystemStore } from '../stores/systemStore';
 import { useThemeStore } from '../stores/themeStore';
@@ -40,6 +40,7 @@ interface NavItem {
   icon: LucideIcon;
   permissions?: string | readonly string[];
   children?: NavItem[];
+  group?: 'system';
 }
 
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -47,15 +48,22 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Server,
   Users,
   Building2,
+  Building: Building2,
   Shield,
+  Key: BookKey,
+  KeyRound: BookKey,
   Menu: MenuIcon,
   MenuIcon,
   FileText,
+  LogIn: FileText,
   Wrench,
+  SlidersHorizontal: Wrench,
   Database,
+  BookOpen: Database,
   Monitor,
   Briefcase,
   Settings,
+  Activity,
 };
 
 function resolveIcon(name?: string): LucideIcon {
@@ -63,7 +71,95 @@ function resolveIcon(name?: string): LucideIcon {
   return ICON_MAP[name] || Server;
 }
 
-function buildTree(menus: SystemMenu[], hasPermission: (permission: string | readonly string[]) => boolean): NavItem[] {
+const SYSTEM_GROUP_ID = 'system';
+const SYSTEM_OVERVIEW_ID = 'system-dashboard';
+const TENANT_MANAGEMENT_ID = 'tenant-management';
+const SYSTEM_OVERVIEW_PERMISSION = '/api/v1/system/*:*';
+
+function isSystemRootMenu(menu: SystemMenu, viewId: string): boolean {
+  const code = String(menu.code || '').toLowerCase();
+  const name = String(menu.name || '').toLowerCase();
+  const title = String(menu.title || '');
+  const component = inferMenuComponent(menu);
+
+  return menu.parentId == null && (
+    viewId === SYSTEM_OVERVIEW_ID ||
+    menu.path === '/system' ||
+    code === 'system' ||
+    name === 'system' ||
+    title.includes('系统管理') ||
+    component === 'system/SystemDashboard'
+  );
+}
+
+function ensureSystemChildOrder(children: NavItem[]): NavItem[] {
+  const ordered = [...children];
+  const moveTo = (id: string, index: number) => {
+    const currentIndex = ordered.findIndex((item) => item.id === id);
+    if (currentIndex === -1 || currentIndex === index) {
+      return;
+    }
+
+    const [target] = ordered.splice(currentIndex, 1);
+    ordered.splice(Math.min(index, ordered.length), 0, target);
+  };
+
+  moveTo(SYSTEM_OVERVIEW_ID, 0);
+  moveTo(TENANT_MANAGEMENT_ID, ordered.length > 0 ? 1 : 0);
+
+  return ordered;
+}
+
+function normalizeSystemMenus(
+  items: NavItem[],
+  hasPermission: (permission: string | readonly string[]) => boolean,
+  t: any,
+): NavItem[] {
+  const systemItem = items.find((item) => item.group === 'system' || item.id === SYSTEM_GROUP_ID);
+  if (!systemItem) {
+    return items;
+  }
+
+  const dashboardRoot = items.find((item) => item !== systemItem && item.id === SYSTEM_OVERVIEW_ID);
+  const childMap = new Map<string, NavItem>();
+
+  if (dashboardRoot) {
+    childMap.set(dashboardRoot.id, dashboardRoot);
+  }
+
+  (systemItem.children || []).forEach((child) => {
+    if (!childMap.has(child.id)) {
+      childMap.set(child.id, child);
+    }
+  });
+
+  if (!childMap.has(SYSTEM_OVERVIEW_ID) && hasPermission(SYSTEM_OVERVIEW_PERMISSION)) {
+    childMap.set(SYSTEM_OVERVIEW_ID, {
+      id: SYSTEM_OVERVIEW_ID,
+      label: t.menu.systemOverview,
+      icon: LayoutDashboard,
+      permissions: SYSTEM_OVERVIEW_PERMISSION,
+    });
+  }
+
+  const normalizedSystemItem: NavItem = {
+    ...systemItem,
+    id: SYSTEM_GROUP_ID,
+    label: t.menu.system,
+    children: ensureSystemChildOrder(Array.from(childMap.values())),
+  };
+
+  return items
+    .filter((item) => item !== dashboardRoot)
+    .map((item) => (item === systemItem ? normalizedSystemItem : item));
+}
+
+function buildTree(
+  menus: SystemMenu[],
+  hasPermission: (permission: string | readonly string[]) => boolean,
+  language: string,
+  t: any,
+): NavItem[] {
   const visibleMenus = menus
     .filter((menu) => menu.status === 'active' && menu.visible !== false && menu.type !== 'button')
     .sort((left, right) => left.sort - right.sort);
@@ -77,7 +173,9 @@ function buildTree(menus: SystemMenu[], hasPermission: (permission: string | rea
   });
 
   const convert = (menu: SystemMenu): NavItem | null => {
-    const viewConfig = getViewConfigByComponent(inferMenuComponent(menu), String(menu.id)) || getViewConfig(String(menu.id));
+    const rawViewId = inferMenuViewId(menu) || String(menu.id);
+    const systemRoot = isSystemRootMenu(menu, rawViewId);
+    const viewConfig = getViewConfigByComponent(inferMenuComponent(menu), rawViewId) || getViewConfig(rawViewId);
     const permissions = viewConfig?.permissions || (menu.permissions?.length ? menu.permissions : undefined);
     if (permissions && !hasPermission(permissions)) {
       return null;
@@ -88,43 +186,49 @@ function buildTree(menus: SystemMenu[], hasPermission: (permission: string | rea
       .filter((item): item is NavItem => Boolean(item));
 
     return {
-      id: inferMenuViewId(menu) || String(menu.id),
-      label: menu.name,
+      id: systemRoot && children.length > 0 ? SYSTEM_GROUP_ID : rawViewId,
+      label: getMenuLabel(menu, language, t),
       icon: resolveIcon(menu.icon),
       permissions,
       children: children.length ? children : undefined,
+      group: systemRoot && children.length > 0 ? 'system' : undefined,
     };
   };
 
-  return (byParent.get('root') || [])
+  return normalizeSystemMenus(
+    (byParent.get('root') || [])
     .map(convert)
-    .filter((item): item is NavItem => Boolean(item));
+    .filter((item): item is NavItem => Boolean(item)),
+    hasPermission,
+    t,
+  );
 }
 
 export function SidebarNew({ onNavigate }: SidebarNewProps) {
   const { theme } = useThemeStore();
-  const { t } = useLanguageStore();
+  const { language, t } = useLanguageStore();
   const { user, hasPermission } = useAuthStore();
   const { activeTab } = useUIStore();
   const menus = useSystemStore((state) => state.menus);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
   const menuItems = useMemo<NavItem[]>(() => {
-    const dynamicMenus = buildTree(menus, hasPermission);
+    const dynamicMenus = buildTree(menus, hasPermission, language, t);
     if (dynamicMenus.length > 0) {
       return dynamicMenus;
     }
 
     return [
-      { id: 'system-dashboard', label: t.menu.dashboard, icon: LayoutDashboard },
       {
-        id: 'system',
+        id: SYSTEM_GROUP_ID,
         label: t.menu.system,
         icon: Settings,
+        group: 'system',
         children: [
-          { id: 'tenant-management', label: t.menu.tenantManagement, icon: Building2, permissions: ['/api/v1/tenants/*:*', '/api/v1/tenant/*:*'] },
+          { id: SYSTEM_OVERVIEW_ID, label: t.menu.systemOverview, icon: LayoutDashboard, permissions: SYSTEM_OVERVIEW_PERMISSION },
           { id: 'system-users', label: t.menu.systemUsers, icon: Users, permissions: '/api/v1/system/users:*' },
-          { id: 'system-departments', label: t.menu.systemDepartments, icon: Building2, permissions: '/api/v1/system/departments:*' },
+          { id: TENANT_MANAGEMENT_ID, label: t.menu.tenantManagement, icon: Building2, permissions: ['/api/v1/tenants/*:*', '/api/v1/tenant/*:*'] },
+          { id: 'system-departments', label: t.menu.systemDepartments, icon: Building2, permissions: '/api/v1/system/depts:*' },
           { id: 'system-positions', label: t.menu.systemPositions, icon: Briefcase, permissions: '/api/v1/system/positions:*' },
           { id: 'system-roles', label: t.menu.systemRoles, icon: Shield, permissions: '/api/v1/system/roles:*' },
           { id: 'system-menus', label: t.menu.systemMenus, icon: MenuIcon, permissions: '/api/v1/system/menus:*' },
@@ -139,7 +243,7 @@ export function SidebarNew({ onNavigate }: SidebarNewProps) {
       { id: 'operations-center', label: t.menu.operations, icon: Activity, permissions: ['ops:view'] },
       { id: 'notification-center', label: t.notification.title, icon: Bell },
     ];
-  }, [menus, hasPermission, t]);
+  }, [language, menus, hasPermission, t]);
 
   const toggleExpand = (id: string) => {
     setExpandedItems((current) => {

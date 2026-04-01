@@ -122,7 +122,8 @@ export function DataImportExportDialog({
   onImport,
   onExport,
 }: DataImportExportDialogProps) {
-  const { t } = useLanguageStore();
+  const { t, language } = useLanguageStore();
+  const zh = language === 'zh';
   const [isProcessing, setIsProcessing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -210,7 +211,7 @@ export function DataImportExportDialog({
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.setAttribute('href', url);
-      link.setAttribute('download', `${resourceName}_template.csv`);
+      link.setAttribute('download', `${resourceName}_${zh ? '导入模板' : 'template'}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -218,13 +219,13 @@ export function DataImportExportDialog({
       toast.success(`${resourceName} ${t.systemManage.importExport.downloadTemplate} ${t.common.success}`);
     } else {
       // Generate a generic template with common columns
-      const genericHeaders = ['Name', 'Code', 'Description', 'Status'];
+      const genericHeaders = zh ? ['名称', '编码', '说明', '状态'] : ['Name', 'Code', 'Description', 'Status'];
       const csvContent = genericHeaders.join(',') + '\n';
       const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.setAttribute('href', url);
-      link.setAttribute('download', `${resourceName}_template.csv`);
+      link.setAttribute('download', `${resourceName}_${zh ? '导入模板' : 'template'}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

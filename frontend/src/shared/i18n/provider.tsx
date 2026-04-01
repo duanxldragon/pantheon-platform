@@ -8,6 +8,7 @@ import {
   type Translations,
 } from './types';
 import { BUILTIN_TRANSLATIONS } from './resources';
+import { useLanguageStore } from '../../stores/languageStore';
 
 interface TranslationContextType {
   currentLanguage: LanguageCode;
@@ -134,10 +135,31 @@ export const TranslationProvider: React.FC<TranslationProviderProps> = ({
 
 export const useTranslation = (): TranslationContextType => {
   const context = useContext(TranslationContext);
-  if (!context) {
-    throw new Error('useTranslation must be used within a TranslationProvider');
+  const storeLanguage = useLanguageStore((state) => state.language);
+  const storeTranslations = useLanguageStore((state) => state.t);
+  const storeSetLanguage = useLanguageStore((state) => state.setLanguage);
+
+  if (context) {
+    return context;
   }
-  return context;
+
+  const fallbackLanguage = storeLanguage as LanguageCode;
+
+  return {
+    currentLanguage: fallbackLanguage,
+    setLanguage: (language: LanguageCode) => storeSetLanguage(language),
+    t: (key: string, paramsOrFallback?: Record<string, any> | string, fallback?: string) =>
+      resolveTranslation(
+        { [fallbackLanguage]: storeTranslations as Translations },
+        fallbackLanguage,
+        key,
+        paramsOrFallback,
+        fallback,
+      ),
+    isRTL: RTL_LANGUAGES.includes(fallbackLanguage),
+    loadTranslations: async () => undefined,
+    languages: SUPPORTED_LANGUAGES,
+  };
 };
 
 export const useLanguage = useTranslation;

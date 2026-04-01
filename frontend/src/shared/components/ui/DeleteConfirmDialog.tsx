@@ -11,6 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../../../components/ui/alert-dialog';
+import { useLanguageStore } from '../../../stores/languageStore';
 
 interface DeleteConfirmDialogProps {
   open: boolean;
@@ -49,47 +50,72 @@ export function DeleteConfirmDialog({
   open,
   onOpenChange,
   onConfirm,
-  title = 'Confirm Delete',
+  title,
   description,
   itemName,
   loading = false,
-  cancelText = 'Cancel',
-  confirmText = 'Delete',
-  confirmingText = 'Deleting...',
+  cancelText,
+  confirmText,
+  confirmingText,
 }: DeleteConfirmDialogProps) {
-  const defaultDescription = itemName
-    ? `Are you sure you want to delete "${itemName}"? This action cannot be undone.`
-    : 'Are you sure you want to delete this item? This action cannot be undone.';
+  const { language, t } = useLanguageStore();
+  const zh = language === 'zh';
+  const resolvedTitle = title || (zh ? '确认删除' : 'Confirm delete');
+  const resolvedCancelText = cancelText || t?.common?.cancel || (zh ? '取消' : 'Cancel');
+  const resolvedConfirmText = confirmText || t?.common?.delete || (zh ? '删除' : 'Delete');
+  const resolvedConfirmingText = confirmingText || (zh ? '删除中...' : 'Deleting...');
+  const defaultDescription = description || (
+    itemName
+      ? zh
+        ? `确认删除“${itemName}”吗？删除后将无法恢复。`
+        : `Delete "${itemName}"? This action cannot be undone.`
+      : zh
+        ? '确认删除当前内容吗？删除后将无法恢复。'
+        : 'Delete the current item? This action cannot be undone.'
+  );
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-red-50 rounded-full">
-              <AlertCircle className="w-6 h-6 text-red-600" />
+      <AlertDialogContent className="overflow-hidden border-none bg-white/98 p-0 shadow-[0_32px_80px_-40px_rgba(15,23,42,0.45)]">
+        <AlertDialogHeader className="px-6 py-6 text-left">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-rose-100">
+              <AlertCircle className="h-6 w-6 text-rose-600" />
             </div>
-            <AlertDialogTitle className="text-gray-900">{title}</AlertDialogTitle>
+            <div className="min-w-0 flex-1">
+              <AlertDialogTitle className="text-xl font-semibold tracking-tight text-slate-950">
+                {resolvedTitle}
+              </AlertDialogTitle>
+              <AlertDialogDescription className="mt-2 text-sm leading-6 text-slate-500">
+                {defaultDescription}
+              </AlertDialogDescription>
+            </div>
           </div>
-          <AlertDialogDescription className="text-gray-600">{description || defaultDescription}</AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading} className="hover:bg-gray-50">
-            {cancelText}
-          </AlertDialogCancel>
-          <AlertDialogAction
-            onClick={(e) => {
-              e.preventDefault();
-              onConfirm();
-            }}
-            disabled={loading}
-            className="bg-red-600 hover:bg-red-700 text-white"
-          >
-            {loading ? confirmingText : confirmText}
-          </AlertDialogAction>
+        <AlertDialogFooter className="border-t border-slate-100/90 bg-slate-50/80 px-6 py-4 sm:justify-between">
+          <div className="text-xs text-slate-400">
+            {zh ? '删除操作会保持明确且谨慎的提示。' : 'Deletion remains intentionally explicit.'}
+          </div>
+          <div className="flex items-center gap-3">
+            <AlertDialogCancel
+              disabled={loading}
+              className="rounded-2xl border-slate-200 bg-white px-4 hover:bg-slate-50"
+            >
+              {resolvedCancelText}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                onConfirm();
+              }}
+              disabled={loading}
+              className="rounded-2xl bg-rose-600 px-5 text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-rose-700 hover:shadow-md"
+            >
+              {loading ? resolvedConfirmingText : resolvedConfirmText}
+            </AlertDialogAction>
+          </div>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );
 }
-

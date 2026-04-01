@@ -12,6 +12,16 @@ export interface ViewConfig {
   roles?: string | readonly string[];
 }
 
+type MenuLike = {
+  id?: string | number;
+  name?: string;
+  title?: string;
+  code?: string;
+  path?: string;
+  component?: string;
+  type?: 'menu' | 'button' | 'directory';
+};
+
 export const VIEWS_CONFIG: ViewConfig[] = [
   {
     id: 'system-dashboard',
@@ -32,7 +42,7 @@ export const VIEWS_CONFIG: ViewConfig[] = [
     component: () => import('../../modules/system/views/DepartmentManagement').then((m) => ({ default: m.DepartmentManagement })),
     label: (_, t) => t?.menu?.systemDepartments || 'Department Management',
     breadcrumbPath: (t) => [t?.menu?.system, t?.menu?.systemDepartments],
-    permissions: '/api/v1/system/departments:*',
+    permissions: '/api/v1/system/depts:*',
   },
   {
     id: 'system-positions',
@@ -137,6 +147,12 @@ export const VIEWS_CONFIG: ViewConfig[] = [
     breadcrumbPath: (t) => [t?.menu?.operations],
     permissions: ['ops:view'],
   },
+  {
+    id: 'notification-center',
+    component: () => import('../../modules/notification/views/NotificationCenter').then((m) => ({ default: m.NotificationCenter })),
+    label: (_, t) => t?.notification?.title || 'Notification Center',
+    breadcrumbPath: (t) => [t?.notification?.title || 'Notification Center'],
+  },
 ];
 
 export const getViewConfig = (viewId: string): ViewConfig | undefined => {
@@ -175,6 +191,32 @@ export const STATIC_VIEW_ID_BY_COMPONENT: Record<string, string> = {
   'tenant/TenantManagement': 'tenant-management',
   'auth/ProfileCenter': 'profile-center',
   'auth/AccountSettings': 'account-settings',
+  'notification/NotificationCenter': 'notification-center',
+};
+
+const COMPONENT_ALIAS_MAP: Record<string, string> = {
+  '/system': 'system/SystemDashboard',
+  '/system/index': 'system/SystemDashboard',
+  '/system/user/index': 'system/UserManagement',
+  '/system/dept/index': 'system/DepartmentManagement',
+  '/system/department/index': 'system/DepartmentManagement',
+  '/system/position/index': 'system/PositionManagement',
+  '/system/role/index': 'system/RoleManagement',
+  '/system/menu/index': 'system/MenuManagement',
+  '/system/permission/index': 'system/PermissionManagement',
+  '/system/dict/index': 'system/DataDictionary',
+  '/system/log/index': 'system/UnifiedLogManagement',
+  '/system/operation-log/index': 'system/UnifiedLogManagement',
+  '/system/login-log/index': 'system/UnifiedLogManagement',
+  '/system/settings/index': 'system/SystemSettings',
+  '/system/monitor/index': 'system/SystemMonitor',
+  '/tenant/index': 'tenant/TenantManagement',
+  '/profile/index': 'auth/ProfileCenter',
+  '/profile/basic/index': 'auth/ProfileCenter',
+  '/profile/password/index': 'auth/AccountSettings',
+  '/profile/settings/index': 'auth/AccountSettings',
+  '/notifications/index': 'notification/NotificationCenter',
+  '/notification/index': 'notification/NotificationCenter',
 };
 
 const DEFAULT_COMPONENT_BY_PATH: Record<string, string> = {
@@ -188,10 +230,40 @@ const DEFAULT_COMPONENT_BY_PATH: Record<string, string> = {
   '/system/permission': 'system/PermissionManagement',
   '/system/dict': 'system/DataDictionary',
   '/system/log': 'system/UnifiedLogManagement',
+  '/system/operation-log': 'system/UnifiedLogManagement',
+  '/system/login-log': 'system/UnifiedLogManagement',
   '/system/monitor': 'system/SystemMonitor',
   '/system/settings': 'system/SystemSettings',
   '/tenant': 'tenant/TenantManagement',
   '/profile': 'auth/ProfileCenter',
+  '/profile/basic': 'auth/ProfileCenter',
+  '/profile/password': 'auth/AccountSettings',
+  '/notifications': 'notification/NotificationCenter',
+  '/notification': 'notification/NotificationCenter',
+};
+
+const STATIC_VIEW_ID_BY_PATH: Record<string, string> = {
+  '/system/login-log': 'system-loginlog',
+  '/profile/basic': 'profile-center',
+  '/profile/password': 'account-settings',
+  '/notifications': 'notification-center',
+  '/notification': 'notification-center',
+};
+
+const STATIC_LABEL_BY_NAME: Record<string, string> = {
+  System: 'system',
+  User: 'systemUsers',
+  Department: 'systemDepartments',
+  Position: 'systemPositions',
+  Role: 'systemRoles',
+  Menu: 'systemMenus',
+  Permission: 'systemPermissions',
+  Dict: 'systemDictionary',
+  OperationLog: 'systemLogs',
+  LoginLog: 'loginLogs',
+  Profile: 'profile',
+  BasicInfo: 'profile',
+  ChangePassword: 'accountSettings',
 };
 
 export const getViewConfigByComponent = (component?: string, fallbackId?: string): ViewConfig | undefined => {
@@ -207,13 +279,18 @@ export const getViewConfigByComponent = (component?: string, fallbackId?: string
 
 export const inferMenuComponent = (menu?: { component?: string; path?: string; code?: string }): string | undefined => {
   if (!menu) return undefined;
-  if (menu.component) return menu.component;
+  if (menu.component) {
+    return COMPONENT_ALIAS_MAP[menu.component] || menu.component;
+  }
   if (menu.path && DEFAULT_COMPONENT_BY_PATH[menu.path]) return DEFAULT_COMPONENT_BY_PATH[menu.path];
   return undefined;
 };
 
 export const inferMenuViewId = (menu?: { id?: string | number; component?: string; path?: string; code?: string }): string | undefined => {
   if (!menu) return undefined;
+  if (menu.path && STATIC_VIEW_ID_BY_PATH[menu.path]) {
+    return STATIC_VIEW_ID_BY_PATH[menu.path];
+  }
   const component = inferMenuComponent(menu);
   if (component && STATIC_VIEW_ID_BY_COMPONENT[component]) {
     return STATIC_VIEW_ID_BY_COMPONENT[component];
@@ -232,4 +309,34 @@ export const getViewLabel = (viewId: string, language: string, t?: any): string 
 export const getViewBreadcrumbPath = (viewId: string, t?: any): string[] => {
   const config = getViewConfig(viewId);
   return config?.breadcrumbPath ? config.breadcrumbPath(t) : [];
+};
+
+export const getMenuLabel = (menu: MenuLike | undefined, language: string, t?: any): string => {
+  if (!menu) return '';
+
+  if (language === 'zh' && menu.title?.trim()) {
+    return menu.title.trim();
+  }
+
+  if (language === 'en' && menu.name?.trim()) {
+    return menu.name.trim();
+  }
+
+  const viewId = inferMenuViewId(menu);
+  if (viewId) {
+    const label = getViewLabel(viewId, language, t);
+    if (label && label !== viewId) {
+      return label;
+    }
+  }
+
+  const nameKey = menu.name ? STATIC_LABEL_BY_NAME[menu.name] : undefined;
+  if (nameKey === 'loginLogs') {
+    return t?.systemManagement?.loginLogs || (language === 'zh' ? '登录日志' : 'Login Logs');
+  }
+  if (nameKey) {
+    return t?.menu?.[nameKey] || t?.topBar?.[nameKey] || t?.notification?.[nameKey] || menu.title || menu.name || '';
+  }
+
+  return menu.title?.trim() || menu.name?.trim() || viewId || '';
 };

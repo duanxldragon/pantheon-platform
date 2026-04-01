@@ -93,9 +93,9 @@ export function SimplePagination({
     }
   }
 
-  const baseButtonClass = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all outline-none h-9 min-w-9 px-3";
+  const baseButtonClass = "inline-flex h-10 min-w-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-medium transition-all outline-none";
   const disabledClass = "pointer-events-none opacity-50";
-  const activeClass = "bg-accent text-accent-foreground border border-input";
+  const activeClass = "border border-input bg-accent text-accent-foreground shadow-sm";
   const inactiveClass = "hover:bg-accent hover:text-accent-foreground";
 
   return (
@@ -126,7 +126,7 @@ export function SimplePagination({
             {page === '...' ? (
               <span 
                 aria-hidden
-                className="flex size-9 items-center justify-center"
+                className="flex size-10 items-center justify-center"
               >
                 <MoreHorizontal className="size-4" />
                 <span className="sr-only">More pages</span>

@@ -30,12 +30,12 @@ interface UIState {
 }
 
 // 存储版本号，用于清除旧的持久化数据
-const STORAGE_VERSION = 3; // 更新版本号以重置存储
+const STORAGE_VERSION = 4; // 更新版本号以重置存储
 
 export const useUIStore = create<UIState>()(
   persist(
     (set, get) => ({
-      tabs: [{ id: 'system-dashboard', label: '系统总览', closable: false, path: [] }],
+      tabs: [{ id: 'system-dashboard', label: '系统概览', closable: false, path: [] }],
       activeTab: 'system-dashboard',
       sidebarCollapsed: false,
 
@@ -65,7 +65,7 @@ export const useUIStore = create<UIState>()(
       replaceTabs: (tabs, activeTab) => {
         const nextTabs = tabs.length > 0
           ? tabs
-          : [{ id: 'system-dashboard', label: '绯荤粺鎬昏', closable: false, path: [] }];
+          : [{ id: 'system-dashboard', label: '系统概览', closable: false, path: [] }];
         const nextActiveTab = activeTab && nextTabs.some((tab) => tab.id === activeTab)
           ? activeTab
           : nextTabs[0].id;
@@ -98,7 +98,7 @@ export const useUIStore = create<UIState>()(
 
       clearTabs: () => {
         set({
-          tabs: [{ id: 'system-dashboard', label: '系统总览', closable: false, path: [] }],
+          tabs: [{ id: 'system-dashboard', label: '系统概览', closable: false, path: [] }],
           activeTab: 'system-dashboard',
         });
       },
@@ -118,7 +118,7 @@ export const useUIStore = create<UIState>()(
         // 如果版本不匹配，重置为默认状态
         if (version !== STORAGE_VERSION) {
           return {
-            tabs: [{ id: 'system-dashboard', label: '系统总览', closable: false, path: [] }],
+            tabs: [{ id: 'system-dashboard', label: '系统概览', closable: false, path: [] }],
             activeTab: 'system-dashboard',
             sidebarCollapsed: false,
           };
