@@ -17,19 +17,29 @@ import {
 
 export function AccountSettings() {
   const { theme } = useThemeStore();
-  const { language } = useLanguageStore();
+  const { language, t } = useLanguageStore();
   const { compactMode } = useProfilePreferenceSettings();
   const [activeTab, setActiveTab] = useState('security');
   const zh = language === 'zh';
+  const copy = {
+    title: t.profile.accountSettings,
+    description: zh ? '管理您的账户安全、隐私、通知和系统偏好。' : 'Manage your account security, privacy, notifications, and system preferences.',
+    security: t.profile.security,
+    privacy: zh ? '隐私设置' : 'Privacy',
+    notifications: t.profile.notifications,
+    preferences: t.profile.preferences,
+    apiKeys: zh ? 'API 密钥' : 'API Keys',
+    sessions: zh ? '会话管理' : 'Sessions',
+  };
 
   return (
     <div className={compactMode ? 'space-y-4 p-4' : 'space-y-6 p-6'}>
       <div>
         <h1 className="mb-2 text-2xl" style={{ color: theme.colors.text }}>
-          {zh ? '账户设置' : 'Account Settings'}
+          {copy.title}
         </h1>
         <p className="text-sm" style={{ color: theme.colors.textSecondary }}>
-          {zh ? '管理您的账户安全、隐私、通知和系统偏好设置' : 'Manage your account security, notifications, and system preferences'}
+          {copy.description}
         </p>
       </div>
 
@@ -55,7 +65,7 @@ export function AccountSettings() {
                 }}
               >
                 <Lock className="mr-2 h-4 w-4" />
-                {zh ? '安全设置' : 'Security'}
+                {copy.security}
               </TabsTrigger>
               <TabsTrigger
                 value="privacy"
@@ -66,7 +76,7 @@ export function AccountSettings() {
                 }}
               >
                 <Shield className="mr-2 h-4 w-4" />
-                {zh ? '隐私设置' : 'Privacy'}
+                {copy.privacy}
               </TabsTrigger>
               <TabsTrigger
                 value="notifications"
@@ -77,7 +87,7 @@ export function AccountSettings() {
                 }}
               >
                 <Bell className="mr-2 h-4 w-4" />
-                {zh ? '通知设置' : 'Notifications'}
+                {copy.notifications}
               </TabsTrigger>
               <TabsTrigger
                 value="preferences"
@@ -88,7 +98,7 @@ export function AccountSettings() {
                 }}
               >
                 <Globe className="mr-2 h-4 w-4" />
-                {zh ? '偏好设置' : 'Preferences'}
+                {copy.preferences}
               </TabsTrigger>
               <TabsTrigger
                 value="apiKeys"
@@ -99,7 +109,7 @@ export function AccountSettings() {
                 }}
               >
                 <Key className="mr-2 h-4 w-4" />
-                {zh ? 'API 密钥' : 'API Keys'}
+                {copy.apiKeys}
               </TabsTrigger>
               <TabsTrigger
                 value="sessions"
@@ -110,7 +120,7 @@ export function AccountSettings() {
                 }}
               >
                 <Settings className="mr-2 h-4 w-4" />
-                {zh ? '会话管理' : 'Sessions'}
+                {copy.sessions}
               </TabsTrigger>
             </TabsList>
           </div>

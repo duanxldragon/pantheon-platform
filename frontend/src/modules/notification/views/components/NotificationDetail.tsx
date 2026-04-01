@@ -21,8 +21,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { useLanguage } from '@/shared/i18n/provider';
 import { notification as toastNotification } from '@/shared/utils/notification';
+import { useLanguageStore } from '@/stores/languageStore';
 import type { NotificationViewItem } from '../../types';
 
 interface NotificationDetailProps {
@@ -33,44 +33,47 @@ interface NotificationDetailProps {
 }
 
 export function NotificationDetail({ notification, onClose, onMarkAsRead, onDelete }: NotificationDetailProps) {
-  const { t, currentLanguage } = useLanguage();
-  const zh = currentLanguage === 'zh';
+  const { t, language } = useLanguageStore();
+  const zh = language === 'zh';
+  const copy = {
+    extraDataCopied: zh ? '附加数据已复制' : 'Extra data copied',
+  };
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case 'urgent':
-        return <Badge variant="destructive">{t('notification.priorityUrgent')}</Badge>;
+        return <Badge variant="destructive">{t.notification.priorityUrgent}</Badge>;
       case 'high':
-        return <Badge variant="destructive">{t('notification.priorityHigh')}</Badge>;
+        return <Badge variant="destructive">{t.notification.priorityHigh}</Badge>;
       case 'medium':
-        return <Badge>{t('notification.priorityMedium')}</Badge>;
+        return <Badge>{t.notification.priorityMedium}</Badge>;
       case 'low':
-        return <Badge>{t('notification.priorityLow')}</Badge>;
+        return <Badge>{t.notification.priorityLow}</Badge>;
       default:
-        return <Badge>{t('notification.priorityMedium')}</Badge>;
+        return <Badge>{t.notification.priorityMedium}</Badge>;
     }
   };
 
   const getStatusBadge = (status: string) => {
     if (status === 'sent') {
-      return <Badge variant="outline">{t('notification.sent')}</Badge>;
+      return <Badge variant="outline">{t.notification.sent}</Badge>;
     }
     if (status === 'read') {
-      return <Badge variant="outline">{t('notification.read')}</Badge>;
+      return <Badge variant="outline">{t.notification.read}</Badge>;
     }
-    return <Badge variant="default">{t('notification.unread')}</Badge>;
+    return <Badge variant="default">{t.notification.unread}</Badge>;
   };
 
   const getChannelBadge = (channel: string) => {
     switch (channel) {
       case 'system':
-        return <Badge variant="outline">{t('notification.channelSystem')}</Badge>;
+        return <Badge variant="outline">{t.notification.channelSystem}</Badge>;
       case 'email':
-        return <Badge variant="outline">{t('notification.channelEmail')}</Badge>;
+        return <Badge variant="outline">{t.notification.channelEmail}</Badge>;
       case 'sms':
-        return <Badge variant="outline">{t('notification.channelSMS')}</Badge>;
+        return <Badge variant="outline">{t.notification.channelSMS}</Badge>;
       case 'inbox':
-        return <Badge variant="outline">{t('notification.channelInbox')}</Badge>;
+        return <Badge variant="outline">{t.notification.channelInbox}</Badge>;
       default:
         return <Badge>{channel}</Badge>;
     }
@@ -79,7 +82,7 @@ export function NotificationDetail({ notification, onClose, onMarkAsRead, onDele
   if (!notification) {
     return (
       <div className="flex h-full w-full items-center justify-center rounded-lg border p-4 text-muted-foreground">
-        {t('notification.selectNotification')}
+        {t.notification.selectNotification}
       </div>
     );
   }
@@ -92,13 +95,13 @@ export function NotificationDetail({ notification, onClose, onMarkAsRead, onDele
             <div>
               <DialogTitle className="flex items-center gap-3">
                 <Bell className="h-5 w-5 text-blue-600" />
-                {t('notification.notificationDetail')}
+                {t.notification.notificationDetail}
               </DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground">
                 {notification.notificationId && `ID: ${notification.notificationId}`}
               </DialogDescription>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose} aria-label={t('common.close')}>
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label={t.common.close}>
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -115,7 +118,7 @@ export function NotificationDetail({ notification, onClose, onMarkAsRead, onDele
 
           <div className="space-y-2">
             <label className="mb-1 text-sm font-medium text-muted-foreground">
-              {t('notification.title')}
+              {t.notification.title}
             </label>
             <div className="text-xl font-semibold">{notification.title}</div>
           </div>
@@ -124,7 +127,7 @@ export function NotificationDetail({ notification, onClose, onMarkAsRead, onDele
 
           <div className="space-y-2">
             <label className="mb-1 text-sm font-medium text-muted-foreground">
-              {t('notification.content')}
+              {t.notification.content}
             </label>
             <div className="rounded-lg bg-muted p-4">
               <p className="whitespace-pre-wrap text-sm leading-relaxed">{notification.content}</p>
@@ -134,11 +137,11 @@ export function NotificationDetail({ notification, onClose, onMarkAsRead, onDele
           <Separator />
 
           <div className="grid grid-cols-2 gap-4">
-            <DetailRow icon={<Clock className="mr-2 h-4 w-4" />} label={t('notification.sentAt')} value={notification.sentAt || '-'} />
-            <DetailRow icon={<Clock className="mr-2 h-4 w-4" />} label={t('notification.readAt')} value={notification.readAt || '-'} />
-            <DetailRow icon={<User className="mr-2 h-4 w-4" />} label={t('notification.sender')} value={notification.senderId || '-'} />
-            <DetailRow icon={<FileText className="mr-2 h-4 w-4" />} label={t('notification.template')} value={notification.templateId || '-'} />
-            <DetailRow icon={<Clock className="mr-2 h-4 w-4" />} label={t('notification.createdAt')} value={notification.createdAt} />
+            <DetailRow icon={<Clock className="mr-2 h-4 w-4" />} label={t.notification.sentAt} value={notification.sentAt || '-'} />
+            <DetailRow icon={<Clock className="mr-2 h-4 w-4" />} label={t.notification.readAt} value={notification.readAt || '-'} />
+            <DetailRow icon={<User className="mr-2 h-4 w-4" />} label={t.notification.sender} value={notification.senderId || '-'} />
+            <DetailRow icon={<FileText className="mr-2 h-4 w-4" />} label={t.notification.template} value={notification.templateId || '-'} />
+            <DetailRow icon={<Clock className="mr-2 h-4 w-4" />} label={t.notification.createdAt} value={notification.createdAt} />
           </div>
 
           {notification.extraData && (
@@ -147,7 +150,7 @@ export function NotificationDetail({ notification, onClose, onMarkAsRead, onDele
               <div className="space-y-2">
                 <label className="mb-1 text-sm font-medium text-muted-foreground">
                   <ExternalLink className="mr-2 inline h-4 w-4" />
-                  {t('notification.extraData')}
+                  {t.notification.extraData}
                 </label>
                 <ExtraDataBlock data={notification.extraData} />
                 <Button
@@ -155,12 +158,12 @@ export function NotificationDetail({ notification, onClose, onMarkAsRead, onDele
                   size="sm"
                   onClick={() => {
                     navigator.clipboard.writeText(notification.extraData!);
-                    toastNotification.success(zh ? '附加数据已复制' : 'Extra data copied');
+                    toastNotification.success(copy.extraDataCopied);
                   }}
                   className="mt-2"
                 >
                   <Copy className="mr-2 h-4 w-4" />
-                  {t('common.copy', zh ? '复制' : 'Copy')}
+                  {t.common.copy}
                 </Button>
               </div>
             </>
@@ -171,18 +174,18 @@ export function NotificationDetail({ notification, onClose, onMarkAsRead, onDele
               {notification.status === 'unread' && (
                 <Button onClick={() => onMarkAsRead(notification.inboxId)}>
                   <CheckCircle className="mr-2 h-4 w-4" />
-                  {t('notification.markAsRead')}
+                  {t.notification.markAsRead}
                 </Button>
               )}
               <Button
                 variant="destructive"
                 onClick={() => {
-                  if (confirm(t('notification.deleteConfirm', { name: notification.title }))) {
+                  if (confirm(t.notification.deleteConfirm.replace('{name}', notification.title))) {
                     onDelete(notification.inboxId);
                   }
                 }}
               >
-                {t('common.delete')}
+                {t.common.delete}
               </Button>
             </div>
           )}

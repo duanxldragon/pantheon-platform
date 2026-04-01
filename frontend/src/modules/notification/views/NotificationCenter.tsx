@@ -20,8 +20,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useLanguage } from '@/shared/i18n/provider';
 import { notification as toastNotification } from '@/shared/utils/notification';
+import { useLanguageStore } from '@/stores/languageStore';
 import { notificationApi, type Notification } from '../api/notificationApi';
 import type { NotificationViewItem } from '../types';
 import { NotificationDetail } from './components/NotificationDetail';
@@ -39,8 +39,21 @@ const defaultStats = {
 };
 
 export function NotificationCenter() {
-  const { t, currentLanguage } = useLanguage();
-  const zh = currentLanguage === 'zh';
+  const { t, language } = useLanguageStore();
+  const zh = language === 'zh';
+  const copy = {
+    defaultTitle: t.notification.defaultTitle || (zh ? '系统通知' : 'System Notification'),
+    loadNotificationsFailed: zh ? '加载通知失败' : 'Failed to load notifications',
+    loadTemplatesFailed: zh ? '加载通知模板失败' : 'Failed to load templates',
+    markReadFailed: zh ? '标记已读失败' : 'Failed to mark notifications as read',
+    markAllReadSuccess: zh ? '已全部标记为已读' : 'All notifications marked as read',
+    markAllReadFailed: zh ? '全部标记已读失败' : 'Failed to mark all as read',
+    clearReadFailed: zh ? '清理已读通知失败' : 'Failed to clear read notifications',
+    clearReadSuccess: (count: number) => (zh ? `已清理 ${count} 条已读通知` : `${count} read notifications cleared`),
+    deleteFailed: zh ? '删除通知失败' : 'Failed to delete notification',
+    noTemplates: zh ? '暂无通知模板' : 'No notification templates',
+  };
+
   const [activeTab, setActiveTab] = useState<'notifications' | 'templates'>('notifications');
   const [filter, setFilter] = useState<NotificationFilter>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('inbox');
@@ -61,7 +74,7 @@ export function NotificationCenter() {
     return {
       inboxId: item.id,
       notificationId: item.notificationId,
-      title: base?.title || t('notification.defaultTitle', zh ? '系统通知' : 'System Notification'),
+      title: base?.title || copy.defaultTitle,
       content: base?.content || '',
       channel: (base?.channel as NotificationViewItem['channel']) || 'system',
       priority: (base?.priority as NotificationViewItem['priority']) || 'medium',
@@ -98,14 +111,14 @@ export function NotificationCenter() {
     setActiveTab(tab);
     if (tab === 'notifications') {
       void loadNotifications(filter);
-    } else {
-      void loadTemplates();
+      return;
     }
+    void loadTemplates();
   };
 
-  const handleFilterChange = (newFilter: NotificationFilter) => {
-    setFilter(newFilter);
-    void loadNotifications(newFilter);
+  const handleFilterChange = (nextFilter: NotificationFilter) => {
+    setFilter(nextFilter);
+    void loadNotifications(nextFilter);
   };
 
   const loadUnreadCount = async () => {
@@ -142,7 +155,7 @@ export function NotificationCenter() {
       );
     } catch (error) {
       console.error('Failed to load notifications:', error);
-      toastNotification.error(zh ? '加载通知失败' : 'Failed to load notifications');
+      toastNotification.error(copy.loadNotificationsFailed);
     }
   };
 
@@ -152,7 +165,7 @@ export function NotificationCenter() {
       setTemplates(items);
     } catch (error) {
       console.error('Failed to load templates:', error);
-      toastNotification.error(zh ? '加载通知模板失败' : 'Failed to load templates');
+      toastNotification.error(copy.loadTemplatesFailed);
     }
   };
 
@@ -188,7 +201,7 @@ export function NotificationCenter() {
       void loadStats();
     } catch (error) {
       console.error('Failed to mark as read:', error);
-      toastNotification.error(zh ? '标记已读失败' : 'Failed to mark notifications as read');
+      toastNotification.error(copy.markReadFailed);
     }
   };
 
@@ -202,10 +215,10 @@ export function NotificationCenter() {
       setNotifications((prev) => prev.map((item) => ({ ...item, status: 'read' })));
       setUnreadCount(0);
       void loadStats();
-      toastNotification.success(zh ? '已全部标记为已读' : 'All notifications marked as read');
+      toastNotification.success(copy.markAllReadSuccess);
     } catch (error) {
       console.error('Failed to mark all as read:', error);
-      toastNotification.error(zh ? '全部标记已读失败' : 'Failed to mark all as read');
+      toastNotification.error(copy.markAllReadFailed);
     }
   };
 
@@ -221,7 +234,7 @@ export function NotificationCenter() {
 
       const successCount = results.filter((result) => result.status === 'fulfilled').length;
       if (successCount === 0) {
-        toastNotification.error(zh ? '清理已读通知失败' : 'Failed to clear read notifications');
+        toastNotification.error(copy.clearReadFailed);
         return;
       }
 
@@ -232,17 +245,12 @@ export function NotificationCenter() {
       );
 
       setNotifications((prev) => prev.filter((item) => !deletedIds.has(item.inboxId)));
-      setSelectedNotification((current) =>
-        current && deletedIds.has(current.inboxId) ? null : current,
-      );
+      setSelectedNotification((current) => (current && deletedIds.has(current.inboxId) ? null : current));
       void loadStats();
-
-      toastNotification.success(
-        zh ? `已清理 ${successCount} 条已读通知` : `${successCount} read notifications cleared`,
-      );
+      toastNotification.success(copy.clearReadSuccess(successCount));
     } catch (error) {
       console.error('Failed to clear read notifications:', error);
-      toastNotification.error(zh ? '清理已读通知失败' : 'Failed to clear read notifications');
+      toastNotification.error(copy.clearReadFailed);
     }
   };
 
@@ -258,7 +266,7 @@ export function NotificationCenter() {
       void loadStats();
     } catch (error) {
       console.error('Failed to delete notification:', error);
-      toastNotification.error(zh ? '删除通知失败' : 'Failed to delete notification');
+      toastNotification.error(copy.deleteFailed);
     }
   };
 
@@ -280,13 +288,13 @@ export function NotificationCenter() {
   const channelLabel = (channel: string) => {
     switch (channel) {
       case 'system':
-        return t('notification.channelSystem');
+        return t.notification.channelSystem;
       case 'email':
-        return t('notification.channelEmail');
+        return t.notification.channelEmail;
       case 'sms':
-        return t('notification.channelSMS');
+        return t.notification.channelSMS;
       case 'inbox':
-        return t('notification.channelInbox');
+        return t.notification.channelInbox;
       default:
         return channel;
     }
@@ -296,17 +304,15 @@ export function NotificationCenter() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">
-            {t('notification.title', zh ? '通知中心' : 'Notification Center')}
-          </h1>
+          <h1 className="text-3xl font-bold">{t.notification.title}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {t('navigation.profile')} - {t('notification.notifications')}
+            {t.topBar.profileCenter} - {t.notification.notifications}
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => void loadNotifications(filter)}>
             <Clock className="mr-2 h-4 w-4" />
-            {t('common.refresh')}
+            {t.common.refresh}
           </Button>
         </div>
       </div>
@@ -316,13 +322,13 @@ export function NotificationCenter() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               <Inbox className="mr-2 h-4 w-4 text-blue-600" />
-              {t('notification.total')}
+              {t.notification.total}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{stats.total}</div>
             <CardDescription className="text-xs text-muted-foreground">
-              {t('notification.allNotifications')}
+              {t.notification.allNotifications}
             </CardDescription>
           </CardContent>
         </Card>
@@ -331,13 +337,13 @@ export function NotificationCenter() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               <Inbox className="mr-2 h-4 w-4 text-blue-600" />
-              {t('notification.unread')}
+              {t.notification.unread}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-blue-600">{stats.unread}</div>
             <CardDescription className="text-xs text-muted-foreground">
-              {t('notification.unreadNotifications')}
+              {t.notification.unreadNotifications}
             </CardDescription>
           </CardContent>
         </Card>
@@ -346,13 +352,13 @@ export function NotificationCenter() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               <CheckCheck className="mr-2 h-4 w-4 text-green-600" />
-              {t('notification.read')}
+              {t.notification.read}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-600">{stats.read}</div>
             <CardDescription className="text-xs text-muted-foreground">
-              {t('notification.readNotifications')}
+              {t.notification.readNotifications}
             </CardDescription>
           </CardContent>
         </Card>
@@ -361,13 +367,13 @@ export function NotificationCenter() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               <Send className="mr-2 h-4 w-4 text-purple-600" />
-              {t('notification.sentToday')}
+              {t.notification.sentToday}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-purple-600">{stats.sentToday}</div>
             <CardDescription className="text-xs text-muted-foreground">
-              {t('notification.sentTodayNotifications')}
+              {t.notification.sentTodayNotifications}
             </CardDescription>
           </CardContent>
         </Card>
@@ -376,13 +382,13 @@ export function NotificationCenter() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               <Send className="mr-2 h-4 w-4 text-orange-600" />
-              {t('notification.sentWeek')}
+              {t.notification.sentWeek}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-orange-600">{stats.sentWeek}</div>
             <CardDescription className="text-xs text-muted-foreground">
-              {t('notification.sentWeekNotifications')}
+              {t.notification.sentWeekNotifications}
             </CardDescription>
           </CardContent>
         </Card>
@@ -392,11 +398,11 @@ export function NotificationCenter() {
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="notifications">
             <Inbox className="mr-2 h-4 w-4" />
-            {t('notification.notifications')}
+            {t.notification.notifications}
           </TabsTrigger>
           <TabsTrigger value="templates">
             <FileText className="mr-2 h-4 w-4" />
-            {t('notification.templates')}
+            {t.notification.templates}
           </TabsTrigger>
         </TabsList>
 
@@ -407,7 +413,7 @@ export function NotificationCenter() {
               size="sm"
               onClick={() => handleFilterChange('all')}
             >
-              {t('notification.all')}
+              {t.notification.all}
             </Button>
             <Button
               variant={filter === 'unread' ? 'default' : 'outline'}
@@ -415,14 +421,14 @@ export function NotificationCenter() {
               onClick={() => handleFilterChange('unread')}
               disabled={viewMode === 'sent'}
             >
-              {t('notification.unread')}
+              {t.notification.unread}
             </Button>
             <Button
               variant={filter === 'sent' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleFilterChange('sent')}
             >
-              {t('notification.sent')}
+              {t.notification.sent}
             </Button>
             <Button
               variant="outline"
@@ -431,7 +437,7 @@ export function NotificationCenter() {
               disabled={viewMode !== 'inbox' || unreadCount === 0}
             >
               <Check className="mr-2 h-4 w-4" />
-              {t('notification.markAllAsRead')}
+              {t.notification.markAllAsRead}
             </Button>
             <Button
               variant="outline"
@@ -440,7 +446,7 @@ export function NotificationCenter() {
               disabled={viewMode !== 'inbox' || readInboxItems.length === 0}
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              {t('notification.clearRead')}
+              {t.notification.clearRead}
             </Button>
           </div>
 
@@ -472,9 +478,7 @@ export function NotificationCenter() {
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                 <AlertCircle className="mb-4 h-10 w-10 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                  {zh ? '暂无通知模板' : 'No notification templates'}
-                </p>
+                <p className="text-sm text-muted-foreground">{copy.noTemplates}</p>
               </CardContent>
             </Card>
           ) : (
@@ -490,7 +494,7 @@ export function NotificationCenter() {
                   </CardHeader>
                   <CardContent className="space-y-2">
                     <div className="text-xs uppercase text-muted-foreground">
-                      {t('notification.channel')}
+                      {t.notification.channel}
                     </div>
                     <div className="text-sm font-medium">{channelLabel(template.channel)}</div>
                   </CardContent>

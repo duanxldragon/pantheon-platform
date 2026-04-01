@@ -10,10 +10,9 @@ import { LoginHistory, NotificationSettings, PersonalInfo, PreferenceSettings, S
 
 export function ProfileCenter() {
   const { theme } = useThemeStore();
-  const { language, t } = useLanguageStore();
+  const { t } = useLanguageStore();
   const { compactMode } = useProfilePreferenceSettings();
   const [activeTab, setActiveTab] = useState('personal');
-  const zh = language === 'zh';
 
   return (
     <div className={compactMode ? 'space-y-4 p-4' : 'space-y-6 p-6'}>
@@ -22,7 +21,7 @@ export function ProfileCenter() {
           {t.profile.title}
         </h1>
         <p className="text-sm" style={{ color: theme.colors.textSecondary }}>
-          {zh ? '管理您的个人信息、安全设置和偏好配置' : 'Manage your personal information, security settings, and preferences'}
+          {t.profile.description}
         </p>
       </div>
 
