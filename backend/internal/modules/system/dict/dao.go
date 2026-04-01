@@ -44,6 +44,14 @@ func (r *dictTypeDAO) GetTenantModels() []interface{} {
 	return []interface{}{&DictType{}}
 }
 
+func (r *dictTypeDAO) MigrationVersion() string {
+	return dictTypeMigrationVersion
+}
+
+func (r *dictTypeDAO) MigrateTenantSchema(db *gorm.DB) error {
+	return MigrateSchema(db)
+}
+
 func (r *dictTypeDAO) GetByCode(ctx context.Context, code string) (*DictType, error) {
 	var t DictType
 	err := r.GetDB(ctx).Where("code = ?", code).First(&t).Error

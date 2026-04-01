@@ -9,12 +9,13 @@ import (
 // Role 角色模型
 type Role struct {
 	ID          uuid.UUID      `json:"id" gorm:"type:char(36);primaryKey"`
-	Name        string         `json:"name" gorm:"size:50;notNull;uniqueIndex"`
-	Code        string         `json:"code" gorm:"size:50;notNull;uniqueIndex"`
+	Name        string         `json:"name" gorm:"size:50;notNull;uniqueIndex:uniq_role_tenant_name,priority:2"`
+	Code        string         `json:"code" gorm:"size:50;notNull;uniqueIndex:uniq_role_tenant_code,priority:2"`
 	Description string         `json:"description" gorm:"type:text"`
 	Status      string         `json:"status" gorm:"size:20;notNull;default:'active'"`
 	Type        string         `json:"type" gorm:"size:20;notNull;default:'custom'"`
-	TenantID    string         `json:"tenant_id" gorm:"type:char(36);index"`
+	DataScope   string         `json:"data_scope" gorm:"size:255;notNull;default:'all'"`
+	TenantID    string         `json:"tenant_id" gorm:"type:char(36);index;uniqueIndex:uniq_role_tenant_name,priority:1;uniqueIndex:uniq_role_tenant_code,priority:1"`
 	IsSystem    bool           `json:"is_system" gorm:"default:false"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`

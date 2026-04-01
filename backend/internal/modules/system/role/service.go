@@ -2,6 +2,7 @@ package role
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -42,7 +43,12 @@ type AuthorizationProvider interface {
 	RevokeUsersSessions(ctx context.Context, userIDs []string) error
 	SyncRoleUsers(ctx context.Context, roleID string, userIDs []string, enabled bool) error
 	RemoveRole(ctx context.Context, roleID string) error
+	ValidateDataScope(rule string) (bool, error)
 }
+
+var errInvalidRoleDataScope = errors.New("invalid role data scope")
+var errRoleCodeExists = errors.New("role code exists")
+var errRoleNameExists = errors.New("role name exists")
 
 // Role service interface.
 
@@ -51,6 +57,8 @@ type RoleService interface {
 	GetByID(ctx context.Context, id string) (*RoleResponse, error)
 	Update(ctx context.Context, id string, req *RoleUpdateRequest) (*Role, error)
 	Delete(ctx context.Context, id string) error
+	BatchDelete(ctx context.Context, ids []string) error
+	BatchUpdateStatus(ctx context.Context, req *RoleStatusRequest) error
 	List(ctx context.Context, req *RoleListRequest) (*PageResponse, error)
 
 	AssignPermissions(ctx context.Context, req *RolePermissionRequest) error
@@ -90,6 +98,10 @@ func NewRoleService(
 }
 
 func (s *roleService) Create(ctx context.Context, req *RoleRequest) (*Role, error) {
+	if err := s.validateRoleDataScope(req.DataScope); err != nil {
+		return nil, err
+	}
+
 	tenantID := getTenantID(ctx)
 	if tenantID != "" && s.quotaValidator != nil {
 		if err := s.quotaValidator.CheckQuota(ctx, tenantID, "roles"); err != nil {
@@ -98,7 +110,10 @@ func (s *roleService) Create(ctx context.Context, req *RoleRequest) (*Role, erro
 	}
 
 	if existing, _ := s.dao.GetByCode(ctx, req.Code); existing != nil {
-		return nil, fmt.Errorf("role code exists")
+		return nil, errRoleCodeExists
+	}
+	if existing, _ := s.dao.GetByName(ctx, req.Name); existing != nil {
+		return nil, errRoleNameExists
 	}
 
 	role := &Role{
@@ -108,6 +123,7 @@ func (s *roleService) Create(ctx context.Context, req *RoleRequest) (*Role, erro
 		Description: req.Description,
 		Type:        req.Type,
 		Status:      req.Status,
+		DataScope:   normalizeRoleDataScope(req.DataScope, "all"),
 		TenantID:    tenantID,
 	}
 
@@ -126,7 +142,10 @@ func (s *roleService) GetByID(ctx context.Context, id string) (*RoleResponse, er
 
 	perms, _ := s.dao.GetPermissions(ctx, id)
 	menuIDs, _ := s.dao.GetMenuIDs(ctx, id)
-	return ToRoleResponse(&role, s.convertPerms(perms), menuIDs), nil
+	userIDs, _ := s.dao.GetUserIDsByRole(ctx, id)
+	resp := ToRoleResponse(&role, s.convertPerms(perms), menuIDs)
+	resp.UserCount = len(userIDs)
+	return resp, nil
 }
 
 func (s *roleService) Update(ctx context.Context, id string, req *RoleUpdateRequest) (*Role, error) {
@@ -135,12 +154,31 @@ func (s *roleService) Update(ctx context.Context, id string, req *RoleUpdateRequ
 		return nil, err
 	}
 	previousStatus := role.Status
+	previousDataScope := role.DataScope
 
 	if req.Name != nil {
+		if existing, _ := s.dao.GetByName(ctx, *req.Name); existing != nil && existing.ID != role.ID {
+			return nil, errRoleNameExists
+		}
 		role.Name = *req.Name
+	}
+	if req.Code != nil {
+		if existing, _ := s.dao.GetByCode(ctx, *req.Code); existing != nil && existing.ID != role.ID {
+			return nil, errRoleCodeExists
+		}
+		role.Code = *req.Code
+	}
+	if req.Description != nil {
+		role.Description = *req.Description
 	}
 	if req.Status != nil {
 		role.Status = *req.Status
+	}
+	if req.DataScope != nil {
+		if err := s.validateRoleDataScope(*req.DataScope); err != nil {
+			return nil, err
+		}
+		role.DataScope = normalizeRoleDataScope(*req.DataScope, role.DataScope)
 	}
 
 	// Ensure the role belongs to the current tenant.
@@ -157,13 +195,21 @@ func (s *roleService) Update(ctx context.Context, id string, req *RoleUpdateRequ
 			return nil, err
 		}
 	} else {
+		dataScopeChanged := previousDataScope != role.DataScope
+		if dataScopeChanged && s.authProvider != nil {
+			_ = s.authProvider.BumpRoleUsersAuthVersion(ctx, role.ID.String())
+		}
+		detail := map[string]string{"status": role.Status, "data_scope": role.DataScope}
+		if dataScopeChanged {
+			detail["refresh_strategy"] = "bump_auth_version"
+		}
 		setOperationAuditFields(ctx, audit.OperationFields{
 			Module:       "system/roles",
 			Resource:     "role",
 			ResourceID:   role.ID.String(),
 			ResourceName: role.Name,
 			Summary:      fmt.Sprintf("Updated role %q", role.Name),
-			Detail:       buildRoleAuditDetail(role.ID.String(), role.Name, map[string]string{"status": role.Status}),
+			Detail:       buildRoleAuditDetail(role.ID.String(), role.Name, detail),
 		})
 	}
 	return &role, nil
@@ -173,6 +219,9 @@ func (s *roleService) Delete(ctx context.Context, id string) error {
 	role, err := s.dao.GetByID(ctx, id)
 	if err != nil {
 		return err
+	}
+	if role.Type == "system" || role.IsSystem {
+		return fmt.Errorf("system role cannot be deleted")
 	}
 
 	if inUse, _ := s.userValidator.CheckRoleInUse(ctx, id); inUse {
@@ -187,11 +236,19 @@ func (s *roleService) Delete(ctx context.Context, id string) error {
 
 	err = s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
 		txDAO := s.dao.WithTx(tx).(RoleDAO)
-		_ = txDAO.ClearPermissions(ctx, id)
-		if s.authProvider != nil {
-			_ = s.authProvider.RemoveRole(ctx, role.ID.String())
+		txCtx := context.WithValue(ctx, "tx_db", tx)
+		if err := txDAO.ClearPermissions(txCtx, id); err != nil {
+			return err
 		}
-		return txDAO.Delete(ctx, id)
+		if err := txDAO.ClearMenus(txCtx, id); err != nil {
+			return err
+		}
+		if s.authProvider != nil {
+			if err := s.authProvider.RemoveRole(txCtx, role.ID.String()); err != nil {
+				return err
+			}
+		}
+		return txDAO.Delete(txCtx, id)
 	})
 
 	if err == nil && tenantID != "" && s.quotaValidator != nil {
@@ -201,10 +258,158 @@ func (s *roleService) Delete(ctx context.Context, id string) error {
 	return err
 }
 
+func (s *roleService) BatchDelete(ctx context.Context, ids []string) error {
+	tenantID := getTenantID(ctx)
+	normalizedIDs := make([]string, 0, len(ids))
+	roles := make([]Role, 0, len(ids))
+	seen := make(map[string]struct{}, len(ids))
+
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+
+		role, err := s.dao.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if tenantID != "" && role.TenantID != tenantID {
+			return fmt.Errorf("role not found in current tenant")
+		}
+		if role.Type == "system" || role.IsSystem {
+			return fmt.Errorf("system role %q cannot be deleted", role.Name)
+		}
+		if inUse, _ := s.userValidator.CheckRoleInUse(ctx, id); inUse {
+			return fmt.Errorf("role %q is in use by users", role.Name)
+		}
+
+		normalizedIDs = append(normalizedIDs, id)
+		roles = append(roles, role)
+	}
+
+	if len(normalizedIDs) == 0 {
+		return nil
+	}
+
+	err := s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
+		txDAO := s.dao.WithTx(tx).(RoleDAO)
+		txCtx := context.WithValue(ctx, "tx_db", tx)
+		for _, role := range roles {
+			if err := txDAO.ClearPermissions(txCtx, role.ID.String()); err != nil {
+				return err
+			}
+			if err := txDAO.ClearMenus(txCtx, role.ID.String()); err != nil {
+				return err
+			}
+			if s.authProvider != nil {
+				if err := s.authProvider.RemoveRole(txCtx, role.ID.String()); err != nil {
+					return err
+				}
+			}
+			if err := txDAO.Delete(txCtx, role.ID.String()); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	if tenantID != "" && s.quotaValidator != nil {
+		_ = s.quotaValidator.DecreaseUsage(ctx, tenantID, "roles", int64(len(roles)), "system")
+	}
+
+	roleNames := make([]string, 0, len(roles))
+	for _, role := range roles {
+		roleNames = append(roleNames, role.Name)
+	}
+	setOperationAuditFields(ctx, audit.OperationFields{
+		Module:   "system/roles",
+		Resource: "role_batch_delete",
+		Summary:  fmt.Sprintf("Batch deleted %d roles", len(roles)),
+		Detail:   "deleted_roles=" + strings.Join(roleNames, ","),
+	})
+
+	return nil
+}
+
+func (s *roleService) BatchUpdateStatus(ctx context.Context, req *RoleStatusRequest) error {
+	tenantID := getTenantID(ctx)
+	roles := make([]Role, 0, len(req.RoleIDs))
+	seen := make(map[string]struct{}, len(req.RoleIDs))
+
+	for _, id := range req.RoleIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+
+		role, err := s.dao.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if tenantID != "" && role.TenantID != tenantID {
+			return fmt.Errorf("role not found in current tenant")
+		}
+		if role.Type == "system" || role.IsSystem {
+			return fmt.Errorf("system role %q status cannot be changed in batch", role.Name)
+		}
+		if role.Status == req.Status {
+			continue
+		}
+		roles = append(roles, role)
+	}
+
+	if len(roles) == 0 {
+		return nil
+	}
+
+	for i := range roles {
+		role := roles[i]
+		role.Status = req.Status
+		if err := s.dao.UpdateStatus(ctx, role.ID.String(), req.Status); err != nil {
+			return err
+		}
+		if err := s.handleRoleStatusChange(ctx, role); err != nil {
+			return err
+		}
+	}
+
+	roleNames := make([]string, 0, len(roles))
+	for _, role := range roles {
+		roleNames = append(roleNames, role.Name)
+	}
+	setOperationAuditFields(ctx, audit.OperationFields{
+		Module:   "system/roles",
+		Resource: "role_status_batch",
+		Summary:  fmt.Sprintf("Batch updated %d roles to %s", len(roles), req.Status),
+		Detail:   "roles=" + strings.Join(roleNames, ",") + ";status=" + req.Status,
+	})
+
+	return nil
+}
+
 func (s *roleService) List(ctx context.Context, req *RoleListRequest) (*PageResponse, error) {
 	filters := make(map[string]interface{})
 	if req.Status != "" {
 		filters["status"] = req.Status
+	}
+	if strings.TrimSpace(req.Type) != "" {
+		filters["type"] = strings.TrimSpace(req.Type)
+	}
+	if search := strings.TrimSpace(req.Search); search != "" {
+		like := "%" + search + "%"
+		filters["(name LIKE ? OR code LIKE ?)"] = []interface{}{like, like}
 	}
 
 	roles, total, err := s.dao.List(ctx, req.Page, req.PageSize, filters)
@@ -214,7 +419,11 @@ func (s *roleService) List(ctx context.Context, req *RoleListRequest) (*PageResp
 
 	items := make([]*RoleResponse, len(roles))
 	for i, r := range roles {
-		items[i] = ToRoleResponse(&r, nil, nil)
+		userIDs, _ := s.dao.GetUserIDsByRole(ctx, r.ID.String())
+		menuIDs, _ := s.dao.GetMenuIDs(ctx, r.ID.String())
+		resp := ToRoleResponse(&r, nil, menuIDs)
+		resp.UserCount = len(userIDs)
+		items[i] = resp
 	}
 
 	return &PageResponse{
@@ -240,15 +449,20 @@ func (s *roleService) AssignPermissions(ctx context.Context, req *RolePermission
 
 	if err := s.txManager.Transaction(ctx, func(tx *gorm.DB) error {
 		txDAO := s.dao.WithTx(tx).(RoleDAO)
-		_ = txDAO.ClearPermissions(ctx, req.RoleID)
+		txCtx := context.WithValue(ctx, "tx_db", tx)
+		if err := txDAO.ClearPermissions(txCtx, req.RoleID); err != nil {
+			return err
+		}
 		for _, pid := range req.PermissionIDs {
-			_ = txDAO.AddPermission(ctx, req.RoleID, pid)
+			if err := txDAO.AddPermission(txCtx, req.RoleID, pid); err != nil {
+				return err
+			}
 		}
 		if s.authProvider != nil {
 			if role.Status == "active" {
-				return s.authProvider.UpdateRolePermissions(ctx, role.ID.String(), rules)
+				return s.authProvider.UpdateRolePermissions(txCtx, role.ID.String(), rules)
 			}
-			return s.authProvider.UpdateRolePermissions(ctx, role.ID.String(), nil)
+			return s.authProvider.UpdateRolePermissions(txCtx, role.ID.String(), nil)
 		}
 		return nil
 	}); err != nil {
@@ -421,10 +635,64 @@ func buildRoleAuditDetail(roleID, roleName string, attributes map[string]string)
 		"role_id=" + roleID,
 		"role_name=" + roleName,
 	}
-	for _, key := range []string{"status", "permission_count", "menu_count", "affected_users", "session_strategy", "refresh_strategy"} {
+	for _, key := range []string{"status", "data_scope", "permission_count", "menu_count", "affected_users", "session_strategy", "refresh_strategy"} {
 		if value := strings.TrimSpace(attributes[key]); value != "" {
 			items = append(items, key+"="+value)
 		}
 	}
 	return strings.Join(items, "; ")
+}
+
+func normalizeRoleDataScope(value, fallback string) string {
+	value = strings.TrimSpace(value)
+	if isSupportedRoleDataScopeValue(value) {
+		return value
+	}
+	fallback = strings.TrimSpace(fallback)
+	if isSupportedRoleDataScopeValue(fallback) {
+		return fallback
+	}
+	return "all"
+}
+
+func (s *roleService) validateRoleDataScope(value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" || isBasicRoleDataScope(value) {
+		return nil
+	}
+
+	if s == nil || s.authProvider == nil {
+		return fmt.Errorf("%w: %s", errInvalidRoleDataScope, value)
+	}
+
+	ok, err := s.authProvider.ValidateDataScope(value)
+	if err != nil {
+		return fmt.Errorf("%w: %v", errInvalidRoleDataScope, err)
+	}
+	if !ok {
+		return fmt.Errorf("%w: %s", errInvalidRoleDataScope, value)
+	}
+	return nil
+}
+
+func isSupportedRoleDataScopeValue(value string) bool {
+	value = strings.TrimSpace(value)
+	return isBasicRoleDataScope(value) || isCustomRoleDataScope(value)
+}
+
+func isBasicRoleDataScope(value string) bool {
+	switch strings.TrimSpace(value) {
+	case "all", "custom", "dept", "dept_and_sub", "self":
+		return true
+	default:
+		return false
+	}
+}
+
+func isCustomRoleDataScope(value string) bool {
+	value = strings.TrimSpace(value)
+	return strings.HasPrefix(value, "dept:") ||
+		strings.HasPrefix(value, "dept_and_sub:") ||
+		strings.HasPrefix(value, "project:") ||
+		strings.HasPrefix(value, "custom:")
 }

@@ -27,6 +27,7 @@ type RoleDAO interface {
 	// Menu relations.
 	GetMenuIDs(ctx context.Context, roleID string) ([]string, error)
 	AssignMenus(ctx context.Context, roleID string, menuIDs []string) error
+	ClearMenus(ctx context.Context, roleID string) error
 }
 
 // roleDAO implements role DAO behavior.
@@ -48,6 +49,14 @@ func (r *roleDAO) GetTenantModels() []interface{} {
 		&RoleMenu{},
 		&CasbinRule{},
 	}
+}
+
+func (r *roleDAO) MigrationVersion() string {
+	return roleMigrationVersion
+}
+
+func (r *roleDAO) MigrateTenantSchema(db *gorm.DB) error {
+	return MigrateSchema(db)
 }
 
 func (r *roleDAO) GetByCode(ctx context.Context, code string) (*Role, error) {
@@ -125,18 +134,26 @@ func (r *roleDAO) GetMenuIDs(ctx context.Context, roleID string) ([]string, erro
 
 func (r *roleDAO) AssignMenus(ctx context.Context, roleID string, menuIDs []string) error {
 	return r.GetDB(ctx).Transaction(func(tx *gorm.DB) error {
-		tx.Where("role_id = ?", roleID).Delete(&RoleMenu{})
+		if err := tx.Where("role_id = ?", roleID).Delete(&RoleMenu{}).Error; err != nil {
+			return err
+		}
 		rid, _ := uuid.Parse(roleID)
 		for _, midStr := range menuIDs {
 			mid, _ := uuid.Parse(midStr)
-			tx.Create(&RoleMenu{
+			if err := tx.Create(&RoleMenu{
 				ID:     uuid.New(),
 				RoleID: rid,
 				MenuID: mid,
-			})
+			}).Error; err != nil {
+				return err
+			}
 		}
 		return nil
 	})
+}
+
+func (r *roleDAO) ClearMenus(ctx context.Context, roleID string) error {
+	return r.GetDB(ctx).Where("role_id = ?", roleID).Delete(&RoleMenu{}).Error
 }
 
 func (r *roleDAO) WithTx(tx *gorm.DB) database.DAO[Role] {

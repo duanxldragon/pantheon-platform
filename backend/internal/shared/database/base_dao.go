@@ -38,6 +38,9 @@ func (r *BaseDAO[T]) GetDB(ctx context.Context) *gorm.DB {
 	if ctx == nil {
 		return r.db
 	}
+	if txDB, ok := ctx.Value("tx_db").(*gorm.DB); ok && txDB != nil {
+		return txDB.WithContext(ctx)
+	}
 	if tenantDB, ok := ctx.Value("tenant_db").(*gorm.DB); ok {
 		return tenantDB.WithContext(ctx)
 	}
@@ -82,11 +85,7 @@ func (r *BaseDAO[T]) List(ctx context.Context, page, pageSize int, filters map[s
 	query := r.GetDB(ctx).Model(new(T))
 
 	for key, value := range filters {
-		if strings.Contains(key, "?") || strings.Contains(key, " ") {
-			query = query.Where(key, value)
-		} else {
-			query = query.Where(key+" = ?", value)
-		}
+		query = applyFilter(query, key, value)
 	}
 
 	if err := query.Count(&total).Error; err != nil {
@@ -108,11 +107,7 @@ func (r *BaseDAO[T]) Count(ctx context.Context, filters map[string]interface{}) 
 	query := r.GetDB(ctx).Model(new(T))
 
 	for key, value := range filters {
-		if strings.Contains(key, "?") || strings.Contains(key, " ") {
-			query = query.Where(key, value)
-		} else {
-			query = query.Where(key+" = ?", value)
-		}
+		query = applyFilter(query, key, value)
 	}
 
 	if err := query.Count(&total).Error; err != nil {
@@ -148,4 +143,14 @@ func (r *BaseDAO[T]) BatchUpdate(ctx context.Context, entities []T) error {
 func (r *BaseDAO[T]) BatchDelete(ctx context.Context, ids []interface{}) error {
 	var entity T
 	return r.GetDB(ctx).Where("id IN ?", ids).Delete(&entity).Error
+}
+
+func applyFilter(query *gorm.DB, key string, value interface{}) *gorm.DB {
+	if strings.Contains(key, "?") || strings.Contains(key, " ") {
+		if args, ok := value.([]interface{}); ok {
+			return query.Where(key, args...)
+		}
+		return query.Where(key, value)
+	}
+	return query.Where(key+" = ?", value)
 }

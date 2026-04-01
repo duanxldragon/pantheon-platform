@@ -8,6 +8,8 @@ func (h *RoleHandler) RegisterRoutes(group *gin.RouterGroup) {
 	{
 		roles.GET("", h.List)
 		roles.POST("", h.Create)
+		roles.POST("/batch-delete", h.BatchDelete)
+		roles.PATCH("/status", h.BatchUpdateStatus)
 		roles.GET("/:id", h.GetByID)
 		roles.PUT("/:id", h.Update)
 		roles.DELETE("/:id", h.Delete)
