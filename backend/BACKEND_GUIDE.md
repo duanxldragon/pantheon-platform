@@ -1,37 +1,17 @@
-# Pantheon Platform 后端实现总览
+# Pantheon Platform 閸氬海顏€圭偟骞囬幀鏄忣潔
 
-> **基于 Go 1.23+ 的模块化后端工程**  
-> Gin、GORM、Casbin、JWT、Redis、多租户隔离
->
-> 命名规则见 `backend/docs/BACKEND_NAMING_CONVENTIONS.md`。  
-> 文档入口见 `backend/docs/BACKEND_DOCS_INDEX.md`。
-
----
-
-## 目录
-
-1. [架构总览](#架构总览)
-2. [模块组织](#模块组织)
-3. [接口设计约定](#接口设计约定)
-4. [数据库设计](#数据库设计)
-5. [Casbin RBAC 设计](#casbin-rbac-设计)
-6. [数据库初始化逻辑](#数据库初始化逻辑)
-7. [认证与授权链路](#认证与授权链路)
-8. [多租户架构](#多租户架构)
-9. [i18n 错误处理](#i18n-错误处理)
-10. [代码标准](#代码标准)
-11. [新增业务模块流程](#新增业务模块流程)
-12. [安全设计](#安全设计)
-13. [性能与工程实践](#性能与工程实践)
-14. [开发与验证](#开发与验证)
-15. [本轮规范化总结](#本轮规范化总结)
+> 基于 `Go 1.23+` 的模块化后端工程。
+> 閺嶇绺鹃幎鈧張顖涚垽閿涙瓪Gin`閵嗕梗GORM`閵嗕梗Casbin`閵嗕梗JWT`閵嗕梗Redis`閵嗕礁顦跨粔鐔稿煕闂呮梻顬囬妴?
+閻╃鍙ч弬鍥ㄣ€傞崗銉ュ經閿?
+- 閸涜棄鎮曠憴鍕瘱閿涙瓪backend/docs/BACKEND_NAMING_CONVENTIONS.md`
+- 閺傚洦銆傜槐銏犵穿閿涙瓪backend/docs/BACKEND_DOCS_INDEX.md`
+- 閸欐垵绔锋稉搴ょ讣缁夋槒顕╅弰搴窗`backend/docs/BACKEND_RELEASE_MIGRATION_RUNBOOK.md`
 
 ---
 
-## 架构总览
+## 1. 閺嬭埖鐎幀鏄忣潔
 
-### 分层架构
-
+閸氬海顏幐澶婃祼鐎规艾鍨庣仦鍌滅矋缂佸浄绱?
 ```text
 HTTP Request
   -> Middleware Chain
@@ -41,31 +21,14 @@ HTTP Request
   -> Model Layer
 ```
 
-### 分层职责
-
-- `Middleware`：恢复、日志、CORS、安全头、认证、租户绑定、授权
-- `Handler`：解析参数、校验输入、调用服务、组装响应
-- `Service`：业务规则、跨对象协作、事务边界
-- `DAO`：所有数据库读写与查询封装
-- `Model`：持久化结构、表映射、索引与标签
-
+閸氬嫬鐪伴懕宀冪煑閿?
+- `middleware`閿涙俺顓荤拠浣碘偓浣侯潳閹撮绮︾€规哎鈧竼asbin 閹哄牊娼堥妴浣哥暔閸忋劌銇旈妴浣规）韫?- `handler`閿涙俺袙閺嬫劕寮弫鑸偓浣哥唨绾偓閺嶏繝鐛欓妴浣虹埠娑撯偓閸濆秴绨?- `service`閿涙矮绗熼崝陇顫夐崚娆嶁偓浣风皑閸斅ょ珶閻ｅ被鈧浇娉曞Ο鈥虫健閸楀繋缍?- `dao`閿涙碍鏆熼幑顔肩氨鐠囪鍟撻妴浣圭叀鐠囥垹鐨濈憗?- `model`閿涙碍瀵旀稊鍛缂佹挻鐎妴浣哄偍瀵洖鎷扮悰銊︽Ё鐏?
 ---
 
-## 模块组织
+## 2. 閻╊喖缍嶉懕宀冪煑
 
-每个业务模块统一采用固定主分层文件：
-
-| 文件 | 职责 |
-|:---|:---|
-| `model.go` | GORM 模型与持久化映射 |
-| `dto.go` | 请求和响应 DTO |
-| `dao.go` | 数据访问封装 |
-| `service.go` | 业务逻辑、校验、编排 |
-| `handler.go` | HTTP 处理入口 |
-| `router.go` | 路由注册 |
-
-固定主分层文件名：
-
+- `cmd/server/`閿涙氨鏁撴禍褎婀囬崝鈥冲弳閸?- `cmd/tools/`閿涙俺鐦栭弬顓溾偓浣稿灥婵瀵查妴浣界窡閸斺晛浼愰崗?- `internal/app/`閿涙艾鎯庨崝銊棅闁板秳绗屾笟婵婄濞夈劌鍙?- `internal/modules/`閿涙矮绗熼崝鈩兡侀崸?- `internal/shared/`閿涙艾鍙℃禍顐㈢唨绾偓鐠佺偓鏌?- `api/swagger/`閿涙瓔wagger 閻㈢喐鍨氭禍褏澧?
+娑撴艾濮熷Ο鈥虫健姒涙顓婚崶鍝勭暰閺傚洣娆㈤敍?
 - `dao.go`
 - `dto.go`
 - `handler.go`
@@ -73,379 +36,158 @@ HTTP Request
 - `router.go`
 - `service.go`
 
-当模块规模变大时，补充文件统一使用 `<subject>_<kind>.go`，例如：
+鐞涖儱鍘栭弬鍥︽缂佺喍绔存担璺ㄦ暏 `<subject>_<kind>.go`閿涘奔绶ユ俊鍌︾窗
 
 - `session_service.go`
-- `auth_service.go`
 - `user_validation.go`
-- `template_renderer.go`
 - `database_initializer.go`
 
-### 命令入口布局
-
-- `cmd/server/`：正式服务入口
-- `cmd/tools/`：初始化、诊断、修复、辅助工具
-- 每个工具可执行入口继续保留 `main.go`
-- 工具内部辅助文件继续使用 `snake_case`
-
 ---
 
-## 接口设计约定
+## 3. 閸氼垰濮╅柧鎹愮熅
 
-### REST 风格
-
-资源命名使用复数名词和模块前缀：
+閺堝秴濮熼崥顖氬З娑撶粯绁︾粙瀣剁窗
 
 ```text
-# Auth
-POST   /api/v1/auth/login
-POST   /api/v1/auth/refresh
-POST   /api/v1/auth/logout
-GET    /api/v1/auth/api-keys
-POST   /api/v1/auth/api-keys
-DELETE /api/v1/auth/api-keys/:id
-POST   /api/v1/auth/2fa/enable
-POST   /api/v1/auth/2fa/verify
-
-# Tenants
-GET    /api/v1/tenants/list
-POST   /api/v1/tenants/register
-
-# System - Users
-GET    /api/v1/system/users
-POST   /api/v1/system/users
-GET    /api/v1/system/users/:id
-PUT    /api/v1/system/users/:id
-DELETE /api/v1/system/users/:id
-PATCH  /api/v1/system/users/status
-PATCH  /api/v1/system/users/:id/password
-
-# Notifications
-GET    /api/v1/notifications
-POST   /api/v1/notifications/send
-GET    /api/v1/notifications/inbox
-GET    /api/v1/notifications/templates
-```
-
-### 统一响应格式
-
-成功：
-
-```json
-{
-  "code": 0,
-  "message": "success",
-  "data": {}
-}
-```
-
-分页成功：
-
-```json
-{
-  "code": 0,
-  "message": "success",
-  "data": {
-    "items": [],
-    "pagination": {
-      "page": 1,
-      "page_size": 10,
-      "total": 100,
-      "total_pages": 10
-    }
-  }
-}
-```
-
-错误：
-
-```json
-{
-  "code": 40001,
-  "message": "auth.login.invalid_credentials",
-  "data": null
-}
-```
-
-其中 `message` 字段约定为 i18n key，由前端按 `t(message)` 进行翻译。
-
----
-
-## 数据库设计
-
-### 主库 `pantheon_master`
-
-| 表 | 用途 |
-|:---|:---|
-| `tenants` | 租户元数据 |
-| `tenant_database_configs` | 租户数据库连接配置 |
-| `tenant_quotas` | 租户配额 |
-| `translations` | 国际化翻译数据 |
-| `notifications` | 通知内容 |
-| `notification_inboxes` | 用户收件箱状态 |
-| `notification_templates` | 通知模板 |
-| `notification_jobs` | 异步通知任务 |
-
-### 租户库 `pantheon_{tenant_code}`
-
-| 表 | 用途 |
-|:---|:---|
-| `users` | 用户 |
-| `sys_roles` | 角色 |
-| `sys_permissions` | 权限树 |
-| `sys_user_roles` | 用户角色关系 |
-| `sys_role_permissions` | 角色权限关系 |
-| `sys_role_menus` | 角色菜单关系 |
-| `sys_departments` | 部门树 |
-| `sys_positions` | 岗位 |
-| `sys_menus` | 菜单 |
-| `sys_operation_logs` | 操作日志 |
-| `sys_login_logs` | 登录日志 |
-| `sys_configs` | 配置 |
-| `sys_dict_types` | 字典类型 |
-| `sys_dict_data` | 字典项 |
-| `casbin_rule` | Casbin 策略存储 |
-
----
-
-## Casbin RBAC 设计
-
-### 模型配置 `config/rbac_model.conf`
-
-```ini
-[request_definition]
-r = sub, obj, act
-
-[policy_definition]
-p = sub, obj, act
-
-[role_definition]
-g = _, _
-
-[policy_effect]
-e = some(where (p.eft == allow))
-
-[matchers]
-m = g(r.sub, p.sub) && (keyMatch(r.obj, p.obj) || keyMatch2(r.obj, p.obj)) && (r.act == p.act || p.act == "*")
-```
-
-- `sub`：主体，通常是用户 ID 或角色 ID
-- `obj`：对象，通常是 API 路径
-- `act`：动作，通常是 HTTP Method
-
-### 策略示例
-
-```text
-p, {role_id}, /api/v1/users, GET
-p, {role_id}, /api/v1/users, POST
-p, {super_admin_id}, /api/v1/*, *
-g, {user_id}, {role_id}
-```
-
-### 多租户 Casbin 隔离
-
-授权服务按租户维护独立 enforcer，并通过上下文里的 `tenant_id` 选择当前租户实例。
-
----
-
-## 数据库初始化逻辑
-
-数据库初始化分两层：
-
-- 平台层：初始化主库连接、共享基础设施和平台级数据
-- 租户层：根据租户配置动态创建或接入租户数据库连接
-
-初始化流程通常包括：
-
-1. 读取配置
-2. 初始化数据库管理器
-3. 初始化 Redis、国际化、授权、缓存等共享设施
-4. 装配业务模块容器
-5. 注册中间件和路由
-6. 启动 HTTP 服务
-
-`internal/app/` 负责启动装配，避免把业务逻辑塞进 `main.go`。
-
----
-
-## 认证与授权链路
-
-### 认证
-
-当前认证模型围绕以下组件展开：
-
-- JWT Access Token
-- Refresh Token
-- Redis 会话状态
-- Token version / revoked 控制
-- 2FA 能力
-- API Key 能力
-
-基本流程：
-
-1. 用户登录
-2. 校验账号和密码
-3. 按需校验二次认证
-4. 生成 Access Token 和 Refresh Token
-5. 将会话状态写入 Redis
-6. 请求进入时由中间件恢复用户上下文
-
-### 授权
-
-授权由以下几部分协作完成：
-
-- 认证中间件
-- 租户上下文绑定
-- Casbin 权限校验
-- 菜单、角色、权限配置同步
-
----
-
-## 多租户架构
-
-### 隔离原则
-
-- 平台级数据保存在主库
-- 租户业务数据保存在租户独立库
-- 请求上下文中显式绑定 `tenant_id`
-- 数据访问层不得绕过租户上下文直接操作租户数据
-
-### 关键点
-
-- 租户数据库连接按租户配置动态获取
-- 授权服务按租户隔离
-- 菜单、角色、用户、日志等系统模块能力在租户库内独立存在
-
----
-
-## i18n 错误处理
-
-错误处理遵循以下约定：
-
-- 后端优先返回稳定的错误 key
-- 前端根据错误 key 做翻译
-- 平台和租户场景共用统一错误响应结构
-
-共享层相关职责包括：
-
-- 统一错误定义
-- 统一 HTTP 响应封装
-- 请求参数校验
-- 国际化翻译读取
-
----
-
-## 代码标准
-
-### 命名和文件组织
-
-- 文件名统一小写 `snake_case`
-- 主分层文件使用固定命名
-- 补充文件统一使用 `<subject>_<kind>.go`
-- 导出类型名必须体现具体业务语义
-- 代码侧统一使用 `DAO`，不再混用 `Repository`
-
-### 分层约束
-
-- `handler` 只做入口协调，不堆大段业务逻辑
-- `service` 负责业务规则和跨对象编排
-- `dao` 只负责数据读写
-- `router` 负责路由注册，不再混入处理逻辑
-
-### 工程约束
-
-- 不新增 `repository.go`、`controller.go`、`entity.go`
-- 避免 `common.go`、`util.go`、`helpers.go` 这类泛化命名
-- 新增模块前先对照命名规范
-
----
-
-## 新增业务模块流程
-
-新增模块建议按以下顺序：
-
-1. 创建模块目录
-2. 落固定主分层文件
-3. 定义模型和 DTO
-4. 实现 DAO
-5. 实现 Service
-6. 实现 Handler 和 Router
-7. 注入容器或装配入口
-8. 增加必要的文档和验证
-
-默认模板应优先贴近以下结构：
-
-```text
-internal/modules/example/
-- dao.go
-- dto.go
-- handler.go
-- model.go
-- router.go
-- service.go
+1. 鐠囪褰囬柊宥囩枂
+2. 閸掓繂顫愰崠鏍﹀瘜鎼?3. 閹稿鍘ょ純顔藉⒔鐞?AutoMigrate
+4. 閸掓繂顫愰崠鏍磧閹貉冪氨
+5. 閸掓繂顫愰崠鏍潳閹撮攱鏆熼幑顔肩氨缁狅紕鎮婇崳?6. 閸掓繂顫愰崠?Redis
+7. 閸掓繂顫愰崠鏍ㄥ房閺夊啯婀囬崝?8. 瀵洖顕辨妯款吇缁夌喐鍩?/ 姒涙顓荤憴鎺曞 / 姒涙顓荤粻锛勬倞閸?9. migrate-only 濡€崇础閹绘劕澧犻柅鈧崙?10. 濞夈劌鍞界粔鐔稿煕鏉╀胶些閸?11. 閸旂姾娴囧鍙夋箒缁夌喐鍩涢弫鐗堝祦鎼存捁绻涢幒?12. 閸氼垰濮?HTTP 閺堝秴濮?```
+
+`migrate-only` 閻ㄥ嫮婀＄€圭偞澧界悰灞炬煙瀵骏绱?
+```powershell
+cd backend
+$env:PANTHEON_MIGRATE_ONLY = "true"
+go run ./cmd/server
+Remove-Item Env:PANTHEON_MIGRATE_ONLY
 ```
 
 ---
 
-## 安全设计
+## 4. 婢舵氨顫ら幋閿嬆侀崹?
+韫囧懘銆忛悧銏ｎ唶娑撳鐪伴弫鐗堝祦鏉堝湱鏅敍?
+- `Master DB`閿涙艾閽╅崣鎵獓閺佺増宓侀妴浣侯潳閹磋渹瀵岄弫鐗堝祦閵嗕線鈧氨鐓￠妴浣虹倳鐠囨垹鐡?- `Tenant DB`閿涙氨顫ら幋铚傜瑹閸斺剝鏆熼幑顕嗙礉娓氬顩ч悽銊﹀煕閵嗕浇顫楅懝灞傗偓浣藉綅閸楁洏鈧焦妫╄箛妞尖偓浣哥摟閸?- `Redis`閿涙矮绱扮拠婵団偓浣碘偓浣稿煕閺傜増鈧降鈧焦宸块弶鍐閺堫兙鈧焦鎸欓柨鈧幀浣碘偓浣峰閺冨墎濮搁幀?
+缁夌喐鍩涢柧鎹愮熅缁撅附娼敍?
+- 鐠囬攱鐪版潻娑樺弳閸氬骸鍘涚憴锝嗙€?`tenant_id`
+- `tenant middleware` 鐠愮喕鐭楃憗鍛村帳 `tenant_db`
+- DAO 閸?Service 韫囧懘銆忔禒搴濈瑐娑撳鏋冪拠璇插絿缁夌喐鍩涢弫鐗堝祦鎼?- 娑撳秷鍏橀崣顏冪贩鐠ф牕澧犵粩顖欑炊閸欏倸鍠呯€规氨顫ら幋?
+---
 
-重点关注以下边界：
+## 5. 鐠併倛鐦夋稉搴㈠房閺?
+鐠併倛鐦夐柧鎹愮熅閻㈠彉浜掓稉瀣矋娴犺泛宕楁担婊冪暚閹存劧绱?
+- `JWT Access Token`
+- `Refresh Token`
+- `Redis` 娴兼俺鐦介幀?- `auth_version`
+- `revoked_after`
+- 閸欘垶鈧?`2FA`
+- 閸欘垶鈧?`API Key`
 
-- 认证链路不得绕过 Redis 会话控制
-- 授权变更必须考虑 Casbin 同步和会话影响
-- 多租户操作必须带租户上下文
-- 敏感数据输出必须考虑脱敏
-- 工具脚本和初始化入口不得默认写死生产敏感配置
+閹哄牊娼堥柧鎹愮熅閻㈠彉浜掓稉瀣劥閸掑棛绮嶉幋鎰剁窗
+
+- `auth middleware`
+- `tenant middleware`
+- `authorization middleware`
+- `Casbin AuthorizationService`
+
+閸忔娊鏁痪锔芥将閿?
+- 娑撳秷鍏橀惍鏉戞綎 `JWT + Refresh Token + Redis + revoked/version` 閸楀繋缍斿Ο鈥崇€?- 閺夊啴妾洪妴浣筋潡閼瑰眰鈧浇褰嶉崡鏇炲綁閺囨潙鎮楅棁鈧憰浣稿煕閺傛澘婀痪璺ㄦ暏閹撮攱宸块弶鍐┾偓?- 娴兼俺鐦介煪銏犲毉娑撳孩宸块弶鍐ㄥ煕閺傛媽顩﹂崠鍝勫瀻閿?  - 鏉烆垰鍩涢弬甯窗閹绘劕宕?`auth_version`
+  - 绾剙銇戦弫鍫窗閸愭瑥鍙?`revoked_after`
 
 ---
 
-## 性能与工程实践
+## 6. Casbin 娑撳孩鏆熼幑顔芥綀闂?
+Casbin 濡€崇€锋担宥勭艾閿涙瓪backend/config/rbac_model.conf`
 
-推荐实践：
+瑜版挸澧犻弨顖涘瘮娑撱倗琚弶鍐閼宠棄濮忛敍?
+- 鐠侯垳鏁辩痪?RBAC
+- 閺佺増宓侀懠鍐ㄦ纯鏉╁洦鎶?
+閺佺増宓侀懠鍐ㄦ纯閺€顖涘瘮閿?
+- `all`
+- `self`
+- `dept`
+- `dept_and_sub`
+- `custom`
 
-- 将复杂查询收敛到 DAO 层
-- 将跨模块编排收敛到 Service 层
-- 避免在 Handler 中做重复数据库查询
-- 使用缓存或 Redis 保存会话态和热点状态
-- 对高频模块保持明确边界，避免耦合扩散
+閼奉亜鐣炬稊澶庮潐閸掓瑥缍嬮崜宥夊櫚閻劌褰堥幒褑顕㈠▔鏇窗
+
+- `dept:dept-a,dept-b`
+- `dept_and_sub:dept-root`
+- `project:project-a,project-b`
+- `custom:field=value`
+
+`custom:` 閸欘亜鍘戠拋鍝ユ閸氬秴宕熺€涙顔岄敍灞借嫙閺€顖涘瘮閸楃姳缍呯粭锔肩窗
+
+- `@user_id`
+- `@department_id`
+- `@department_and_sub_ids`
+- `@tenant_id`
 
 ---
 
-## 开发与验证
+## 7. 閺佺増宓佹惔鎾圭讣缁夊鍣搁悙?
+閺堫剝鐤嗛柌宥囧仯鏉╀胶些閸栧懏瀚敍?
+- `system_dict_types`
+  - 娴犲骸鍙忕仦鈧崬顖欑閺€閫涜礋缁夌喐鍩涢崘鍛暜娑撯偓
+- `system_roles`
+  - 娴犲骸鍙忕仦鈧崬顖欑閺€閫涜礋缁夌喐鍩涢崘鍛暜娑撯偓
+  - `data_scope` 闂€鍨閹绘劕宕岄崚?`255`
 
-常用验证方式：
+娑撳﹦鍤庨幍褑顢戠拠椋庣埠娑撯偓閸欏倽鈧喛绱?
+- `backend/docs/BACKEND_RELEASE_MIGRATION_RUNBOOK.md`
 
+---
+
+## 8. 閹恒儱褰涙稉搴℃惙鎼存梻瀹抽弶?
+閹恒儱褰涢柆闈涙儕 REST 妞嬪孩鐗搁敍宀€绮烘稉鈧幐鍌氭躬 `/api/v1`
+
+缂佺喍绔撮崫宥呯安鐟欏嫬鍨敍?
+- 閹存劕濮涢敍姝歳esponse.Success` / `response.Created`
+- 鐎广垺鍩涚粩顖炴晩鐠囶垽绱癭response.BadRequest`
+- 閺堫亣顓荤拠渚婄窗`response.Unauthorized`
+- 閺冪姵娼堥梽鎰剁窗`response.Forbidden`
+- 閺堝秴濮熺粩顖炴晩鐠囶垽绱癭response.InternalError`
+
+闁挎瑨顕ゅ☉鍫熶紖姒涙顓绘潻鏂挎礀缁嬪啿鐣?key 閹存牜菙鐎规岸鏁婄拠顖滅垳閿涘奔绗夐惄瀛樺复閺侊綀鎯ょ涵顒傜椽閻椒绗熼崝鈩冩瀮濡楀牄鈧?
+---
+
+## 9. 瀹搞儳鈻肩痪锔芥将
+
+閸氬海顏弬鏉款杻閹存牔鎱ㄩ弨閫涘敩閻焦妞傞敍灞肩喘閸忓牓浼掔€瑰牞绱?
+- 閸忓牊鐓￠弬鍥ㄣ€傞敍灞藉晙閺€閫涘敩閻?- 閸忓牅鎱ㄩ弽鐟版礈閿涘奔绗夐崑姘炽€冮棃銏Ｋ夋稉?- 娑撳秷顩︾紒鏇炵磻缁夌喐鍩涙稉濠佺瑓閺?- 娑撳秷顩﹂弬浼粹偓鐘殿儑娴滃苯顨滈弶鍐娴ｆ挾閮?- 娑撳秷顩﹂幎濠佺瑹閸旓繝鈧槒绶崼鍡氱箻 `main.go` 閹?`app.Start()`
+- 娑撳秷顩﹂幎濠佺皑閸斅ょ珶閻ｅ奔绗呭▽澶婂煂 handler
+
+---
+
+## 10. 瀵偓閸欐垳绗屾宀冪槈
+
+鐢摜鏁ら崨鎴掓姢閿?
 ```bash
-go run ./cmd/tools/check-backend-naming
+# 閸涜棄鎮曞Λ鈧弻?go run ./cmd/tools/check-backend-naming
+
+# 閸忋劑鍣哄ù瀣槸
 go test ./...
+
+# 娴犲懓绺肩粔?PANTHEON_MIGRATE_ONLY=true go run ./cmd/server
 ```
 
-如果使用 Makefile：
-
+婵″倹鐏夋担璺ㄦ暏 Makefile閿?
 ```bash
 make -f backend/Makefile naming
 make -f backend/Makefile test
 make -f backend/Makefile verify
+make -f backend/Makefile migrate-only
 ```
-
-在当前 Windows 环境中，如果 `make` 受宿主工具限制不可用，优先直接运行 Go 命令。
 
 ---
 
-## 本轮规范化总结
+## 11. 瑜版挸澧犳稉鑽ゅ殠濡€虫健
 
-本轮后端规范化已完成以下收口：
+瑜版挸澧犻獮鍐插酱閺嶇绺炬稉鑽ゅ殠閸欘亝婀佹稉澶婃健閿?
+- `auth`
+- `tenant`
+- `system`
 
-- `auth`、`tenant`、`notification` 主分层文件统一为 `dao / dto / handler / model / router / service`
-- `system` 相关子模块统一补齐 `router.go`，并按 `DAO / Service / Handler` 收敛导出类型和构造器命名
-- 共享层命名统一从 `Repository`、`shared_*`、`utils` 等历史命名收敛到能力化命名
-- `cmd/tools/internal/toolenv/tool_env.go` 收敛为 `cmd/tools/internal/tool_env/tool_env.go`
-- demo 脚本命名统一为 `snake_case`
-- 增加了 `cmd/tools/check-backend-naming` 作为可执行规范检查工具
-- CI 已接入命名检查
-
-后续新增后端代码时，优先遵循：
-
-1. 先看 `backend/docs/BACKEND_NAMING_CONVENTIONS.md`
-2. 再按固定分层落文件
-3. 提交前运行 `go run ./cmd/tools/check-backend-naming`
+閸氬海鐢婚弬鏉款杻濡€虫健閺冭绱濇导妯哄帥娣囨繃瀵旈敍?
+- 閸忋儱褰涘〒鍛珰
+- 閸掑棗鐪伴弰搴ｂ€?- 閺夊啴妾洪幒銉ュ弳娑撯偓閼?- 缁夌喐鍩涙潏鍦櫕閺勫海鈥?- 閺傚洦銆傞崥灞绢劄閺囧瓨鏌?

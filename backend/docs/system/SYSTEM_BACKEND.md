@@ -3,114 +3,92 @@
 > 本文提供 `system` 后端模块的中文实现入口。  
 > 重点说明模块装配结构、子模块布局、请求流转，以及它与授权刷新和租户隔离之间的关键协作。
 
-业务规则相关文档见：
+相关业务规则文档见：
 
 - `docs/system/SYSTEM_MANAGEMENT.md`
 - `docs/auth/AUTH_SESSION_STRATEGY.md`
 - `docs/tenant/TENANT_INITIALIZATION.md`
+- `backend/docs/system/SYSTEM_SWAGGER_COVERAGE.md`
 
 ---
 
-## 核心实现入口
+## 1. 核心入口
 
 - 系统路由入口：`backend/internal/modules/system/system_router.go`
 - 容器装配：`backend/internal/modules/system/container/system_container.go`
 - 共享系统模型：`backend/internal/modules/system/model/`
 
-## 已注册子模块
+已注册子模块：
 
-- `backend/internal/modules/system/user/`
-- `backend/internal/modules/system/dept/`
-- `backend/internal/modules/system/position/`
-- `backend/internal/modules/system/role/`
-- `backend/internal/modules/system/permission/`
-- `backend/internal/modules/system/menu/`
-- `backend/internal/modules/system/dict/`
-- `backend/internal/modules/system/log/`
-- `backend/internal/modules/system/setting/`
-- `backend/internal/modules/system/monitor/`
+- `user/`
+- `dept/`
+- `position/`
+- `role/`
+- `permission/`
+- `menu/`
+- `dict/`
+- `log/`
+- `setting/`
+- `monitor/`
 
 ---
 
-## 请求流转
+## 2. 请求流转
 
-系统模块挂载在 `/system` 路由组下。典型请求路径为：
+系统模块统一挂载在 `/api/v1/system/*` 下，典型链路如下：
 
 1. 进入 `system_router.go`
 2. 通过认证中间件
 3. 通过租户中间件
-4. 当全局授权服务启用时，再通过授权中间件
-5. 分发到目标子模块 Handler
-6. 在 Service 层处理业务规则
-7. 通过 DAO 访问租户范围内的数据
+4. 进入授权中间件
+5. 分发到对应子模块 `handler`
+6. 在 `service` 中执行业务规则和事务
+7. 通过 `dao` 访问当前租户范围内的数据
 
-这意味着系统管理能力默认运行在“已认证、具备租户上下文、并且已授权”的环境中。
+这意味着系统管理功能默认运行在“已认证、已绑定租户、已授权”的上下文中。
 
 ---
 
-## 分层结构
+## 3. 分层结构
 
-多数子模块保持相同后端分层：
+大多数系统子模块统一采用：
 
-- `handler.go`：HTTP 入参与响应处理
-- `service.go`：业务规则与跨对象协调
-- `dao.go`：数据访问
+- `handler.go`：HTTP 入参和响应
+- `service.go`：业务规则、事务、跨对象协作
+- `dao.go`：数据库访问
 - `dto.go`：请求和响应结构
-- `model.go`：持久化映射
+- `model.go`：持久化模型
 - `router.go`：路由注册
 
-以下目录已经稳定使用这一结构：
+当前已稳定对齐这一结构的目录包括：
 
-- `backend/internal/modules/system/user/`
-- `backend/internal/modules/system/dept/`
-- `backend/internal/modules/system/position/`
-- `backend/internal/modules/system/role/`
-- `backend/internal/modules/system/permission/`
-- `backend/internal/modules/system/menu/`
-- `backend/internal/modules/system/dict/`
-- `backend/internal/modules/system/log/`
-- `backend/internal/modules/system/setting/`
+- `user/`
+- `dept/`
+- `position/`
+- `role/`
+- `permission/`
+- `menu/`
+- `dict/`
+- `log/`
+- `setting/`
 
-`monitor/` 子模块刻意保持更轻量，目前只保留：
-
-- `backend/internal/modules/system/monitor/handler.go`
-- `backend/internal/modules/system/monitor/service.go`
-- `backend/internal/modules/system/monitor/router.go`
+`monitor/` 保持轻量，仅保留必要的 `handler/service/router`。
 
 ---
 
-## 规范化结果
+## 4. 容器装配关系
 
-系统模块仍然是后端分层和命名约定的主要参考实现。
-
-当前已经完成的统一包括：
-
-- 子模块统一使用 `handler.go`、`service.go`、`dao.go`、`dto.go`、`model.go`、`router.go`
-- `setting/` 子模块已完全对齐固定主分层文件
-- `monitor/` 子模块已使用明确类型名，例如 `MonitorHandler`、`MonitorService`
-- 容器装配继续集中在 `container/system_container.go`
-
-后续新增系统子模块时，应先保留这套结构，只有当主分层不足时，才新增 `<subject>_<kind>.go` 补充文件。
-
-命名基线见：
-
-- `backend/docs/BACKEND_NAMING_CONVENTIONS.md`
-
----
-
-## 关键装配关系
-
-`system_container.go` 负责把系统子模块与共享能力装配起来，主要包括：
+`system_container.go` 负责把系统子模块和共享能力装配起来，核心职责包括：
 
 - 初始化 DAO
 - 初始化 Service
 - 初始化 Handler
 - 注入事务管理器
 - 注入授权适配器
-- 注入校验器和目录类依赖
-- 提供统一路由出口
+- 注入目录型校验依赖
+- 暴露统一路由入口
 
-与共享授权服务的关键联动点主要包括：
+与共享授权服务的关键联动点包括：
 
 - 用户角色写入
 - 角色权限写入
@@ -120,9 +98,9 @@
 
 ---
 
-## 核心实现路径
+## 5. 关键协作链路
 
-### 用户角色分配
+### 用户与角色
 
 关键文件：
 
@@ -130,82 +108,89 @@
 - `backend/internal/modules/system/role/service.go`
 - `backend/internal/shared/authorization/casbin_service.go`
 
-当用户角色发生变化时，后端必须同时处理：
+当用户角色发生变化时，后端需要同时处理：
 
-- 业务数据关系
-- 授权关系映射
+- 业务表关系
+- Casbin 角色映射
+- 在线会话刷新或撤销
 
-只更新业务表而不更新授权，会导致当前权限状态不一致。
-
-### 角色权限分配
+### 角色、权限、菜单
 
 关键文件：
 
 - `backend/internal/modules/system/role/service.go`
 - `backend/internal/modules/system/permission/service.go`
-- `backend/internal/shared/authorization/casbin_service.go`
-
-角色权限变化后，后端会同时更新关系数据和授权规则，然后刷新在线用户的鉴权结果。
-
-### 角色菜单分配
-
-关键文件：
-
-- `backend/internal/modules/system/role/service.go`
-- `backend/internal/modules/system/menu/service.go`
-
-角色菜单变化不仅影响表数据，也影响前端登录后的导航树和动态入口，因此属于授权刷新链路的一部分。
-
-### 菜单变更传播
-
-关键文件：
-
 - `backend/internal/modules/system/menu/service.go`
 - `backend/internal/shared/authorization/casbin_service.go`
 
-菜单名称、路径、组件、状态、删除等变化都可能影响前端挂载页面，因此后端把它们视为刷新触发事件，而不是简单配置变更。
+角色权限和菜单变更不仅影响配置表，还会影响：
 
-### 部门和岗位变更传播
+- 路由级授权
+- 登录后菜单树
+- 数据权限范围
+- 在线用户授权态
+
+### 部门与岗位
 
 关键文件：
 
 - `backend/internal/modules/system/dept/service.go`
 - `backend/internal/modules/system/position/service.go`
 
-部门和岗位变化主要影响组织上下文和数据范围，但也会影响用户登录后应看到的内容，因此同样参与刷新逻辑。
+部门和岗位变更主要影响：
 
-### 用户安全状态变更
-
-关键文件：
-
-- `backend/internal/modules/system/user/service.go`
-- `backend/internal/modules/auth/service.go`
-
-以下动作被视为硬失效场景：
-
-- 用户禁用
-- 用户删除
-- 用户密码修改
-- 管理员重置密码
-
-系统模块负责识别业务动作，认证模块负责实际的会话撤销。
+- 组织关系
+- 用户归属
+- 数据范围判断
+- 在线用户可见内容
 
 ---
 
-## 租户上下文
+## 6. 租户边界
 
-系统管理核心数据全部是租户级数据，因此后端必须保证：
+系统管理核心数据全部是租户级数据，因此必须保证：
 
 - 每个请求都绑定租户上下文
-- 用户、部门、岗位、角色、权限、菜单、日志、配置按租户隔离
-- 角色分配、菜单绑定、权限写入都会校验租户归属
-- 查询接口不会跨租户读取系统管理数据
+- 用户、角色、菜单、权限、日志、字典、设置按租户隔离
+- 角色分配、菜单绑定、权限写入都校验租户归属
+- 列表和详情接口不能跨租户读取系统数据
 
 ---
 
-## 推荐阅读顺序
+## 7. 批量接口
+
+为避免前端逐条请求造成部分成功、部分失败和状态不一致，系统模块已补齐原子化批量接口。
+
+当前已覆盖：
+
+- 角色
+  - `POST /api/v1/system/roles/batch-delete`
+  - `PATCH /api/v1/system/roles/status`
+- 岗位
+  - `POST /api/v1/system/positions/batch-delete`
+  - `PATCH /api/v1/system/positions/status`
+- 权限
+  - `POST /api/v1/system/permissions/batch-delete`
+  - `PATCH /api/v1/system/permissions/status`
+- 部门
+  - `POST /api/v1/system/depts/batch-delete`
+  - `PATCH /api/v1/system/depts/status`
+- 菜单
+  - `POST /api/v1/system/menus/batch-delete`
+  - `PATCH /api/v1/system/menus/status`
+
+统一约束：
+
+- 继续受租户上下文限制
+- 先做整体验证，再执行批量事务
+- 批量状态变更继续复用授权刷新链路
+- 审计日志按一次批量动作聚合记录
+
+---
+
+## 8. 推荐阅读顺序
 
 1. `backend/BACKEND_GUIDE.md`
 2. `backend/docs/BACKEND_NAMING_CONVENTIONS.md`
 3. `backend/docs/system/SYSTEM_BACKEND.md`
-4. 再结合 `docs/system/` 下的业务规则文档继续深入
+4. 再进入 `docs/system/` 下的业务规则文档

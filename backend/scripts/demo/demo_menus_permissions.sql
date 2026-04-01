@@ -138,6 +138,27 @@ INSERT INTO system_menus (
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
 
+-- Level 2: 岗位管理
+INSERT INTO system_menus (
+    id, tenant_id, name, title, icon, path, component, parent_id, type,
+    is_hidden, is_cached, sort, created_at, updated_at
+) VALUES (
+    '00000000-0000-0000-0000-000000011045',
+    '{tenant_id}',
+    'Position',
+    '岗位管理',
+    'Briefcase',
+    '/system/position',
+    '/system/position/index',
+    '00000000-0000-0000-0000-000000011001',
+    'menu',
+    FALSE,
+    TRUE,
+    5,
+    UNIX_TIMESTAMP(NOW(3)) * 1000,
+    UNIX_TIMESTAMP(NOW(3)) * 1000
+);
+
 -- Level 2: 权限管理
 INSERT INTO system_menus (
     id, tenant_id, name, title, icon, path, component, parent_id, type,
@@ -154,7 +175,7 @@ INSERT INTO system_menus (
     'menu',
     FALSE,
     TRUE,
-    5,
+    6,
     UNIX_TIMESTAMP(NOW(3)) * 1000,
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
@@ -175,7 +196,7 @@ INSERT INTO system_menus (
     'menu',
     FALSE,
     TRUE,
-    6,
+    7,
     UNIX_TIMESTAMP(NOW(3)) * 1000,
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
@@ -196,7 +217,7 @@ INSERT INTO system_menus (
     'menu',
     FALSE,
     TRUE,
-    7,
+    8,
     UNIX_TIMESTAMP(NOW(3)) * 1000,
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
@@ -217,7 +238,70 @@ INSERT INTO system_menus (
     'menu',
     FALSE,
     TRUE,
-    8,
+    9,
+    UNIX_TIMESTAMP(NOW(3)) * 1000,
+    UNIX_TIMESTAMP(NOW(3)) * 1000
+);
+
+-- Level 2: 系统设置
+INSERT INTO system_menus (
+    id, tenant_id, name, title, icon, path, component, parent_id, type,
+    is_hidden, is_cached, sort, created_at, updated_at
+) VALUES (
+    '00000000-0000-0000-0000-000000011090',
+    '{tenant_id}',
+    'Settings',
+    '系统设置',
+    'SlidersHorizontal',
+    '/system/settings',
+    '/system/settings/index',
+    '00000000-0000-0000-0000-000000011001',
+    'menu',
+    FALSE,
+    TRUE,
+    10,
+    UNIX_TIMESTAMP(NOW(3)) * 1000,
+    UNIX_TIMESTAMP(NOW(3)) * 1000
+);
+
+-- Level 2: 系统监控
+INSERT INTO system_menus (
+    id, tenant_id, name, title, icon, path, component, parent_id, type,
+    is_hidden, is_cached, sort, created_at, updated_at
+) VALUES (
+    '00000000-0000-0000-0000-000000011100',
+    '{tenant_id}',
+    'Monitor',
+    '系统监控',
+    'Activity',
+    '/system/monitor',
+    '/system/monitor/index',
+    '00000000-0000-0000-0000-000000011001',
+    'menu',
+    FALSE,
+    TRUE,
+    11,
+    UNIX_TIMESTAMP(NOW(3)) * 1000,
+    UNIX_TIMESTAMP(NOW(3)) * 1000
+);
+
+-- Level 2: 租户管理
+INSERT INTO system_menus (
+    id, tenant_id, name, title, icon, path, component, parent_id, type,
+    is_hidden, is_cached, sort, created_at, updated_at
+) VALUES (
+    '00000000-0000-0000-0000-000000011110',
+    '{tenant_id}',
+    'TenantManagement',
+    '租户管理',
+    'Building',
+    '/tenant',
+    '/tenant/index',
+    '00000000-0000-0000-0000-000000011001',
+    'menu',
+    FALSE,
+    TRUE,
+    12,
     UNIX_TIMESTAMP(NOW(3)) * 1000,
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
@@ -314,10 +398,17 @@ INSERT INTO system_permissions (id, tenant_id, code, name, type, module, resourc
 
 -- 部门管理权限
 INSERT INTO system_permissions (id, tenant_id, code, name, type, module, resource, action, path, method, status, sort, created_at, updated_at) VALUES
-('00000000-0000-0000-0000-000000012030', '{tenant_id}', 'system:department:query', '查询部门', 'api', 'system', 'department', 'query', '/api/v1/system/departments', 'GET', 'active', 1, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
-('00000000-0000-0000-0000-000000012031', '{tenant_id}', 'system:department:create', '创建部门', 'api', 'system', 'department', 'create', '/api/v1/system/departments', 'POST', 'active', 2, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
-('00000000-0000-0000-0000-000000012032', '{tenant_id}', 'system:department:update', '更新部门', 'api', 'system', 'department', 'update', '/api/v1/system/departments/:id', 'PUT', 'active', 3, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
-('00000000-0000-0000-0000-000000012033', '{tenant_id}', 'system:department:delete', '删除部门', 'api', 'system', 'department', 'delete', '/api/v1/system/departments/:id', 'DELETE', 'active', 4, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000);
+('00000000-0000-0000-0000-000000012030', '{tenant_id}', 'system:department:query', '查询部门', 'api', 'system', 'department', 'query', '/api/v1/system/depts', 'GET', 'active', 1, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000012031', '{tenant_id}', 'system:department:create', '创建部门', 'api', 'system', 'department', 'create', '/api/v1/system/depts', 'POST', 'active', 2, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000012032', '{tenant_id}', 'system:department:update', '更新部门', 'api', 'system', 'department', 'update', '/api/v1/system/depts/:id', 'PUT', 'active', 3, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000012033', '{tenant_id}', 'system:department:delete', '删除部门', 'api', 'system', 'department', 'delete', '/api/v1/system/depts/:id', 'DELETE', 'active', 4, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000);
+
+-- 岗位管理权限
+INSERT INTO system_permissions (id, tenant_id, code, name, type, module, resource, action, path, method, status, sort, created_at, updated_at) VALUES
+('00000000-0000-0000-0000-000000012034', '{tenant_id}', 'system:position:query', '查询岗位', 'api', 'system', 'position', 'query', '/api/v1/system/positions', 'GET', 'active', 1, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000012035', '{tenant_id}', 'system:position:create', '创建岗位', 'api', 'system', 'position', 'create', '/api/v1/system/positions', 'POST', 'active', 2, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000012036', '{tenant_id}', 'system:position:update', '更新岗位', 'api', 'system', 'position', 'update', '/api/v1/system/positions/:id', 'PUT', 'active', 3, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000012037', '{tenant_id}', 'system:position:delete', '删除岗位', 'api', 'system', 'position', 'delete', '/api/v1/system/positions/:id', 'DELETE', 'active', 4, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000);
 
 -- 权限管理权限
 INSERT INTO system_permissions (id, tenant_id, code, name, type, module, resource, action, path, method, status, sort, created_at, updated_at) VALUES
@@ -328,15 +419,28 @@ INSERT INTO system_permissions (id, tenant_id, code, name, type, module, resourc
 
 -- 字典管理权限
 INSERT INTO system_permissions (id, tenant_id, code, name, type, module, resource, action, path, method, status, sort, created_at, updated_at) VALUES
-('00000000-0000-0000-0000-000000012050', '{tenant_id}', 'system:dict:query', '查询字典', 'api', 'system', 'dict', 'query', '/api/v1/system/dict', 'GET', 'active', 1, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
-('00000000-0000-0000-0000-000000012051', '{tenant_id}', 'system:dict:create', '创建字典', 'api', 'system', 'dict', 'create', '/api/v1/system/dict', 'POST', 'active', 2, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
-('00000000-0000-0000-0000-000000012052', '{tenant_id}', 'system:dict:update', '更新字典', 'api', 'system', 'dict', 'update', '/api/v1/system/dict', 'PUT', 'active', 3, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
-('00000000-0000-0000-0000-000000012053', '{tenant_id}', 'system:dict:delete', '删除字典', 'api', 'system', 'dict', 'delete', '/api/v1/system/dict', 'DELETE', 'active', 4, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000);
+('00000000-0000-0000-0000-000000012050', '{tenant_id}', 'system:dict:query', '查询字典', 'api', 'system', 'dict', 'query', '/api/v1/system/dict/*', 'GET', 'active', 1, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000012051', '{tenant_id}', 'system:dict:create', '创建字典', 'api', 'system', 'dict', 'create', '/api/v1/system/dict/*', 'POST', 'active', 2, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000012052', '{tenant_id}', 'system:dict:update', '更新字典', 'api', 'system', 'dict', 'update', '/api/v1/system/dict/*', 'PUT', 'active', 3, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000012053', '{tenant_id}', 'system:dict:delete', '删除字典', 'api', 'system', 'dict', 'delete', '/api/v1/system/dict/*', 'DELETE', 'active', 4, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000);
+
+-- 系统设置权限
+INSERT INTO system_permissions (id, tenant_id, code, name, type, module, resource, action, path, method, status, sort, created_at, updated_at) VALUES
+('00000000-0000-0000-0000-000000012054', '{tenant_id}', 'system:settings:query', '查询系统设置', 'api', 'system', 'settings', 'query', '/api/v1/system/settings', 'GET', 'active', 1, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000012055', '{tenant_id}', 'system:settings:update', '更新系统设置', 'api', 'system', 'settings', 'update', '/api/v1/system/settings/:key', 'PUT', 'active', 2, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000012056', '{tenant_id}', 'system:settings:batch-update', '批量更新系统设置', 'api', 'system', 'settings', 'batch-update', '/api/v1/system/settings/batch', 'POST', 'active', 3, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000);
 
 -- 日志管理权限
 INSERT INTO system_permissions (id, tenant_id, code, name, type, module, resource, action, path, method, status, sort, created_at, updated_at) VALUES
 ('00000000-0000-0000-0000-000000012060', '{tenant_id}', 'system:log:operation:query', '查询操作日志', 'api', 'system', 'log', 'operation-query', '/api/v1/system/logs/operation', 'GET', 'active', 1, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
 ('00000000-0000-0000-0000-000000012061', '{tenant_id}', 'system:log:login:query', '查询登录日志', 'api', 'system', 'log', 'login-query', '/api/v1/system/logs/login', 'GET', 'active', 2, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000);
+
+-- 扩展模块权限
+INSERT INTO system_permissions (id, tenant_id, code, name, type, module, resource, action, path, method, status, sort, created_at, updated_at) VALUES
+('00000000-0000-0000-0000-000000012062', '{tenant_id}', 'system:log:operation:clear', '清空操作日志', 'api', 'system', 'log', 'operation-clear', '/api/v1/system/logs/operation', 'DELETE', 'active', 3, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000012063', '{tenant_id}', 'system:log:login:clear', '清空登录日志', 'api', 'system', 'log', 'login-clear', '/api/v1/system/logs/login', 'DELETE', 'active', 4, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000012064', '{tenant_id}', 'system:monitor:query', '查看系统监控', 'api', 'system', 'monitor', 'query', '/api/v1/system/monitor/*', 'GET', 'active', 1, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000012065', '{tenant_id}', 'tenant:management:all', '租户管理', 'api', 'tenant', 'tenant', 'manage', '/api/v1/tenants/*', '*', 'active', 1, UNIX_TIMESTAMP(NOW(3)) * 1000, UNIX_TIMESTAMP(NOW(3)) * 1000);
 
 -- 个人中心权限
 INSERT INTO system_permissions (id, tenant_id, code, name, type, module, resource, action, path, method, status, sort, created_at, updated_at) VALUES
@@ -355,11 +459,17 @@ INSERT INTO system_role_menus (id, role_id, menu_id, tenant_id, created_at) VALU
 ('00000000-0000-0000-0000-000000013003', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011020', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
 ('00000000-0000-0000-0000-000000013004', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011030', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
 ('00000000-0000-0000-0000-000000013005', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011040', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
-('00000000-0000-0000-0000-000000013006', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011050', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
-('00000000-0000-0000-0000-000000013007', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011060', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
-('00000000-0000-0000-0000-000000013008', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011070', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
-('00000000-0000-0000-0000-000000013009', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011080', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
-('00000000-0000-0000-0000-000000013010', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011901', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000);
+('00000000-0000-0000-0000-000000013006', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011045', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000013007', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011050', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000013008', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011060', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000013009', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011070', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000013010', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011080', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000013014', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011090', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000013015', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011100', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000013016', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011110', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000013017', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011901', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000013018', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011910', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000013019', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000011920', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000);
 
 -- 普通员工只拥有个人中心
 INSERT INTO system_role_menus (id, role_id, menu_id, tenant_id, created_at) VALUES
@@ -378,9 +488,43 @@ INSERT INTO system_role_permissions (id, role_id, permission_id, tenant_id, crea
 ('00000000-0000-0000-0000-000000014003', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012003', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
 ('00000000-0000-0000-0000-000000014004', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012004', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
 ('00000000-0000-0000-0000-000000014005', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012005', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
-('00000000-0000-0000-0000-000000014006', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012070', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
-('00000000-0000-0000-0000-000000014007', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012071', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
-('00000000-0000-0000-0000-000000014008', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012072', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000);
+('00000000-0000-0000-0000-000000014006', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012010', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014007', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012011', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014008', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012012', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014012', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012013', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014013', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012014', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014014', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012020', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014015', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012021', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014016', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012022', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014017', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012023', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014018', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012030', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014019', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012031', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014020', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012032', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014021', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012033', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014022', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012034', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014023', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012035', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014024', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012036', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014025', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012037', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014026', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012040', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014027', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012041', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014028', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012042', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014029', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012043', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014030', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012050', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014031', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012051', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014032', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012052', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014033', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012053', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014034', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012054', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014035', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012055', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014036', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012056', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014037', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012060', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014038', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012061', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014039', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012062', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014040', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012063', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014041', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012064', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014042', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012065', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014043', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012070', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014044', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012071', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000),
+('00000000-0000-0000-0000-000000014045', '00000000-0000-0000-0000-000000002001', '00000000-0000-0000-0000-000000012072', '{tenant_id}', UNIX_TIMESTAMP(NOW(3)) * 1000);
 
 -- 普通员工只有个人中心权限
 INSERT INTO system_role_permissions (id, role_id, permission_id, tenant_id, created_at) VALUES

@@ -5,6 +5,7 @@
 >
 > Naming rules are documented in `backend/docs/BACKEND_NAMING_CONVENTIONS.en.md`.  
 > The backend docs index is `backend/docs/BACKEND_DOCS_INDEX.en.md`.
+> Release and migration execution is documented in `backend/docs/BACKEND_RELEASE_MIGRATION_RUNBOOK.md`.
 
 ---
 
@@ -188,20 +189,20 @@ The `message` field is an i18n key. The frontend translates it via `t(message)`.
 
 | Table | Purpose |
 |:---|:---|
-| `users` | Users |
-| `sys_roles` | Roles |
-| `sys_permissions` | Permission tree |
-| `sys_user_roles` | User-role mapping |
-| `sys_role_permissions` | Role-permission mapping |
-| `sys_role_menus` | Role-menu mapping |
-| `sys_departments` | Department tree |
-| `sys_positions` | Positions |
-| `sys_menus` | Menus |
-| `sys_operation_logs` | Operation logs |
-| `sys_login_logs` | Login logs |
-| `sys_configs` | Settings |
-| `sys_dict_types` | Dictionary types |
-| `sys_dict_data` | Dictionary items |
+| `system_users` | Users |
+| `system_roles` | Roles |
+| `system_permissions` | Permission tree |
+| `system_user_roles` | User-role mapping |
+| `system_role_permissions` | Role-permission mapping |
+| `system_role_menus` | Role-menu mapping |
+| `system_dept` | Department tree |
+| `system_post` | Positions |
+| `system_menus` | Menus |
+| `system_oper_log` | Operation logs |
+| `system_login_log` | Login logs |
+| `system_settings` | Settings |
+| `system_dict_types` | Dictionary types |
+| `system_dict_data` | Dictionary items |
 | `casbin_rule` | Casbin policy storage |
 
 ---
@@ -253,6 +254,27 @@ type AuthorizationService struct {
 ```
 
 It lazily creates tenant enforcers and selects the correct one via `ctx.Value("tenant_id")`.
+
+### Controlled Data Scope Rules
+
+Role `data_scope` supports both standard scopes and controlled custom expressions:
+
+- `all`
+- `self`
+- `dept`
+- `dept_and_sub`
+- `custom`
+- `dept:<dept-id>[,<dept-id>...]`
+- `dept_and_sub:<dept-id>[,<dept-id>...]`
+- `project:<project-id>[,<project-id>...]`
+- `custom:<field>=<value>`
+
+`custom:` rules are restricted to a whitelist-based parser and support safe placeholders:
+
+- `@user_id`
+- `@department_id`
+- `@department_and_sub_ids`
+- `@tenant_id`
 
 ---
 
@@ -333,6 +355,16 @@ POST /auth/login
 3. Casbin middleware reads user and path information and enforces policy
 ```
 
+### Session State Contract
+
+The current authentication chain is not stateless JWT-only. It also relies on Redis-backed state:
+
+- `Refresh Token` pairs with the access session
+- `auth_version` is bumped for soft authorization refresh
+- `revoked_after` forces hard session invalidation
+
+Role, permission, and menu updates must preserve this contract so online users see refreshed authorization without waiting for token expiry.
+
 ---
 
 ## Multi-Tenant Architecture
@@ -349,6 +381,8 @@ Tenant Middleware:
   4. Write tenant DB into context as "tenant_db"
   5. Handler / Service / DAO reads tenant DB from context
 ```
+
+If a tenant database has not been created yet, reload treats `Unknown database` as a not-ready state and logs it as `waiting for setup` instead of escalating it as a repeated hard connection failure.
 
 ### Password Encryption
 
@@ -521,8 +555,13 @@ master_db:
 # Run development server
 go run ./cmd/server
 
-# Migration only
-go run ./cmd/server --migrate-only
+# Migration only (POSIX shells)
+PANTHEON_MIGRATE_ONLY=true go run ./cmd/server
+
+# Migration only (PowerShell)
+$env:PANTHEON_MIGRATE_ONLY = "true"
+go run ./cmd/server
+Remove-Item Env:PANTHEON_MIGRATE_ONLY
 
 # Generate Swagger docs
 swag init -g cmd/server/main.go -o api/swagger
@@ -533,6 +572,8 @@ go test ./...
 # Build binary
 go build -o bin/pantheon-server ./cmd/server
 ```
+
+For release execution order, rollback notes, and smoke checks, use `backend/docs/BACKEND_RELEASE_MIGRATION_RUNBOOK.md`.
 
 ---
 

@@ -49,7 +49,7 @@ migrate: ## Run database migrations
 
 migrate-only: ## Run migrations only and exit
 	@echo "Running migrations only..."
-	@cd $(BACKEND_DIR) && GOCACHE=$(GO_CACHE_DIR) go run ./cmd/server --migrate-only
+	@cd $(BACKEND_DIR) && PANTHEON_MIGRATE_ONLY=true GOCACHE=$(GO_CACHE_DIR) go run ./cmd/server
 
 run: ## Run the application
 	@echo "Running application..."
