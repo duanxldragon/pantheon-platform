@@ -119,7 +119,7 @@ export function validatePassword(password: string): PasswordValidationResult {
     errors.push('密码必须包含数字');
   }
 
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+  if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
     errors.push('密码必须包含特殊字符');
   }
 
@@ -145,7 +145,7 @@ export function calculatePasswordStrength(password: string): PasswordStrengthRes
   if (/[a-z]/.test(password)) { score += 15; } else { feedback.push('添加小写字母'); }
   if (/[A-Z]/.test(password)) { score += 15; } else { feedback.push('添加大写字母'); }
   if (/\d/.test(password)) { score += 15; } else { feedback.push('添加数字'); }
-  if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) { score += 15; } else { feedback.push('添加特殊字符'); }
+  if (/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) { score += 15; } else { feedback.push('添加特殊字符'); }
   if (password.length >= 16) score += 10;
 
   // 扣分

@@ -49,7 +49,7 @@ export const sanitizeInput = {
    */
   sql: (input: string): string => {
     if (!input) return '';
-    return input.replace(/['\";\\]/g, '');
+    return input.replace(/['";\\]/g, '');
   },
 
   /**
@@ -510,8 +510,8 @@ export const secureValidation = {
     const dangerousPatterns = [
       /\.\./,
       /~/,
-      /^[\/\\]/,
-      /[\/\\]{2,}/,
+      /^[/\\]/,
+      /[/\\]{2,}/,
     ];
     
     return !dangerousPatterns.some(pattern => pattern.test(path));

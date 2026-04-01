@@ -6,6 +6,19 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useResizeThrottle } from './useDebounce';
 
+type ConnectionInfo = EventTarget & {
+  effectiveType?: string;
+  downlink?: number;
+  rtt?: number;
+};
+
+type LegacyNavigator = Navigator & {
+  msMaxTouchPoints?: number;
+  connection?: ConnectionInfo;
+  mozConnection?: ConnectionInfo;
+  webkitConnection?: ConnectionInfo;
+};
+
 /**
  * 断点配置
  */
@@ -162,8 +175,7 @@ export function useTouchDevice(): boolean {
       setIsTouch(
         'ontouchstart' in window ||
         navigator.maxTouchPoints > 0 ||
-        // @ts-ignore
-        navigator.msMaxTouchPoints > 0
+        (navigator as LegacyNavigator).msMaxTouchPoints > 0
       );
     };
 
@@ -343,8 +355,11 @@ export function useNetworkStatus() {
     };
 
     const updateConnectionInfo = () => {
-      // @ts-ignore
-      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      const legacyNavigator = navigator as LegacyNavigator;
+      const connection =
+        legacyNavigator.connection ||
+        legacyNavigator.mozConnection ||
+        legacyNavigator.webkitConnection;
       
       if (connection) {
         setStatus(prev => ({
@@ -359,8 +374,11 @@ export function useNetworkStatus() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // @ts-ignore
-    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const legacyNavigator = navigator as LegacyNavigator;
+    const connection =
+      legacyNavigator.connection ||
+      legacyNavigator.mozConnection ||
+      legacyNavigator.webkitConnection;
     if (connection) {
       connection.addEventListener('change', updateConnectionInfo);
     }
