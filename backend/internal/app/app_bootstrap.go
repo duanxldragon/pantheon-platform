@@ -355,6 +355,13 @@ func registerTenantMigrators(dbManager *database.Manager, container systemContai
 
 func bootstrapDefaultData(db *gorm.DB, authzSvc *authzService.AuthorizationService, cfg *config.Config) {
 	const defaultTenantID = "00000000-0000-0000-0000-000000000000"
+	defaultRolePolicies := []struct {
+		resource string
+		action   string
+	}{
+		{resource: "/api/v1/*", action: "*"},
+		{resource: "/api/v1/tenants/*", action: "*"},
+	}
 
 	ctx := context.Background()
 
@@ -436,7 +443,9 @@ func bootstrapDefaultData(db *gorm.DB, authzSvc *authzService.AuthorizationServi
 		return
 	}
 
-	_ = authzSvc.AddPermissionForRole(ctx, r.ID.String(), "/api/v1/*", "*")
+	for _, policy := range defaultRolePolicies {
+		_ = authzSvc.AddPermissionForRole(ctx, r.ID.String(), policy.resource, policy.action)
+	}
 	if cfg.DefaultAdmin.Enabled && admin.ID != uuid.Nil {
 		_ = authzSvc.SetRolesForUser(ctx, admin.ID.String(), []string{r.ID.String()})
 	}

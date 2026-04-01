@@ -53,7 +53,7 @@ type ApiKey struct {
 	UserID      string     `json:"user_id" gorm:"type:char(36);notNull;index"`
 	Name        string     `json:"name" gorm:"size:100;notNull"`
 	Key         string     `json:"key" gorm:"size:100;notNull;index"`
-	Permissions string     `json:"permissions" gorm:"type:text;notNull;default:'read,write'"`
+	Permissions string     `json:"permissions" gorm:"type:varchar(255);notNull;default:'read,write'"`
 	LastUsed    *time.Time `json:"last_used,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`

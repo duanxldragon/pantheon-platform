@@ -63,7 +63,12 @@ func RequirePermission(resource, action string) gin.HandlerFunc {
 			return
 		}
 
-		if !GlobalAuthService.CheckPermission(c.Request.Context(), userID, resource, action) {
+		allowed := GlobalAuthService.CheckPermission(c.Request.Context(), userID, resource, action)
+		if !allowed && strings.Contains(resource, "*") {
+			allowed = GlobalAuthService.CheckPermission(c.Request.Context(), userID, c.Request.URL.Path, action)
+		}
+
+		if !allowed {
 			response.Forbidden(c, "PERMISSION_DENIED", "Permission denied")
 			c.Abort()
 			return
