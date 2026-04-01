@@ -50,8 +50,9 @@ func NewTenantHandler(tenantService TenantService, tenantDatabaseService TenantD
 // @Accept json
 // @Produce json
 // @Param request body CreateTenantRequest true "Tenant registration details"
-// @Success 201 {object} Tenant
-// @Failure 400 {object} TenantErrorResponse
+// @Success 201 {object} tenantRecordEnvelope
+// @Failure 400 {object} response.ErrorDetail
+// @Failure 500 {object} response.ErrorDetail
 // @Router /tenants/register [post]
 func (h *TenantHandler) RegisterTenant(c *gin.Context) {
 	var req CreateTenantRequest
@@ -95,6 +96,9 @@ func (h *TenantHandler) SetupDatabase(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		response.Unauthorized(c, "TENANT_CONTEXT_REQUIRED", "Tenant context is required")
+		return
+	}
+	if !h.ensureTenantAccess(c, tenantID) {
 		return
 	}
 
@@ -146,11 +150,11 @@ func (h *TenantHandler) SetupDatabaseForTenant(c *gin.Context) {
 // @Tags Tenant
 // @Accept json
 // @Produce json
-// @Param page query int false "Page number (default: 1)"
-// @Param page_size query int false "Items per page (default: 20)"
-// @Success 200 {object} TenantPageResponse
-// @Failure 500 {object} TenantErrorResponse
-// @Router /tenants [get]
+// @Param page query int false "Page number" default(1) minimum(1)
+// @Param page_size query int false "Items per page" default(20) minimum(1)
+// @Success 200 {object} tenantListEnvelope
+// @Failure 500 {object} response.ErrorDetail
+// @Router /tenants/list [get]
 func (h *TenantHandler) ListTenants(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -215,6 +219,9 @@ func (h *TenantHandler) GetCurrentTenant(c *gin.Context) {
 		response.Unauthorized(c, "TENANT_CONTEXT_REQUIRED", "Tenant context is required")
 		return
 	}
+	if !h.ensureTenantAccess(c, tenantID) {
+		return
+	}
 
 	tenantInfo, err := h.tenantService.GetCurrentTenantInfo(c.Request.Context(), tenantID)
 	if err != nil {
@@ -234,6 +241,9 @@ func (h *TenantHandler) SwitchTenant(c *gin.Context) {
 	currentTenantID := c.GetString("tenant_id")
 	if currentTenantID == "" {
 		response.Unauthorized(c, "TENANT_CONTEXT_REQUIRED", "Tenant context is required")
+		return
+	}
+	if !h.ensureTenantAccess(c, currentTenantID) {
 		return
 	}
 
@@ -399,4 +409,24 @@ func normalizeQuotaType(value string) (QuotaType, error) {
 	default:
 		return "", fmt.Errorf("unsupported quota type: %s", value)
 	}
+}
+
+func (h *TenantHandler) ensureTenantAccess(c *gin.Context, tenantID string) bool {
+	userID := strings.TrimSpace(c.GetString("user_id"))
+	if userID == "" {
+		response.Unauthorized(c, "USER_NOT_AUTHENTICATED", "User not authenticated")
+		return false
+	}
+
+	allowed, err := h.tenantService.CheckUserTenantAccess(c.Request.Context(), userID, tenantID)
+	if err != nil {
+		response.InternalError(c, "TENANT_ACCESS_CHECK_FAILED", err.Error())
+		return false
+	}
+	if !allowed {
+		response.Forbidden(c, "TENANT_ACCESS_DENIED", "You do not have access to the requested tenant")
+		return false
+	}
+
+	return true
 }

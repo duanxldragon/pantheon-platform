@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -11,15 +12,28 @@ import (
 	"pantheon-platform/backend/internal/shared/database"
 )
 
+// TenantAccessChecker validates whether one authenticated user can access a tenant context.
+type TenantAccessChecker interface {
+	CheckUserTenantAccess(ctx context.Context, userID, tenantID string) (bool, error)
+}
+
 // Tenant resolves tenant identity and injects tenant DB context.
-func Tenant(dbManager *database.Manager, cfg *config.Config) gin.HandlerFunc {
+func Tenant(dbManager *database.Manager, cfg *config.Config, checker TenantAccessChecker) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		tenantIDStr := c.GetHeader("X-Tenant-ID")
+		authTenantID := strings.TrimSpace(c.GetString("tenant_id"))
+		headerTenantID := strings.TrimSpace(c.GetHeader("X-Tenant-ID"))
+		tenantIDStr := authTenantID
+
+		if authTenantID != "" && headerTenantID != "" && headerTenantID != authTenantID {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"code":    "TENANT_CONTEXT_MISMATCH",
+				"message": "Tenant header does not match the authenticated tenant context",
+			})
+			return
+		}
 
 		if tenantIDStr == "" {
-			if tid, exists := c.Get("tenant_id"); exists {
-				tenantIDStr = tid.(string)
-			}
+			tenantIDStr = headerTenantID
 		}
 
 		if tenantIDStr == "" {
@@ -39,6 +53,27 @@ func Tenant(dbManager *database.Manager, cfg *config.Config) gin.HandlerFunc {
 				"message": "Tenant identification is required",
 			})
 			return
+		}
+
+		if authTenantID == "" && headerTenantID != "" && checker != nil {
+			userID := strings.TrimSpace(c.GetString("user_id"))
+			if userID != "" {
+				allowed, err := checker.CheckUserTenantAccess(c.Request.Context(), userID, tenantIDStr)
+				if err != nil {
+					c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+						"code":    "TENANT_ACCESS_CHECK_FAILED",
+						"message": "Failed to verify tenant access",
+					})
+					return
+				}
+				if !allowed {
+					c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+						"code":    "TENANT_ACCESS_DENIED",
+						"message": "You do not have access to the requested tenant",
+					})
+					return
+				}
+			}
 		}
 
 		tenantID, err := uuid.Parse(tenantIDStr)

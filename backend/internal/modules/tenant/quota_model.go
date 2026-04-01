@@ -17,14 +17,14 @@ const (
 
 // TenantQuota stores quota limits and usage for a tenant.
 type TenantQuota struct {
-	ID           uuid.UUID `json:"id" gorm:"type:char(36);primaryKey"`
-	TenantID     string    `json:"tenant_id" gorm:"type:char(36);notNull;index"`
-	QuotaType    QuotaType `json:"quota_type" gorm:"size:50;notNull"`
-	MaxValue     int64     `json:"max_value" gorm:"notNull"`
-	CurrentValue int64     `json:"current_value" gorm:"default:0"`
-	Unit         string    `json:"unit" gorm:"size:20"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID           uuid.UUID `json:"id" gorm:"type:char(36);primaryKey" example:"550e8400-e29b-41d4-a716-446655440111"`
+	TenantID     string    `json:"tenant_id" gorm:"type:char(36);notNull;index" example:"550e8400-e29b-41d4-a716-446655440000"`
+	QuotaType    QuotaType `json:"quota_type" gorm:"size:50;notNull" example:"users"`
+	MaxValue     int64     `json:"max_value" gorm:"notNull" example:"200"`
+	CurrentValue int64     `json:"current_value" gorm:"default:0" example:"28"`
+	Unit         string    `json:"unit" gorm:"size:20" example:"users"`
+	CreatedAt    time.Time `json:"created_at" example:"2026-03-30T10:00:00Z"`
+	UpdatedAt    time.Time `json:"updated_at" example:"2026-03-30T12:00:00Z"`
 }
 
 // TableName returns the tenant quota table name.

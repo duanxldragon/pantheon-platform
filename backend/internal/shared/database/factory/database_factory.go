@@ -9,6 +9,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 // DialOption represents database connection options
@@ -16,6 +17,7 @@ type DialOption struct {
 	MaxOpenConns    int
 	MaxIdleConns    int
 	ConnMaxLifetime int // seconds
+	Silent          bool
 }
 
 // ConnectionTestResult represents the result of a connection test
@@ -47,10 +49,15 @@ func Dial(dbType, dsn string, options DialOption) (*gorm.DB, error) {
 		return nil, fmt.Errorf("unsupported database type: %s", dbType)
 	}
 
-	db, err := gorm.Open(dialector, &gorm.Config{
+	gormConfig := &gorm.Config{
 		DisableForeignKeyConstraintWhenMigrating: true,
 		SkipDefaultTransaction:                   true,
-	})
+	}
+	if options.Silent {
+		gormConfig.Logger = gormlogger.Default.LogMode(gormlogger.Silent)
+	}
+
+	db, err := gorm.Open(dialector, gormConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect: %w", err)
 	}

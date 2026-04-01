@@ -38,10 +38,13 @@ import (
 	"pantheon-platform/backend/internal/shared/middleware"
 	"pantheon-platform/backend/internal/shared/response"
 	"pantheon-platform/backend/internal/shared/storage"
+	appValidator "pantheon-platform/backend/internal/shared/validator"
 )
 
 // Start boots the HTTP server.
 func Start() {
+	appValidator.RegisterGinValidators()
+
 	cfg := config.Load()
 
 	if cfg.Environment == "production" {
@@ -63,6 +66,9 @@ func Start() {
 			&tenant.TenantQuota{},
 			&tenant.QuotaUsageLog{},
 			&tenant.TenantBackup{},
+			&auth.LoginAttempt{},
+			&auth.PasswordResetToken{},
+			&auth.ApiKey{},
 			&user.User{},
 			&role.Role{},
 			&permission.Permission{},
@@ -85,6 +91,12 @@ func Start() {
 			&notification.NotificationJob{},
 		); err != nil {
 			log.Fatalf("failed to migrate master database: %v", err)
+		}
+		if err := dict.MigrateSchema(db); err != nil {
+			log.Fatalf("failed to migrate dict schema on master database: %v", err)
+		}
+		if err := role.MigrateSchema(db); err != nil {
+			log.Fatalf("failed to migrate role schema on master database: %v", err)
 		}
 	}
 
@@ -178,7 +190,8 @@ func Start() {
 
 	emailSrv := notification.NewEmailService(&cfg.Email)
 	smsSrv := notification.NewSMSService(&cfg.SMS)
-	notificationSvc := notification.NewNotificationService(notificationDAO, emailSrv, smsSrv)
+	notificationTxManager := database.NewTransactionManager(db, dbManager)
+	notificationSvc := notification.NewNotificationService(notificationDAO, emailSrv, smsSrv, notificationTxManager)
 	notificationHandler := notification.NewNotificationHandler(notificationSvc)
 	notificationRouter := notification.NewNotificationRouter(notificationHandler)
 
@@ -187,7 +200,7 @@ func Start() {
 	translator := i18n.NewGormTranslator(db, nil)
 	_ = translator.LoadTranslations(context.Background())
 	engine := gin.Default()
-	engine.Use(middleware.CORS())
+	engine.Use(middleware.CORS(cfg))
 	engine.Use(i18n.TranslationMiddleware(translator))
 	engine.Use(middleware.OperationLog(sysContainer.GetLogService()))
 
@@ -206,7 +219,7 @@ func Start() {
 	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	authMiddleware := middleware.Auth(redisClient)
-	tenantMiddleware := middleware.Tenant(dbManager, cfg)
+	tenantMiddleware := middleware.Tenant(dbManager, cfg, tenantSvc)
 
 	authRouter.RegisterRoutes(engine, authMiddleware)
 	tenantRouter.RegisterRoutes(engine, authMiddleware)
@@ -364,16 +377,22 @@ func bootstrapDefaultData(db *gorm.DB, authzSvc *authzService.AuthorizationServi
 	if err := db.WithContext(ctx).Where("code = ?", "super_admin").First(&r).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			r = role.Role{
-				ID:       uuid.New(),
-				Name:     "Super Admin",
-				Code:     "super_admin",
-				Status:   "active",
-				Type:     "system",
-				TenantID: defaultTenantID,
-				IsSystem: true,
+				ID:        uuid.New(),
+				Name:      "Super Admin",
+				Code:      "super_admin",
+				Status:    "active",
+				Type:      "system",
+				DataScope: "all",
+				TenantID:  defaultTenantID,
+				IsSystem:  true,
 			}
 			_ = db.WithContext(ctx).Create(&r).Error
 		}
+	} else if strings.TrimSpace(r.DataScope) == "" {
+		r.DataScope = "all"
+		_ = db.WithContext(ctx).Model(&role.Role{}).
+			Where("id = ?", r.ID).
+			Update("data_scope", r.DataScope).Error
 	}
 
 	// Ensure default admin user and DB role binding

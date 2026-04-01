@@ -2,6 +2,8 @@ package tenant
 
 import (
 	"github.com/gin-gonic/gin"
+
+	"pantheon-platform/backend/internal/shared/middleware"
 )
 
 // TenantRouter registers tenant module routes.
@@ -23,22 +25,22 @@ func (r *TenantRouter) registerRoutes(tenant *gin.RouterGroup, authMiddleware gi
 	{
 		tenant.POST("/register", r.handler.RegisterTenant)
 		tenant.GET("/status", r.handler.GetStatus)
-		tenant.POST("/test-connection", r.handler.TestConnection)
 
 		protected := tenant.Group("")
 		protected.Use(authMiddleware)
 		{
-			protected.POST("/setup", r.handler.SetupDatabase)
-			protected.POST("/:id/setup", r.handler.SetupDatabaseForTenant)
+			protected.POST("/test-connection", middleware.RequirePermission("/api/v1/tenants/*", "*"), r.handler.TestConnection)
+			protected.POST("/setup", middleware.RequirePermission("/api/v1/tenants/*", "*"), r.handler.SetupDatabase)
+			protected.POST("/:id/setup", middleware.RequirePermission("/api/v1/tenants/*", "*"), r.handler.SetupDatabaseForTenant)
 			protected.GET("/current", r.handler.GetCurrentTenant)
-			protected.GET("/list", r.handler.ListTenants)
-			protected.PUT("/:id", r.handler.UpdateTenant)
+			protected.GET("/list", middleware.RequirePermission("/api/v1/tenants/*", "*"), r.handler.ListTenants)
+			protected.PUT("/:id", middleware.RequirePermission("/api/v1/tenants/*", "*"), r.handler.UpdateTenant)
 			protected.POST("/switch/:id", r.handler.SwitchTenant)
-			protected.PUT("/:id/activate", r.handler.ActivateTenant)
-			protected.PUT("/:id/suspend", r.handler.SuspendTenant)
-			protected.DELETE("/:id", r.handler.DeleteTenant)
-			protected.GET("/:id/quotas", r.handler.ListTenantQuotas)
-			protected.PUT("/:id/quotas", r.handler.UpsertTenantQuotas)
+			protected.PUT("/:id/activate", middleware.RequirePermission("/api/v1/tenants/*", "*"), r.handler.ActivateTenant)
+			protected.PUT("/:id/suspend", middleware.RequirePermission("/api/v1/tenants/*", "*"), r.handler.SuspendTenant)
+			protected.DELETE("/:id", middleware.RequirePermission("/api/v1/tenants/*", "*"), r.handler.DeleteTenant)
+			protected.GET("/:id/quotas", middleware.RequirePermission("/api/v1/tenants/*", "*"), r.handler.ListTenantQuotas)
+			protected.PUT("/:id/quotas", middleware.RequirePermission("/api/v1/tenants/*", "*"), r.handler.UpsertTenantQuotas)
 		}
 	}
 }

@@ -8,6 +8,20 @@ type TenantMigrator interface {
 	GetTenantModels() []interface{}
 }
 
+// VersionedTenantMigrator optionally overrides the migration version recorded for a module.
+type VersionedTenantMigrator interface {
+	TenantMigrator
+	// MigrationVersion returns the current migration version for this module.
+	MigrationVersion() string
+}
+
+// TenantSchemaMigrator optionally applies custom schema fixes that AutoMigrate cannot express.
+type TenantSchemaMigrator interface {
+	TenantMigrator
+	// MigrateTenantSchema applies custom schema migration steps for the tenant database.
+	MigrateTenantSchema(db *gorm.DB) error
+}
+
 // DefaultTenantMigrator provides the shared baseline tenant migration set.
 type DefaultTenantMigrator struct{}
 

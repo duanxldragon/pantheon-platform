@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"sort"
@@ -74,6 +75,8 @@ type Manager struct {
 	poolManager       *PoolManager
 	tenantLoader      TenantConfigLoader
 }
+
+var ErrTenantDatabaseNotReady = errors.New("tenant database not ready")
 
 // NewManager creates a new database manager
 func NewManager(masterDB *gorm.DB, encryptionKey string, tenantDBConfig *config.TenantDBConfig) (*Manager, error) {
@@ -164,8 +167,12 @@ func (m *Manager) ConnectTenant(ctx context.Context, config *DBConfig, password,
 		MaxOpenConns:    poolConfig.MaxOpenConns,
 		MaxIdleConns:    poolConfig.MaxIdleConns,
 		ConnMaxLifetime: poolConfig.ConnMaxLifetime,
+		Silent:          true,
 	})
 	if err != nil {
+		if isTenantDatabaseNotReadyError(err) {
+			return fmt.Errorf("%w: %v", ErrTenantDatabaseNotReady, err)
+		}
 		return fmt.Errorf("failed to connect to tenant database: %w", err)
 	}
 
@@ -178,7 +185,10 @@ func (m *Manager) ConnectTenant(ctx context.Context, config *DBConfig, password,
 	for name, migrator := range m.migrators {
 		models := migrator.GetTenantModels()
 		if len(models) > 0 {
-			const migrationVersion = "v1"
+			migrationVersion := "v1"
+			if versionedMigrator, ok := migrator.(VersionedTenantMigrator); ok {
+				migrationVersion = versionedMigrator.MigrationVersion()
+			}
 			tenantIDStr := config.TenantID.String()
 
 			// Check if already migrated
@@ -193,6 +203,11 @@ func (m *Manager) ConnectTenant(ctx context.Context, config *DBConfig, password,
 			// Execute migration
 			if err := db.AutoMigrate(models...); err != nil {
 				return fmt.Errorf("failed to migrate module %s for tenant %s: %w", name, config.TenantID, err)
+			}
+			if schemaMigrator, ok := migrator.(TenantSchemaMigrator); ok {
+				if err := schemaMigrator.MigrateTenantSchema(db); err != nil {
+					return fmt.Errorf("failed to apply custom schema migration for module %s tenant %s: %w", name, config.TenantID, err)
+				}
 			}
 
 			// Record successful migration
@@ -219,13 +234,20 @@ func (m *Manager) ConnectTenant(ctx context.Context, config *DBConfig, password,
 // GetTenantDB returns the database connection for a tenant
 func (m *Manager) GetTenantDB(tenantID uuid.UUID) *gorm.DB {
 	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if conn, exists := m.tenantConnections[tenantID]; exists {
-		conn.lastUsed = time.Now() // Update last used time
-		return conn.db
+	conn, exists := m.tenantConnections[tenantID]
+	m.mu.RUnlock()
+	if !exists {
+		return nil
 	}
-	return nil
+
+	m.mu.Lock()
+	if current, ok := m.tenantConnections[tenantID]; ok {
+		current.lastUsed = time.Now()
+		conn = current
+	}
+	m.mu.Unlock()
+
+	return conn.db
 }
 
 // RemoveDB removes a tenant database connection (deprecated: use RemoveTenant)
@@ -447,12 +469,37 @@ func (m *Manager) reloadTenants() {
 			}
 
 			if err := m.ConnectTenant(context.Background(), dbConfig, password, configCopy.Code); err != nil {
+				if errors.Is(err, ErrTenantDatabaseNotReady) {
+					log.Printf("Tenant %s database is not ready during reload; waiting for setup", config.TenantID)
+					return
+				}
 				log.Printf("Failed to connect tenant %s during reload: %v", config.TenantID, err)
 			} else {
 				log.Printf("Successfully connected tenant %s during reload", config.TenantID)
 			}
 		}(c)
 	}
+}
+
+func isTenantDatabaseNotReadyError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := strings.ToLower(err.Error())
+	patterns := []string{
+		"unknown database",
+		"database does not exist",
+		"cannot open database",
+	}
+
+	for _, pattern := range patterns {
+		if strings.Contains(message, pattern) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (m *Manager) resolveTenantConfigPassword(config *TenantConfigInfo) (string, error) {

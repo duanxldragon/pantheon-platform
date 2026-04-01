@@ -241,7 +241,40 @@ func (s *tenantService) SuspendTenant(ctx context.Context, id string) error {
 
 // CheckUserTenantAccess checks whether a user can access a tenant.
 func (s *tenantService) CheckUserTenantAccess(ctx context.Context, userID, tenantID string) (bool, error) {
-	return true, nil
+	userID = strings.TrimSpace(userID)
+	tenantID = strings.TrimSpace(tenantID)
+	if userID == "" || tenantID == "" {
+		return false, nil
+	}
+
+	var count int64
+	if err := s.masterDB.WithContext(ctx).
+		Model(&systemuser.User{}).
+		Where("id = ? AND tenant_id = ? AND status = ?", userID, tenantID, "active").
+		Count(&count).Error; err != nil {
+		return false, err
+	}
+	if count > 0 {
+		return true, nil
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return false, nil
+	}
+	tenantDB := s.dbManager.GetTenantDB(tenantUUID)
+	if tenantDB == nil {
+		return false, nil
+	}
+
+	if err := tenantDB.WithContext(ctx).
+		Model(&systemuser.User{}).
+		Where("id = ? AND tenant_id = ? AND status = ?", userID, tenantID, "active").
+		Count(&count).Error; err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
 }
 
 const tenantSetupLockTTL = 2 * time.Minute
@@ -285,15 +318,15 @@ var defaultTenantMenuTemplates = []tenantMenuTemplate{
 var defaultTenantPermissionTemplates = []tenantPermissionTemplate{
 	{Code: "platform_all", Name: "Platform Access", Description: "Full platform access", Type: "api", Resource: "/api/v1/*", Action: "*"},
 	{Code: "system_overview_all", Name: "System Overview", Description: "Access system overview", Type: "api", Resource: "/api/v1/system/*", Action: "*"},
-	{Code: "system_users_all", Name: "User Management", Description: "Manage users", Type: "api", Resource: "/api/v1/system/users", Action: "*"},
-	{Code: "system_departments_all", Name: "Department Management", Description: "Manage departments", Type: "api", Resource: "/api/v1/system/departments", Action: "*"},
-	{Code: "system_positions_all", Name: "Position Management", Description: "Manage positions", Type: "api", Resource: "/api/v1/system/positions", Action: "*"},
-	{Code: "system_roles_all", Name: "Role Management", Description: "Manage roles", Type: "api", Resource: "/api/v1/system/roles", Action: "*"},
-	{Code: "system_menus_all", Name: "Menu Management", Description: "Manage menus", Type: "api", Resource: "/api/v1/system/menus", Action: "*"},
-	{Code: "system_permissions_all", Name: "Permission Management", Description: "Manage permissions", Type: "api", Resource: "/api/v1/system/permissions", Action: "*"},
+	{Code: "system_users_all", Name: "User Management", Description: "Manage users", Type: "api", Resource: "/api/v1/system/users*", Action: "*"},
+	{Code: "system_departments_all", Name: "Department Management", Description: "Manage departments", Type: "api", Resource: "/api/v1/system/depts*", Action: "*"},
+	{Code: "system_positions_all", Name: "Position Management", Description: "Manage positions", Type: "api", Resource: "/api/v1/system/positions*", Action: "*"},
+	{Code: "system_roles_all", Name: "Role Management", Description: "Manage roles", Type: "api", Resource: "/api/v1/system/roles*", Action: "*"},
+	{Code: "system_menus_all", Name: "Menu Management", Description: "Manage menus", Type: "api", Resource: "/api/v1/system/menus*", Action: "*"},
+	{Code: "system_permissions_all", Name: "Permission Management", Description: "Manage permissions", Type: "api", Resource: "/api/v1/system/permissions*", Action: "*"},
 	{Code: "system_dict_all", Name: "Dictionary Management", Description: "Manage dictionary data", Type: "api", Resource: "/api/v1/system/dict/*", Action: "*"},
 	{Code: "system_logs_all", Name: "Log Management", Description: "Manage logs", Type: "api", Resource: "/api/v1/system/logs/*", Action: "*"},
-	{Code: "system_settings_all", Name: "System Settings", Description: "Manage settings", Type: "api", Resource: "/api/v1/system/settings", Action: "*"},
+	{Code: "system_settings_all", Name: "System Settings", Description: "Manage settings", Type: "api", Resource: "/api/v1/system/settings*", Action: "*"},
 	{Code: "system_monitor_all", Name: "System Monitor", Description: "Access monitor", Type: "api", Resource: "/api/v1/system/monitor/*", Action: "*"},
 	{Code: "tenant_management_all", Name: "Tenant Management", Description: "Manage tenants", Type: "api", Resource: "/api/v1/tenants/*", Action: "*"},
 }
@@ -395,11 +428,6 @@ func (s *tenantDatabaseService) SetupDatabase(ctx context.Context, tenantID stri
 		return nil, fmt.Errorf("tenant database connection is unavailable after setup")
 	}
 
-	bootstrap, err := s.bootstrapTenantDatabase(ctx, tenantRecord, tenantDB)
-	if err != nil {
-		return nil, err
-	}
-
 	encryptedPassword, err := s.dbManager.EncryptPassword(req.Password)
 	if err != nil {
 		return nil, err
@@ -437,6 +465,11 @@ func (s *tenantDatabaseService) SetupDatabase(ctx context.Context, tenantID stri
 		if err := s.tenantDatabaseDAO.Update(ctx, config); err != nil {
 			return nil, err
 		}
+	}
+
+	bootstrap, err := s.bootstrapTenantDatabase(ctx, tenantRecord, tenantDB)
+	if err != nil {
+		return nil, err
 	}
 
 	currentTenantRecord, err := s.tenantDAO.GetByID(ctx, tenantID)
@@ -497,7 +530,7 @@ func (s *tenantDatabaseService) LoadAllTenants(ctx context.Context) error {
 			continue
 		}
 
-		_ = s.dbManager.ConnectTenant(ctx, &database.DBConfig{
+		err = s.dbManager.ConnectTenant(ctx, &database.DBConfig{
 			TenantID:        uuid.MustParse(c.TenantID),
 			Type:            string(c.DatabaseType),
 			DSN:             dsn,
@@ -505,6 +538,13 @@ func (s *tenantDatabaseService) LoadAllTenants(ctx context.Context) error {
 			MaxIdleConns:    withDefault(c.MaxIdleConns, 10),
 			ConnMaxLifetime: withDefault(c.ConnMaxLifetime, 3600),
 		}, password, tenantRecord.Code)
+		if err != nil {
+			if errors.Is(err, database.ErrTenantDatabaseNotReady) {
+				log.Printf("Tenant %s database is not ready during initial load; waiting for setup", c.TenantID)
+				continue
+			}
+			log.Printf("Failed to load tenant %s database connection: %v", c.TenantID, err)
+		}
 	}
 	return nil
 }
@@ -653,6 +693,7 @@ func ensureTenantSuperAdminRole(tx *gorm.DB, tenantID string) (systemrole.Role, 
 			Description: "Built-in super administrator role",
 			Status:      "active",
 			Type:        "system",
+			DataScope:   "all",
 			TenantID:    tenantID,
 			IsSystem:    true,
 		}
@@ -666,6 +707,7 @@ func ensureTenantSuperAdminRole(tx *gorm.DB, tenantID string) (systemrole.Role, 
 	roleRecord.Description = "Built-in super administrator role"
 	roleRecord.Status = "active"
 	roleRecord.Type = "system"
+	roleRecord.DataScope = "all"
 	roleRecord.TenantID = tenantID
 	roleRecord.IsSystem = true
 	if err := tx.Model(&systemrole.Role{}).
@@ -675,6 +717,7 @@ func ensureTenantSuperAdminRole(tx *gorm.DB, tenantID string) (systemrole.Role, 
 			"description": roleRecord.Description,
 			"status":      roleRecord.Status,
 			"type":        roleRecord.Type,
+			"data_scope":  roleRecord.DataScope,
 			"tenant_id":   roleRecord.TenantID,
 			"is_system":   roleRecord.IsSystem,
 		}).Error; err != nil {

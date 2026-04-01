@@ -38,6 +38,12 @@ func GetTenantID(ctx context.Context) (uuid.UUID, bool) {
 	if tenantID, ok := ctx.Value("tenant_id").(uuid.UUID); ok {
 		return tenantID, true
 	}
+	if tenantID, ok := ctx.Value("tenant_id").(string); ok {
+		parsed, err := uuid.Parse(tenantID)
+		if err == nil {
+			return parsed, true
+		}
+	}
 	return uuid.Nil, false
 }
 

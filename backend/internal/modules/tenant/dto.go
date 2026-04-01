@@ -6,99 +6,99 @@ import (
 
 // CreateTenantRequest carries tenant creation data.
 type CreateTenantRequest struct {
-	Name          string `json:"name" binding:"required"`
-	Code          string `json:"code" binding:"required"`
-	Description   string `json:"description"`
-	ContactPerson string `json:"contact_person"`
-	ExpireAt      string `json:"expire_at"`
+	Name          string `json:"name" binding:"required" example:"Default Tenant"`
+	Code          string `json:"code" binding:"required" example:"default"`
+	Description   string `json:"description" example:"Primary platform tenant"`
+	ContactPerson string `json:"contact_person" example:"Alice Chen"`
+	ExpireAt      string `json:"expire_at" example:"2027-12-31T23:59:59Z"`
 }
 
 // UpdateTenantRequest carries tenant update data.
 type UpdateTenantRequest struct {
-	Name          string `json:"name" binding:"required"`
-	Description   string `json:"description"`
-	ContactPerson string `json:"contact_person"`
-	ExpireAt      string `json:"expire_at"`
+	Name          string `json:"name" binding:"required" example:"Default Tenant"`
+	Description   string `json:"description" example:"Primary platform tenant"`
+	ContactPerson string `json:"contact_person" example:"Alice Chen"`
+	ExpireAt      string `json:"expire_at" example:"2027-12-31T23:59:59Z"`
 }
 
 // TenantStatusResponse returns tenant setup and status data.
 type TenantStatusResponse struct {
-	IsConfigured       bool   `json:"is_configured"`
-	IsFirstLogin       bool   `json:"is_first_login"`
-	DatabaseConfigured bool   `json:"database_configured"`
-	TenantID           string `json:"tenant_id,omitempty"`
-	TenantCode         string `json:"tenant_code,omitempty"`
-	TenantName         string `json:"tenant_name,omitempty"`
-	DatabaseType       string `json:"database_type,omitempty"`
-	Status             string `json:"status"`
+	IsConfigured       bool   `json:"is_configured" example:"true"`
+	IsFirstLogin       bool   `json:"is_first_login" example:"false"`
+	DatabaseConfigured bool   `json:"database_configured" example:"true"`
+	TenantID           string `json:"tenant_id,omitempty" example:"550e8400-e29b-41d4-a716-446655440000"`
+	TenantCode         string `json:"tenant_code,omitempty" example:"default"`
+	TenantName         string `json:"tenant_name,omitempty" example:"Default Tenant"`
+	DatabaseType       string `json:"database_type,omitempty" example:"postgres"`
+	Status             string `json:"status" example:"active"`
 }
 
 // TenantInfoResponse returns current tenant information.
 type TenantInfoResponse struct {
-	ID                 string `json:"id"`
-	Name               string `json:"name"`
-	Code               string `json:"code"`
-	Description        string `json:"description,omitempty"`
-	ContactPerson      string `json:"contact_person,omitempty"`
-	ExpireAt           string `json:"expire_at,omitempty"`
-	Status             string `json:"status"`
-	DatabaseType       string `json:"database_type,omitempty"`
-	DatabaseConfigured bool   `json:"database_configured"`
-	CreatedAt          string `json:"created_at"`
+	ID                 string `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Name               string `json:"name" example:"Default Tenant"`
+	Code               string `json:"code" example:"default"`
+	Description        string `json:"description,omitempty" example:"Primary platform tenant"`
+	ContactPerson      string `json:"contact_person,omitempty" example:"Alice Chen"`
+	ExpireAt           string `json:"expire_at,omitempty" example:"2027-12-31T23:59:59Z"`
+	Status             string `json:"status" example:"active"`
+	DatabaseType       string `json:"database_type,omitempty" example:"postgres"`
+	DatabaseConfigured bool   `json:"database_configured" example:"true"`
+	CreatedAt          string `json:"created_at" example:"2026-03-30T10:00:00Z"`
 }
 
 // TestConnectionRequest carries database connection parameters for testing.
 type TestConnectionRequest struct {
-	DatabaseType string `json:"database_type"`
-	Host         string `json:"host"`
-	Port         int    `json:"port"`
-	Database     string `json:"database"`
-	Username     string `json:"username"`
-	Password     string `json:"password"`
-	FilePath     string `json:"filepath"`
-	SSLMode      string `json:"ssl_mode"`
+	DatabaseType string `json:"database_type" example:"postgres"`
+	Host         string `json:"host" example:"127.0.0.1"`
+	Port         int    `json:"port" example:"5432"`
+	Database     string `json:"database" example:"pantheon_tenant_default"`
+	Username     string `json:"username" example:"postgres"`
+	Password     string `json:"password" example:"secret123"`
+	FilePath     string `json:"filepath" example:"D:/data/pantheon/default.db"`
+	SSLMode      string `json:"ssl_mode" example:"disable"`
 }
 
 // SetupDatabaseRequest carries tenant database setup parameters.
 type SetupDatabaseRequest struct {
-	DatabaseType    string `json:"database_type"`
-	Host            string `json:"host"`
-	Port            int    `json:"port"`
-	Database        string `json:"database"`
-	Username        string `json:"username"`
-	Password        string `json:"password"`
-	FilePath        string `json:"filepath"`
-	SSLMode         string `json:"ssl_mode"`
-	MaxOpenConns    int    `json:"max_open_conns"`
-	MaxIdleConns    int    `json:"max_idle_conns"`
-	ConnMaxLifetime int    `json:"conn_max_lifetime"`
+	DatabaseType    string `json:"database_type" example:"postgres"`
+	Host            string `json:"host" example:"127.0.0.1"`
+	Port            int    `json:"port" example:"5432"`
+	Database        string `json:"database" example:"pantheon_tenant_default"`
+	Username        string `json:"username" example:"postgres"`
+	Password        string `json:"password" example:"secret123"`
+	FilePath        string `json:"filepath" example:"D:/data/pantheon/default.db"`
+	SSLMode         string `json:"ssl_mode" example:"disable"`
+	MaxOpenConns    int    `json:"max_open_conns" example:"20"`
+	MaxIdleConns    int    `json:"max_idle_conns" example:"10"`
+	ConnMaxLifetime int    `json:"conn_max_lifetime" example:"3600"`
 }
 
 // SetupDatabaseResponse returns tenant database setup results.
 type SetupDatabaseResponse struct {
-	TenantID           string                   `json:"tenant_id"`
-	ConfigID           string                   `json:"config_id"`
-	DatabaseType       string                   `json:"database_type"`
-	Database           string                   `json:"database"`
-	Version            string                   `json:"version,omitempty"`
-	InitializedModules []string                 `json:"initialized_modules,omitempty"`
-	DeploymentMode     string                   `json:"deployment_mode,omitempty"`
-	TenantStrategy     string                   `json:"tenant_strategy,omitempty"`
+	TenantID           string                   `json:"tenant_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	ConfigID           string                   `json:"config_id" example:"tenant-db-config-1"`
+	DatabaseType       string                   `json:"database_type" example:"postgres"`
+	Database           string                   `json:"database" example:"pantheon_tenant_default"`
+	Version            string                   `json:"version,omitempty" example:"16.2"`
+	InitializedModules []string                 `json:"initialized_modules,omitempty" example:"auth,user,role,permission,menu"`
+	DeploymentMode     string                   `json:"deployment_mode,omitempty" example:"single"`
+	TenantStrategy     string                   `json:"tenant_strategy,omitempty" example:"shared_db"`
 	Bootstrap          *TenantBootstrapResponse `json:"bootstrap,omitempty"`
-	Message            string                   `json:"message"`
+	Message            string                   `json:"message" example:"tenant database initialized"`
 }
 
 // TenantBootstrapResponse returns the default bootstrap result for a tenant database.
 type TenantBootstrapResponse struct {
-	Seeded          bool   `json:"seeded"`
-	AdminCreated    bool   `json:"admin_created"`
-	RoleCreated     bool   `json:"role_created"`
-	AdminUsername   string `json:"admin_username,omitempty"`
-	AdminEmail      string `json:"admin_email,omitempty"`
-	InitialPassword string `json:"initial_password,omitempty"`
-	RoleCode        string `json:"role_code,omitempty"`
-	MenuCount       int    `json:"menu_count,omitempty"`
-	PermissionCount int    `json:"permission_count,omitempty"`
+	Seeded          bool   `json:"seeded" example:"true"`
+	AdminCreated    bool   `json:"admin_created" example:"true"`
+	RoleCreated     bool   `json:"role_created" example:"true"`
+	AdminUsername   string `json:"admin_username,omitempty" example:"admin"`
+	AdminEmail      string `json:"admin_email,omitempty" example:"admin@example.com"`
+	InitialPassword string `json:"initial_password,omitempty" example:"P@ssw0rd123"`
+	RoleCode        string `json:"role_code,omitempty" example:"tenant_admin"`
+	MenuCount       int    `json:"menu_count,omitempty" example:"42"`
+	PermissionCount int    `json:"permission_count,omitempty" example:"128"`
 }
 
 // ConnectionTestResult aliases the shared database connection test result.
@@ -111,7 +111,7 @@ type QuotaUpsertRequest struct {
 
 // QuotaUpsertItem describes one quota upsert operation.
 type QuotaUpsertItem struct {
-	Type     string `json:"type" binding:"required"`
-	MaxValue int64  `json:"maxValue" binding:"required"`
-	Unit     string `json:"unit"`
+	Type     string `json:"type" binding:"required" example:"users"`
+	MaxValue int64  `json:"maxValue" binding:"required" example:"200"`
+	Unit     string `json:"unit" example:"users"`
 }

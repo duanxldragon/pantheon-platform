@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -60,13 +61,16 @@ type backupService struct {
 
 // NewBackupService creates a backup service.
 func NewBackupService(db *gorm.DB, tenantDatabaseDAO TenantDatabaseDAO, backupDir string, decryptPassword func(string) (string, error)) BackupService {
-	if _, err := os.Stat(backupDir); os.IsNotExist(err) {
-		_ = os.MkdirAll(backupDir, 0755)
+	backupRoot := normalizeBackupPath(backupDir)
+	if backupRoot != "" {
+		if _, err := os.Stat(backupRoot); os.IsNotExist(err) {
+			_ = os.MkdirAll(backupRoot, 0755)
+		}
 	}
 	return &backupService{
 		db:                db,
 		tenantDatabaseDAO: tenantDatabaseDAO,
-		backupDir:         backupDir,
+		backupDir:         backupRoot,
 		decryptPassword:   decryptPassword,
 	}
 }
@@ -79,7 +83,10 @@ func (s *backupService) CreateBackup(ctx context.Context, tenantID string, creat
 	}
 
 	fileName := fmt.Sprintf("backup_%s_%s.sql", tenantID, time.Now().Format("20060102_150405"))
-	filePath := filepath.Join(s.backupDir, fileName)
+	filePath, err := s.managedBackupPath(fileName)
+	if err != nil {
+		return nil, err
+	}
 
 	backup := &TenantBackup{
 		ID:        uuid.New(),
@@ -103,7 +110,7 @@ func (s *backupService) CreateBackup(ctx context.Context, tenantID string, creat
 
 func (s *backupService) runBackup(databaseConfig *TenantDatabaseConfig, backup *TenantBackup) {
 	backup.Status = BackupStatusRunning
-	s.db.Save(backup)
+	s.saveBackup(context.Background(), backup)
 
 	var err error
 	switch databaseConfig.DatabaseType {
@@ -129,7 +136,7 @@ func (s *backupService) runBackup(databaseConfig *TenantDatabaseConfig, backup *
 	}
 
 	backup.UpdatedAt = time.Now()
-	s.db.Save(backup)
+	s.saveBackup(context.Background(), backup)
 }
 
 func (s *backupService) decryptPasswordValue(encrypted string) string {
@@ -243,7 +250,13 @@ func (s *backupService) DeleteBackup(ctx context.Context, backupID string) error
 		return err
 	}
 
-	_ = os.Remove(backup.FilePath)
+	resolvedPath, err := s.requireBackupPath(backup.FilePath)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(resolvedPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove backup file: %w", err)
+	}
 
 	return s.db.WithContext(ctx).Delete(&backup).Error
 }
@@ -259,8 +272,12 @@ func (s *backupService) RestoreBackup(ctx context.Context, backupID string) erro
 		return fmt.Errorf("backup is not completed")
 	}
 
-	if _, err := os.Stat(backup.FilePath); os.IsNotExist(err) {
-		return fmt.Errorf("backup file not found: %s", backup.FilePath)
+	resolvedPath, err := s.requireBackupPath(backup.FilePath)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(resolvedPath); os.IsNotExist(err) {
+		return fmt.Errorf("backup file not found: %s", resolvedPath)
 	}
 
 	databaseConfig, err := s.tenantDatabaseDAO.GetByTenantID(ctx, backup.TenantID)
@@ -270,11 +287,11 @@ func (s *backupService) RestoreBackup(ctx context.Context, backupID string) erro
 
 	switch databaseConfig.DatabaseType {
 	case DBTypeMySQL:
-		return s.restoreMySQL(databaseConfig, backup.FilePath)
+		return s.restoreMySQL(databaseConfig, resolvedPath)
 	case DBTypePostgreSQL:
-		return s.restorePostgres(databaseConfig, backup.FilePath)
+		return s.restorePostgres(databaseConfig, resolvedPath)
 	case DBTypeSQLite:
-		return s.restoreSQLite(databaseConfig, backup.FilePath)
+		return s.restoreSQLite(databaseConfig, resolvedPath)
 	default:
 		return fmt.Errorf("unsupported database type for restore: %s", databaseConfig.DatabaseType)
 	}
@@ -360,4 +377,49 @@ func (s *backupService) restoreSQLite(databaseConfig *TenantDatabaseConfig, file
 		return fmt.Errorf("failed to restore sqlite file: %w", err)
 	}
 	return nil
+}
+
+func (s *backupService) saveBackup(ctx context.Context, backup *TenantBackup) {
+	if s == nil || s.db == nil || backup == nil {
+		return
+	}
+	_ = s.db.WithContext(ctx).Save(backup).Error
+}
+
+func (s *backupService) managedBackupPath(fileName string) (string, error) {
+	if strings.TrimSpace(s.backupDir) == "" {
+		return "", fmt.Errorf("backup directory is not configured")
+	}
+	return s.requireBackupPath(filepath.Join(s.backupDir, fileName))
+}
+
+func (s *backupService) requireBackupPath(path string) (string, error) {
+	if strings.TrimSpace(path) == "" {
+		return "", fmt.Errorf("backup file path is empty")
+	}
+	backupRoot := normalizeBackupPath(s.backupDir)
+	if backupRoot == "" {
+		return "", fmt.Errorf("backup directory is not configured")
+	}
+	resolvedPath := normalizeBackupPath(path)
+	relativePath, err := filepath.Rel(backupRoot, resolvedPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to validate backup path: %w", err)
+	}
+	if relativePath == ".." || strings.HasPrefix(relativePath, ".."+string(os.PathSeparator)) {
+		return "", fmt.Errorf("backup file path is outside backup directory")
+	}
+	return resolvedPath, nil
+}
+
+func normalizeBackupPath(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	cleanedPath := filepath.Clean(path)
+	if absolutePath, err := filepath.Abs(cleanedPath); err == nil {
+		return absolutePath
+	}
+	return cleanedPath
 }
