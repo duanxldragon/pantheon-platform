@@ -206,12 +206,7 @@ func (s *authService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 		}
 	}
 
-	accessToken, err := s.generateToken(userID, username, tenantID, time.Duration(s.expiresIn)*time.Second)
-	if err != nil {
-		return nil, err
-	}
-
-	refreshToken, err := s.generateToken(userID, username, tenantID, 7*24*time.Hour)
+	accessToken, refreshToken, sessionID, err := s.issueSessionTokens(userID, username, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +219,7 @@ func (s *authService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 	}
 
 	// Store session device fingerprint for concurrent login management
-	_ = s.storeSessionFingerprint(ctx, userID, accessToken, userAgent, clientIP)
+	_ = s.storeSessionFingerprint(ctx, userID, sessionID, userAgent, clientIP)
 
 	// Record the successful login attempt.
 	_ = s.recordLoginAttempt(ctx, req.Username, requestedTenantCode, clientIP, userAgent, true)
@@ -274,6 +269,9 @@ func (s *authService) fallbackAdminLogin(req *LoginRequest) (*LoginResponse, err
 	if s.config == nil || !s.config.DefaultAdmin.Enabled {
 		return nil, ErrInvalidCredentials
 	}
+	if !strings.EqualFold(s.config.Environment, "development") {
+		return nil, ErrInvalidCredentials
+	}
 
 	if req.Username != s.config.DefaultAdmin.Username {
 		return nil, ErrInvalidCredentials
@@ -291,13 +289,8 @@ func (s *authService) fallbackAdminLogin(req *LoginRequest) (*LoginResponse, err
 		return nil, ErrInvalidCredentials
 	}
 
-	userID := uuid.New().String()
-	accessToken, err := s.generateToken(userID, req.Username, "", time.Duration(s.expiresIn)*time.Second)
-	if err != nil {
-		return nil, err
-	}
-
-	refreshToken, err := s.generateToken(userID, req.Username, "", 7*24*time.Hour)
+	userID := uuid.NewSHA1(uuid.NameSpaceOID, []byte("fallback-admin:"+req.Username)).String()
+	accessToken, refreshToken, _, err := s.issueSessionTokens(userID, req.Username, "")
 	if err != nil {
 		return nil, err
 	}
@@ -383,12 +376,12 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*R
 		_ = s.redisClient.Del(ctx, oldKey)
 	}
 
-	newAccessToken, err := s.generateToken(claims.UserID, claims.Username, claims.TenantID, time.Duration(s.expiresIn)*time.Second)
+	newAccessToken, err := s.generateTokenWithJTI(claims.UserID, claims.Username, claims.TenantID, time.Duration(s.expiresIn)*time.Second, claims.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	newRefreshToken, err := s.generateToken(claims.UserID, claims.Username, claims.TenantID, 7*24*time.Hour)
+	newRefreshToken, err := s.generateTokenWithJTI(claims.UserID, claims.Username, claims.TenantID, 7*24*time.Hour, claims.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -399,6 +392,7 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*R
 	if err := s.storeRefreshSession(ctx, newRefreshToken, 7*24*time.Hour); err != nil {
 		return nil, err
 	}
+	_ = s.refreshSessionFingerprint(ctx, claims.UserID, claims.ID)
 
 	return &RefreshTokenResponse{
 		AccessToken:  newAccessToken,
@@ -527,8 +521,15 @@ func (s *authService) loginRequiresTenantCode() bool {
 }
 
 func (s *authService) generateToken(userID, username, tenantID string, duration time.Duration) (string, error) {
+	return s.generateTokenWithJTI(userID, username, tenantID, duration, "")
+}
+
+func (s *authService) generateTokenWithJTI(userID, username, tenantID string, duration time.Duration, sessionID string) (string, error) {
 	expiresAt := time.Now().Add(duration)
-	jti := uuid.New().String()
+	jti := strings.TrimSpace(sessionID)
+	if jti == "" {
+		jti = uuid.New().String()
+	}
 	claims := &middleware.Claims{
 		UserID:      userID,
 		Username:    username,
@@ -544,6 +545,19 @@ func (s *authService) generateToken(userID, username, tenantID string, duration 
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(s.jwtSecret)
+}
+
+func (s *authService) issueSessionTokens(userID, username, tenantID string) (string, string, string, error) {
+	sessionID := uuid.New().String()
+	accessToken, err := s.generateTokenWithJTI(userID, username, tenantID, time.Duration(s.expiresIn)*time.Second, sessionID)
+	if err != nil {
+		return "", "", "", err
+	}
+	refreshToken, err := s.generateTokenWithJTI(userID, username, tenantID, 7*24*time.Hour, sessionID)
+	if err != nil {
+		return "", "", "", err
+	}
+	return accessToken, refreshToken, sessionID, nil
 }
 
 func (s *authService) parseTokenClaims(tokenString string) (*middleware.Claims, error) {

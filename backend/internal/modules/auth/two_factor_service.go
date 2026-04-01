@@ -108,12 +108,7 @@ func (s *authService) VerifyLogin2FA(ctx context.Context, tempToken, code, clien
 		return nil, ErrInvalid2FACode
 	}
 
-	accessToken, err := s.generateToken(userID, username, tenantID, time.Duration(s.expiresIn)*time.Second)
-	if err != nil {
-		return nil, err
-	}
-
-	refreshToken, err := s.generateToken(userID, username, tenantID, 7*24*time.Hour)
+	accessToken, refreshToken, sessionID, err := s.issueSessionTokens(userID, username, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +119,7 @@ func (s *authService) VerifyLogin2FA(ctx context.Context, tempToken, code, clien
 	if err := s.storeRefreshSession(ctx, refreshToken, 7*24*time.Hour); err != nil {
 		return nil, err
 	}
-	_ = s.storeSessionFingerprint(ctx, userID, accessToken, userAgent, clientIP)
+	_ = s.storeSessionFingerprint(ctx, userID, sessionID, userAgent, clientIP)
 	s.clearPending2FA(ctx, tempToken)
 
 	currentUser, err := s.GetCurrentUser(ctx, userID, username, tenantID)

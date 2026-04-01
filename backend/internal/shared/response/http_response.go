@@ -26,47 +26,47 @@ func getMessage(c *gin.Context, message string) string {
 
 // Response is the shared API response envelope.
 type Response struct {
-	Code      int         `json:"code"`
-	Message   string      `json:"message"`
+	Code      int         `json:"code" example:"0"`
+	Message   string      `json:"message" example:"success"`
 	Data      interface{} `json:"data,omitempty"`
 	Meta      *Meta       `json:"meta,omitempty"`
-	Timestamp string      `json:"timestamp"`
+	Timestamp string      `json:"timestamp" example:"2026-03-30T12:00:00Z"`
 }
 
 // Meta contains response metadata.
 type Meta struct {
-	RequestID  string      `json:"request_id,omitempty"`
-	Version    string      `json:"version,omitempty"`
+	RequestID  string      `json:"request_id,omitempty" example:"20260330120000-AB12CD34"`
+	Version    string      `json:"version,omitempty" example:"v1"`
 	Pagination *Pagination `json:"pagination,omitempty"`
-	Duration   int64       `json:"duration,omitempty"`
+	Duration   int64       `json:"duration,omitempty" example:"35"`
 }
 
 // Pagination contains pagination metadata.
 type Pagination struct {
-	Page       int64 `json:"page"`
-	PageSize   int64 `json:"page_size"`
-	Total      int64 `json:"total"`
-	TotalPages int64 `json:"total_pages"`
-	HasNext    bool  `json:"has_next"`
-	HasPrev    bool  `json:"has_prev"`
+	Page       int64 `json:"page" example:"1"`
+	PageSize   int64 `json:"page_size" example:"20"`
+	Total      int64 `json:"total" example:"128"`
+	TotalPages int64 `json:"total_pages" example:"7"`
+	HasNext    bool  `json:"has_next" example:"true"`
+	HasPrev    bool  `json:"has_prev" example:"false"`
 }
 
 // ErrorDetail is the shared API error payload.
 type ErrorDetail struct {
-	Code      string       `json:"code"`
-	Message   string       `json:"message"`
-	Details   string       `json:"details,omitempty"`
-	Timestamp string       `json:"timestamp"`
-	Path      string       `json:"path"`
-	RequestID string       `json:"request_id,omitempty"`
+	Code      string       `json:"code" example:"INVALID_REQUEST"`
+	Message   string       `json:"message" example:"Invalid request parameters"`
+	Details   string       `json:"details,omitempty" example:"json: cannot unmarshal number into Go struct field"`
+	Timestamp string       `json:"timestamp" example:"2026-03-30T12:00:00Z"`
+	Path      string       `json:"path" example:"/api/v1/system/users"`
+	RequestID string       `json:"request_id,omitempty" example:"20260330120000-AB12CD34"`
 	Errors    []FieldError `json:"errors,omitempty"`
 }
 
 // FieldError describes a field-level validation error.
 type FieldError struct {
-	Field   string      `json:"field"`
-	Code    string      `json:"code"`
-	Message string      `json:"message"`
+	Field   string      `json:"field" example:"username"`
+	Code    string      `json:"code" example:"required"`
+	Message string      `json:"message" example:"username is required"`
 	Value   interface{} `json:"value,omitempty"`
 }
 

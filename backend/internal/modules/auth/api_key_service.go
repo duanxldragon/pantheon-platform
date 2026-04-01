@@ -6,19 +6,22 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-	"pantheon-platform/backend/internal/modules/tenant"
+	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
+
+const apiKeySelectorSeparator = ":"
 
 func (s *authService) CreateApiKey(ctx context.Context, userID, name, permissions string) (*ApiKeyResponse, error) {
 	if s.apiKeyDAO == nil {
 		return nil, errors.New("api key DAO not initialized")
 	}
 
-	// Generate a random API key
-	apiKey := fmt.Sprintf("sk_%s", uuid.New().String())
+	selector := newAPIKeySelector()
+	apiKey := fmt.Sprintf("sk_%s_%s", selector, uuid.New().String())
 
-	// Hash the key before storing
 	hashedKey, err := bcrypt.GenerateFromPassword([]byte(apiKey), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
@@ -28,24 +31,13 @@ func (s *authService) CreateApiKey(ctx context.Context, userID, name, permission
 		ID:          uuid.New(),
 		UserID:      userID,
 		Name:        name,
-		Key:         string(hashedKey),
+		Key:         encodeStoredAPIKey(selector, string(hashedKey)),
 		Permissions: permissions,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
 
-	// Get the appropriate database (master for platform admin, tenant DB for tenant users)
-	db := s.masterDB
-	if tenantID := getTenantIDFromContext(ctx); tenantID != "" {
-		if tid, err := uuid.Parse(tenantID); err == nil {
-			if tenantDB := s.dbManager.GetTenantDB(tid); tenantDB != nil {
-				db = tenantDB
-			}
-		}
-	}
-
-	// Save to database
-	if err := db.WithContext(ctx).Create(newKey).Error; err != nil {
+	if err := s.masterDB.WithContext(ctx).Create(newKey).Error; err != nil {
 		return nil, err
 	}
 
@@ -65,18 +57,7 @@ func (s *authService) ListApiKeys(ctx context.Context, userID string) (*ApiKeyLi
 		return nil, errors.New("api key DAO not initialized")
 	}
 
-	// Get the appropriate database
-	db := s.masterDB
-	if tenantID := getTenantIDFromContext(ctx); tenantID != "" {
-		if tid, err := uuid.Parse(tenantID); err == nil {
-			if tenantDB := s.dbManager.GetTenantDB(tid); tenantDB != nil {
-				db = tenantDB
-			}
-		}
-	}
-
-	var keys []*ApiKey
-	err := db.WithContext(ctx).Where("user_id = ?", userID).Order("created_at DESC").Find(&keys).Error
+	keys, err := s.listAPIKeysAcrossCandidateDBs(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -104,31 +85,22 @@ func (s *authService) DeleteApiKey(ctx context.Context, userID, keyID string) er
 		return errors.New("api key DAO not initialized")
 	}
 
-	// Get the appropriate database
-	db := s.masterDB
-	if tenantID := getTenantIDFromContext(ctx); tenantID != "" {
-		if tid, err := uuid.Parse(tenantID); err == nil {
-			if tenantDB := s.dbManager.GetTenantDB(tid); tenantDB != nil {
-				db = tenantDB
-			}
-		}
-	}
-
-	// Delete the key (verify it belongs to the user)
 	uuidID, err := uuid.Parse(keyID)
 	if err != nil {
 		return err
 	}
 
-	result := db.WithContext(ctx).Where("id = ? AND user_id = ?", uuidID, userID).Delete(&ApiKey{})
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return ErrApiKeyNotFound
+	for _, db := range s.apiKeyCandidateDBs(ctx) {
+		result := db.WithContext(ctx).Where("id = ? AND user_id = ?", uuidID, userID).Delete(&ApiKey{})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected > 0 {
+			return nil
+		}
 	}
 
-	return nil
+	return ErrApiKeyNotFound
 }
 
 // UpdateApiKey updates an API key
@@ -137,17 +109,6 @@ func (s *authService) UpdateApiKey(ctx context.Context, userID, keyID, name, per
 		return errors.New("api key DAO not initialized")
 	}
 
-	// Get the appropriate database
-	db := s.masterDB
-	if tenantID := getTenantIDFromContext(ctx); tenantID != "" {
-		if tid, err := uuid.Parse(tenantID); err == nil {
-			if tenantDB := s.dbManager.GetTenantDB(tid); tenantDB != nil {
-				db = tenantDB
-			}
-		}
-	}
-
-	// Update the key (verify it belongs to the user)
 	uuidID, err := uuid.Parse(keyID)
 	if err != nil {
 		return err
@@ -163,15 +124,17 @@ func (s *authService) UpdateApiKey(ctx context.Context, userID, keyID, name, per
 		updates["permissions"] = permissions
 	}
 
-	result := db.WithContext(ctx).Model(&ApiKey{}).Where("id = ? AND user_id = ?", uuidID, userID).Updates(updates)
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return ErrApiKeyNotFound
+	for _, db := range s.apiKeyCandidateDBs(ctx) {
+		result := db.WithContext(ctx).Model(&ApiKey{}).Where("id = ? AND user_id = ?", uuidID, userID).Updates(updates)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected > 0 {
+			return nil
+		}
 	}
 
-	return nil
+	return ErrApiKeyNotFound
 }
 
 // ValidateApiKey validates an API key and returns the user ID
@@ -180,38 +143,19 @@ func (s *authService) ValidateApiKey(ctx context.Context, apiKey string) (string
 		return "", errors.New("api key DAO not initialized")
 	}
 
-	// Get the appropriate database
-	db := s.masterDB
-
-	var keys []*ApiKey
-	err := db.WithContext(ctx).Find(&keys).Error
-	if err != nil {
-		return "", err
-	}
-
-	// Check each tenant database if multi-tenant is enabled
-	if s.config.EnableMultiTenant {
-		var tenantIDs []uuid.UUID
-		err := s.masterDB.WithContext(ctx).Model(&tenant.Tenant{}).Pluck("id", &tenantIDs).Error
-		if err == nil {
-			for _, tid := range tenantIDs {
-				if tenantDB := s.dbManager.GetTenantDB(tid); tenantDB != nil {
-					var tenantKeys []*ApiKey
-					err := tenantDB.WithContext(ctx).Find(&tenantKeys).Error
-					if err == nil {
-						keys = append(keys, tenantKeys...)
-					}
-				}
-			}
+	selector := extractAPIKeySelector(apiKey)
+	for _, db := range s.apiKeyCandidateDBs(ctx) {
+		keys, err := s.lookupAPIKeyCandidates(ctx, db, selector)
+		if err != nil {
+			return "", err
 		}
-	}
 
-	// Find matching key
-	for _, key := range keys {
-		if err := bcrypt.CompareHashAndPassword([]byte(key.Key), []byte(apiKey)); err == nil {
-			// Update last used time
-			_ = s.apiKeyDAO.UpdateLastUsed(ctx, key.ID.String())
-			return key.UserID, nil
+		for _, key := range keys {
+			if bcrypt.CompareHashAndPassword([]byte(extractStoredAPIKeyHash(key.Key)), []byte(apiKey)) == nil {
+				now := time.Now()
+				_ = db.WithContext(ctx).Model(&ApiKey{}).Where("id = ?", key.ID).Update("last_used", &now).Error
+				return key.UserID, nil
+			}
 		}
 	}
 
@@ -224,4 +168,88 @@ func getTenantIDFromContext(ctx context.Context) string {
 		return tenantID
 	}
 	return ""
+}
+
+func (s *authService) apiKeyCandidateDBs(ctx context.Context) []*gorm.DB {
+	dbs := []*gorm.DB{s.masterDB}
+	tenantID := getTenantIDFromContext(ctx)
+	if tenantID == "" || s.dbManager == nil {
+		return dbs
+	}
+
+	tid, err := uuid.Parse(tenantID)
+	if err != nil {
+		return dbs
+	}
+	tenantDB := s.dbManager.GetTenantDB(tid)
+	if tenantDB != nil && tenantDB != s.masterDB {
+		dbs = append(dbs, tenantDB)
+	}
+
+	return dbs
+}
+
+func (s *authService) listAPIKeysAcrossCandidateDBs(ctx context.Context, userID string) ([]*ApiKey, error) {
+	combined := make([]*ApiKey, 0)
+	seen := make(map[string]struct{})
+
+	for _, db := range s.apiKeyCandidateDBs(ctx) {
+		var keys []*ApiKey
+		if err := db.WithContext(ctx).Where("user_id = ?", userID).Order("created_at DESC").Find(&keys).Error; err != nil {
+			return nil, err
+		}
+		for _, key := range keys {
+			if _, ok := seen[key.ID.String()]; ok {
+				continue
+			}
+			seen[key.ID.String()] = struct{}{}
+			combined = append(combined, key)
+		}
+	}
+
+	return combined, nil
+}
+
+func (s *authService) lookupAPIKeyCandidates(ctx context.Context, db *gorm.DB, selector string) ([]*ApiKey, error) {
+	keys := make([]*ApiKey, 0)
+	if selector != "" {
+		if err := db.WithContext(ctx).Model(&ApiKey{}).Where("`key` LIKE ?", selector+apiKeySelectorSeparator+"%").Find(&keys).Error; err != nil {
+			return nil, err
+		}
+		if len(keys) > 0 {
+			return keys, nil
+		}
+	}
+
+	if err := db.WithContext(ctx).Model(&ApiKey{}).Where("`key` NOT LIKE ?", "%"+apiKeySelectorSeparator+"%").Find(&keys).Error; err != nil {
+		return nil, err
+	}
+	return keys, nil
+}
+
+func newAPIKeySelector() string {
+	return strings.ReplaceAll(uuid.NewString()[:12], "-", "")
+}
+
+func encodeStoredAPIKey(selector, hashedKey string) string {
+	return selector + apiKeySelectorSeparator + hashedKey
+}
+
+func extractStoredAPIKeyHash(stored string) string {
+	parts := strings.SplitN(stored, apiKeySelectorSeparator, 2)
+	if len(parts) == 2 && parts[0] != "" && parts[1] != "" {
+		return parts[1]
+	}
+	return stored
+}
+
+func extractAPIKeySelector(apiKey string) string {
+	if !strings.HasPrefix(apiKey, "sk_") {
+		return ""
+	}
+	parts := strings.SplitN(strings.TrimPrefix(apiKey, "sk_"), "_", 2)
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(parts[0])
 }

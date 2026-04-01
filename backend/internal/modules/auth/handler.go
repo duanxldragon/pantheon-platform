@@ -33,9 +33,9 @@ func NewAuthHandler(authService AuthService) *AuthHandler {
 // @Accept json
 // @Produce json
 // @Param request body LoginRequest true "Login credentials"
-// @Success 200 {object} LoginResponse
-// @Failure 400 {object} AuthErrorResponse
-// @Failure 401 {object} AuthErrorResponse
+// @Success 200 {object} authLoginEnvelope
+// @Failure 400 {object} response.ErrorDetail
+// @Failure 401 {object} response.ErrorDetail
 // @Router /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
@@ -63,8 +63,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param request body RefreshTokenRequest true "Refresh token"
-// @Success 200 {object} RefreshTokenResponse
-// @Failure 401 {object} AuthErrorResponse
+// @Success 200 {object} authRefreshEnvelope
+// @Failure 400 {object} response.ErrorDetail
+// @Failure 401 {object} response.ErrorDetail
 // @Router /auth/refresh [post]
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	var req RefreshTokenRequest
@@ -88,8 +89,10 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security ApiKeyAuth
-// @Success 200 {object} CurrentUserResponse
-// @Failure 401 {object} AuthErrorResponse
+// @Success 200 {object} authCurrentUserEnvelope
+// @Failure 401 {object} response.ErrorDetail
+// @Failure 404 {object} response.ErrorDetail
+// @Failure 500 {object} response.ErrorDetail
 // @Router /auth/current [get]
 func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 	userID := c.GetString("user_id")
@@ -201,7 +204,8 @@ func (h *AuthHandler) ValidatePassword(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security ApiKeyAuth
-// @Success 200 {object} map[string]string
+// @Success 200 {object} authMessageEnvelope
+// @Failure 401 {object} response.ErrorDetail
 // @Router /auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 	userID, _ := c.Get("user_id")

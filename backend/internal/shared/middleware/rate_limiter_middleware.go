@@ -31,38 +31,16 @@ func NewRateLimiter(limit int, window time.Duration) *RateLimiter {
 func (rl *RateLimiter) Limit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		key := c.ClientIP()
-
-		rl.mutex.Lock()
-		defer rl.mutex.Unlock()
-
-		now := time.Now()
-		requests, exists := rl.requests[key]
-
-		if !exists {
-			rl.requests[key] = []time.Time{now}
-			c.Next()
-			return
-		}
-
-		validRequests := make([]time.Time, 0)
-		for _, reqTime := range requests {
-			if now.Sub(reqTime) < rl.window {
-				validRequests = append(validRequests, reqTime)
-			}
-		}
-
-		if len(validRequests) >= rl.limit {
+		allowed, remaining, resetAt := rl.allow(key)
+		if !allowed {
 			response.TooManyRequests(c, "RATE_LIMIT_EXCEEDED", "Request rate limit exceeded")
 			c.Abort()
 			return
 		}
 
-		validRequests = append(validRequests, now)
-		rl.requests[key] = validRequests
-
 		c.Header("X-RateLimit-Limit", strconv.Itoa(rl.limit))
-		c.Header("X-RateLimit-Remaining", strconv.Itoa(rl.limit-len(validRequests)))
-		c.Header("X-RateLimit-Reset", now.Add(rl.window).Format(time.RFC3339))
+		c.Header("X-RateLimit-Remaining", strconv.Itoa(remaining))
+		c.Header("X-RateLimit-Reset", resetAt.Format(time.RFC3339))
 
 		c.Next()
 	}
@@ -140,11 +118,40 @@ func (atl *APITokenLimiter) Limit() gin.HandlerFunc {
 		atl.mutex.RUnlock()
 
 		if !exists {
-			limiter = NewRateLimiter(60, time.Minute)
+			atl.mutex.Lock()
+			limiter, exists = atl.limiters[token]
+			if !exists {
+				limiter = NewRateLimiter(60, time.Minute)
+				atl.limiters[token] = limiter
+			}
+			atl.mutex.Unlock()
 		}
 
 		limiter.Limit()(c)
 	}
+}
+
+func (rl *RateLimiter) allow(key string) (bool, int, time.Time) {
+	rl.mutex.Lock()
+	defer rl.mutex.Unlock()
+
+	now := time.Now()
+	requests := rl.requests[key]
+	validRequests := make([]time.Time, 0, len(requests)+1)
+	for _, reqTime := range requests {
+		if now.Sub(reqTime) < rl.window {
+			validRequests = append(validRequests, reqTime)
+		}
+	}
+
+	if len(validRequests) >= rl.limit {
+		resetAt := validRequests[0].Add(rl.window)
+		return false, 0, resetAt
+	}
+
+	validRequests = append(validRequests, now)
+	rl.requests[key] = validRequests
+	return true, rl.limit - len(validRequests), now.Add(rl.window)
 }
 
 // MemoryCleanup periodically removes expired in-memory request windows.

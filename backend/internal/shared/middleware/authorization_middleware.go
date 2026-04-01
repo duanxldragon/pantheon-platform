@@ -14,6 +14,7 @@ type AuthorizationServiceInterface interface {
 	CheckPermission(ctx context.Context, userID, resource, action string) bool
 	GetRolesForUser(ctx context.Context, userID string) ([]string, error)
 	GetUserPermissions(ctx context.Context, userID string) ([]string, error)
+	GetDataScopeFilter(ctx context.Context, userID, resource string) (map[string]interface{}, error)
 }
 
 // GlobalAuthService is the globally shared authz service used by helper middleware.
@@ -117,9 +118,34 @@ func RequireRole(roles ...string) gin.HandlerFunc {
 	}
 }
 
-// RequireDataScope is a placeholder extension point for data-scope enforcement.
+// RequireDataScope computes the caller's data-scope filter and injects it into request context.
 func RequireDataScope(resource string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if GlobalAuthService == nil {
+			c.Next()
+			return
+		}
+
+		userID := c.GetString("user_id")
+		if userID == "" {
+			response.Unauthorized(c, "USER_NOT_AUTHENTICATED", "User not authenticated")
+			c.Abort()
+			return
+		}
+
+		filter, err := GlobalAuthService.GetDataScopeFilter(c.Request.Context(), userID, resource)
+		if err != nil {
+			response.InternalError(c, "DATA_SCOPE_ERROR", err.Error())
+			c.Abort()
+			return
+		}
+
+		if filter != nil {
+			c.Set("data_scope_filter", filter)
+			ctx := context.WithValue(c.Request.Context(), "data_scope_filter", filter)
+			c.Request = c.Request.WithContext(ctx)
+		}
+
 		c.Next()
 	}
 }

@@ -1,10 +1,12 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -53,7 +55,11 @@ func Auth(redisClient *cache.RedisClient) gin.HandlerFunc {
 
 		secret := jwtSecret
 		if len(secret) == 0 {
-			secret = []byte("change-this-secret-in-production")
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"code":    "JWT_SECRET_NOT_CONFIGURED",
+				"message": "JWT secret is not configured",
+			})
+			return
 		}
 
 		token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
@@ -115,6 +121,12 @@ func Auth(redisClient *cache.RedisClient) gin.HandlerFunc {
 				}
 			}
 		}
+		if redisClient != nil && claims.UserID != "" && claims.ID != "" {
+			deviceKey := fmt.Sprintf("auth:session:device:%s:%s", claims.UserID, claims.ID)
+			now := fmt.Sprintf("%d", time.Now().Unix())
+			_ = redisClient.HSet(c.Request.Context(), deviceKey, "last_active", now)
+			_ = redisClient.Expire(c.Request.Context(), deviceKey, claims.ExpiresAt.Time.Sub(time.Now()))
+		}
 
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
@@ -122,6 +134,14 @@ func Auth(redisClient *cache.RedisClient) gin.HandlerFunc {
 		if claims.TenantID != "" {
 			c.Set("tenant_id", claims.TenantID)
 		}
+
+		ctx := context.WithValue(c.Request.Context(), "user_id", claims.UserID)
+		ctx = context.WithValue(ctx, "username", claims.Username)
+		ctx = context.WithValue(ctx, "jti", claims.ID)
+		if claims.TenantID != "" {
+			ctx = context.WithValue(ctx, "tenant_id", claims.TenantID)
+		}
+		c.Request = c.Request.WithContext(ctx)
 
 		c.Next()
 	}

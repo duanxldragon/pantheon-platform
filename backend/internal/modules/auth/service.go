@@ -65,9 +65,6 @@ func NewAuthService(
 	apiKeyDAO ApiKeyDAO,
 ) AuthService {
 	secret := cfg.JWTSecret
-	if secret == "" {
-		secret = "change-this-secret-in-production"
-	}
 	exp := cfg.JWTExpiresIn
 	if exp <= 0 {
 		exp = 7200

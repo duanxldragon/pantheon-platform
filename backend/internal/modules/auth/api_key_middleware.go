@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -31,6 +32,9 @@ func ApiKeyAuth(authService AuthService) gin.HandlerFunc {
 		// Set user context
 		c.Set("user_id", userID)
 		c.Set("auth_type", "api_key")
+		ctx := context.WithValue(c.Request.Context(), "user_id", userID)
+		ctx = context.WithValue(ctx, "auth_type", "api_key")
+		c.Request = c.Request.WithContext(ctx)
 
 		c.Next()
 	}

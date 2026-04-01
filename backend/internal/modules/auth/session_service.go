@@ -12,28 +12,44 @@ import (
 // ======================== Session Management (Concurrent Login) ========================
 
 // storeSessionFingerprint stores device info for an active session.
-func (s *authService) storeSessionFingerprint(ctx context.Context, userID, accessToken, userAgent, clientIP string) error {
+func (s *authService) storeSessionFingerprint(ctx context.Context, userID, sessionID, userAgent, clientIP string) error {
 	if s.redisClient == nil {
 		return nil
 	}
-	claims, err := s.parseTokenClaims(accessToken)
-	if err != nil {
-		return err
+	if userID == "" || sessionID == "" {
+		return nil
 	}
 
-	key := fmt.Sprintf("auth:session:device:%s:%s", userID, claims.ID)
+	key := fmt.Sprintf("auth:session:device:%s:%s", userID, sessionID)
 	now := time.Now().Unix()
 
-	if err = s.redisClient.HSet(ctx, key, "device_name", truncateString(userAgent, 128)); err != nil {
+	if err := s.redisClient.HSet(ctx, key, "device_name", truncateString(userAgent, 128)); err != nil {
 		return err
 	}
-	if err = s.redisClient.HSet(ctx, key, "ip", clientIP); err != nil {
+	if err := s.redisClient.HSet(ctx, key, "ip", clientIP); err != nil {
 		return err
 	}
-	if err = s.redisClient.HSet(ctx, key, "login_at", fmt.Sprintf("%d", now)); err != nil {
+	if err := s.redisClient.HSet(ctx, key, "login_at", fmt.Sprintf("%d", now)); err != nil {
 		return err
 	}
-	if err = s.redisClient.HSet(ctx, key, "last_active", fmt.Sprintf("%d", now)); err != nil {
+	if err := s.redisClient.HSet(ctx, key, "last_active", fmt.Sprintf("%d", now)); err != nil {
+		return err
+	}
+	return s.redisClient.Expire(ctx, key, time.Duration(s.expiresIn)*time.Second)
+}
+
+func (s *authService) refreshSessionFingerprint(ctx context.Context, userID, sessionID string) error {
+	if s.redisClient == nil || userID == "" || sessionID == "" {
+		return nil
+	}
+
+	key := fmt.Sprintf("auth:session:device:%s:%s", userID, sessionID)
+	if exists, err := s.redisClient.Exists(ctx, key); err != nil || !exists {
+		return err
+	}
+
+	now := time.Now().Unix()
+	if err := s.redisClient.HSet(ctx, key, "last_active", fmt.Sprintf("%d", now)); err != nil {
 		return err
 	}
 	return s.redisClient.Expire(ctx, key, time.Duration(s.expiresIn)*time.Second)

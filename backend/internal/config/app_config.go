@@ -1,8 +1,11 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -38,11 +41,11 @@ type Config struct {
 	OptionsMaxAge    int      `mapstructure:"options_max_age"`
 
 	// Tenant
-	EnableMultiTenant   bool   `mapstructure:"enable_multi_tenant"`
-	DefaultTenantID     string `mapstructure:"default_tenant_id"`
-	DefaultMaxOpenConns int    `mapstructure:"default_max_open_conns"`
-	DefaultMaxIdleConns int    `mapstructure:"default_max_idle_conns"`
-	DefaultMaxLifetime  int    `mapstructure:"default_max_lifetime"`
+	EnableMultiTenant   bool             `mapstructure:"enable_multi_tenant"`
+	DefaultTenantID     string           `mapstructure:"default_tenant_id"`
+	DefaultMaxOpenConns int              `mapstructure:"default_max_open_conns"`
+	DefaultMaxIdleConns int              `mapstructure:"default_max_idle_conns"`
+	DefaultMaxLifetime  int              `mapstructure:"default_max_lifetime"`
 	Deployment          DeploymentConfig `mapstructure:"deployment"`
 
 	// Tenant Database Pool Configuration
@@ -267,6 +270,8 @@ func Load() *Config {
 		panic(fmt.Errorf("failed to unmarshal config: %w", err))
 	}
 
+	applyRuntimeSecurityDefaults(&cfg)
+
 	// Debug: Print multi-tenant config
 	log.Printf("Config loaded: EnableMultiTenant=%v, DefaultTenantID=%s", cfg.EnableMultiTenant, cfg.DefaultTenantID)
 
@@ -295,7 +300,7 @@ func setDefaults() {
 	viper.SetDefault("master_db.port", 3306)
 	viper.SetDefault("master_db.database", "pantheon")
 	viper.SetDefault("master_db.username", "root")
-	viper.SetDefault("master_db.password", "DHCCroot@2025")
+	viper.SetDefault("master_db.password", "")
 	viper.SetDefault("master_db.ssl_mode", "disable")
 
 	// Monitor defaults
@@ -305,20 +310,20 @@ func setDefaults() {
 	viper.SetDefault("monitor_db.port", 3306)
 	viper.SetDefault("monitor_db.database", "pantheon_monitor")
 	viper.SetDefault("monitor_db.username", "root")
-	viper.SetDefault("monitor_db.password", "DHCCroot@2025")
+	viper.SetDefault("monitor_db.password", "")
 	viper.SetDefault("monitor_db.ssl_mode", "disable")
 
 	// Redis defaults
 	viper.SetDefault("redis.host", "localhost")
 	viper.SetDefault("redis.port", 6379)
-	viper.SetDefault("redis.password", "DHCCdhcc@2025")
+	viper.SetDefault("redis.password", "")
 	viper.SetDefault("redis.db", 0)
 
 	// Security defaults
-	viper.SetDefault("jwt_secret", "change-this-secret-in-production")
+	viper.SetDefault("jwt_secret", "")
 	viper.SetDefault("jwt_expires_in", 7200)   // 2 hours
 	viper.SetDefault("refresh_expiry", 604800) // 7 days
-	viper.SetDefault("encryption_key", "0123456789abcdef0123456789abcdef")
+	viper.SetDefault("encryption_key", "")
 
 	// Multi-tenant defaults
 	viper.SetDefault("enable_multi_tenant", true)
@@ -327,9 +332,9 @@ func setDefaults() {
 	viper.SetDefault("deployment.tenant_strategy", "dedicated")
 
 	// CORS defaults
-	viper.SetDefault("allowed_origins", []string{"*"})
+	viper.SetDefault("allowed_origins", []string{"http://localhost:3000", "http://localhost:5173"})
 	viper.SetDefault("allowed_methods", []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"})
-	viper.SetDefault("allowed_headers", []string{"Origin", "Content-Type", "Authorization"})
+	viper.SetDefault("allowed_headers", []string{"Origin", "Content-Type", "Authorization", "X-Tenant-ID", "X-Request-ID", "Accept-Language"})
 	viper.SetDefault("allow_credentials", true)
 	viper.SetDefault("options_max_age", 86400) // 24 hours
 
@@ -358,10 +363,10 @@ func setDefaults() {
 	viper.SetDefault("sms.aliyun_region", "cn-hangzhou")
 
 	// Default admin defaults
-	viper.SetDefault("default_admin.enabled", true)
+	viper.SetDefault("default_admin.enabled", false)
 	viper.SetDefault("default_admin.username", "admin")
-	viper.SetDefault("default_admin.password", "admin123")
-	viper.SetDefault("default_admin.real_name", "系统管理员")
+	viper.SetDefault("default_admin.password", "")
+	viper.SetDefault("default_admin.real_name", "System Admin")
 	viper.SetDefault("default_admin.email", "admin@example.com")
 
 	// Storage defaults
@@ -388,10 +393,17 @@ func normalizeConfigAliases() {
 	copyIfEmpty("jwt_secret", "jwt.secret")
 	copyIfEmpty("jwt_expires_in", "jwt.expires_in")
 	copyIfEmpty("refresh_expiry", "jwt.refresh_expiry")
+	copyIfEmpty("encryption_key", "multi_tenant.encryption_key")
 
 	// Monitor DB aliases
 	copyIfEmpty("monitor_db.type", "monitor_db.driver")
 	copyIfEmpty("monitor_db.enable_sync", "monitor_db.enabled")
+
+	copyIfEmpty("allowed_origins", "cors.allowed_origins")
+	copyIfEmpty("allowed_methods", "cors.allowed_methods")
+	copyIfEmpty("allowed_headers", "cors.allowed_headers")
+	copyIfEmpty("allow_credentials", "cors.allow_credentials")
+	copyIfEmpty("options_max_age", "cors.max_age")
 
 	copyIfEmpty("email.smtp_host", "email.smtp.host")
 	copyIfEmpty("email.smtp_port", "email.smtp.port")
@@ -414,12 +426,16 @@ func validate(cfg *Config) error {
 		return fmt.Errorf("invalid port: %d", cfg.Port)
 	}
 
-	if cfg.JWTSecret == "change-this-secret-in-production" && cfg.Environment == "production" {
-		return fmt.Errorf("JWT secret must be changed in production")
+	if strings.EqualFold(cfg.Environment, "production") && strings.TrimSpace(cfg.JWTSecret) == "" {
+		return fmt.Errorf("jwt secret must be configured in production")
 	}
 
 	if len(cfg.EncryptionKey) != 32 {
 		return fmt.Errorf("encryption key must be 32 bytes for AES-256-GCM")
+	}
+
+	if strings.EqualFold(cfg.Environment, "production") && cfg.DefaultAdmin.Enabled {
+		return fmt.Errorf("default admin fallback must be disabled in production")
 	}
 
 	if cfg.Security.MaxConcurrentSessions < 0 {
@@ -439,6 +455,44 @@ func validate(cfg *Config) error {
 	}
 
 	return nil
+}
+
+func applyRuntimeSecurityDefaults(cfg *Config) {
+	if cfg == nil {
+		return
+	}
+
+	if strings.EqualFold(cfg.Environment, "production") {
+		return
+	}
+
+	if strings.TrimSpace(cfg.JWTSecret) == "" {
+		cfg.JWTSecret = generateRuntimeSecret(48)
+		log.Printf("warning: jwt_secret is not configured; generated an ephemeral secret for %s", cfg.Environment)
+	}
+
+	if len(cfg.EncryptionKey) == 0 {
+		cfg.EncryptionKey = generateRuntimeSecret(32)
+		log.Printf("warning: encryption_key is not configured; generated an ephemeral key for %s", cfg.Environment)
+	}
+}
+
+func generateRuntimeSecret(length int) string {
+	if length <= 0 {
+		return ""
+	}
+
+	buf := make([]byte, length)
+	if _, err := rand.Read(buf); err != nil {
+		panic(fmt.Errorf("failed to generate runtime secret: %w", err))
+	}
+
+	secret := base64.RawURLEncoding.EncodeToString(buf)
+	if len(secret) < length {
+		return secret
+	}
+
+	return secret[:length]
 }
 
 // GetTimeout returns the read and write timeouts as time.Duration
