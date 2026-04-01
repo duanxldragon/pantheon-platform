@@ -26,13 +26,13 @@ const (
 // Translation stores one translated value.
 type Translation struct {
 	ID        uint     `gorm:"primaryKey"`
-	Module    string   `gorm:"size:100;not null;index" json:"module"`
-	Key       string   `gorm:"size:200;not null;index" json:"key"`
-	Language  Language `gorm:"size:10;not null;index" json:"language"`
-	Value     string   `gorm:"type:text;not null" json:"value"`
-	TenantID  *string  `gorm:"size:36;index" json:"tenant_id"`
-	CreatedAt int64    `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt int64    `gorm:"autoUpdateTime" json:"updated_at"`
+	Module    string   `gorm:"size:100;not null;index" json:"module" example:"system"`
+	Key       string   `gorm:"size:200;not null;index" json:"key" example:"user.create.success"`
+	Language  Language `gorm:"size:10;not null;index" json:"language" example:"zh"`
+	Value     string   `gorm:"type:text;not null" json:"value" example:"User created successfully"`
+	TenantID  *string  `gorm:"size:36;index" json:"tenant_id" example:"tenant-default"`
+	CreatedAt int64    `gorm:"autoCreateTime" json:"created_at" example:"1711783200"`
+	UpdatedAt int64    `gorm:"autoUpdateTime" json:"updated_at" example:"1711786800"`
 }
 
 // TableName returns the translation table name.

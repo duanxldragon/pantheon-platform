@@ -42,6 +42,25 @@ func parseLogFilter(c *gin.Context) *LogFilter {
 	return f
 }
 
+// ListOperationLogs lists operation logs.
+// @Summary List Operation Logs
+// @Description Get paginated operation logs.
+// @Tags System Logs
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param page query int false "Page number" default(1) minimum(1)
+// @Param page_size query int false "Items per page" default(20) minimum(1) maximum(500)
+// @Param username query string false "Username filter"
+// @Param module query string false "Module filter"
+// @Param action query string false "Action filter"
+// @Param status query string false "Operation result filter" Enums(success,failure)
+// @Param start_date query string false "Start date, format YYYY-MM-DD" Format(date)
+// @Param end_date query string false "End date, format YYYY-MM-DD" Format(date)
+// @Success 200 {object} operationLogListEnvelope
+// @Failure 401 {object} response.ErrorDetail
+// @Failure 500 {object} response.ErrorDetail
+// @Router /system/logs/operation [get]
 func (h *LogHandler) ListOperationLogs(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -61,6 +80,19 @@ func (h *LogHandler) ListOperationLogs(c *gin.Context) {
 	response.Success(c, resp)
 }
 
+// ClearOperationLogs clears operation logs.
+// @Summary Clear Operation Logs
+// @Description Clear operation logs in the current tenant.
+// @Tags System Logs
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param start_date query string false "Start date, format YYYY-MM-DD" Format(date)
+// @Param end_date query string false "End date, format YYYY-MM-DD" Format(date)
+// @Success 200 {object} logMessageEnvelope
+// @Failure 401 {object} response.ErrorDetail
+// @Failure 500 {object} response.ErrorDetail
+// @Router /system/logs/operation [delete]
 func (h *LogHandler) ClearOperationLogs(c *gin.Context) {
 	filter := parseLogFilter(c)
 	if err := h.service.ClearOperationLogs(c.Request.Context(), filter.StartDate, filter.EndDate); err != nil {
@@ -70,6 +102,19 @@ func (h *LogHandler) ClearOperationLogs(c *gin.Context) {
 	response.Success(c, gin.H{"message": "ok"})
 }
 
+// ClearLoginLogs clears login logs.
+// @Summary Clear Login Logs
+// @Description Clear login logs in the current tenant.
+// @Tags System Logs
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param start_date query string false "Start date, format YYYY-MM-DD" Format(date)
+// @Param end_date query string false "End date, format YYYY-MM-DD" Format(date)
+// @Success 200 {object} logMessageEnvelope
+// @Failure 401 {object} response.ErrorDetail
+// @Failure 500 {object} response.ErrorDetail
+// @Router /system/logs/login [delete]
 func (h *LogHandler) ClearLoginLogs(c *gin.Context) {
 	filter := parseLogFilter(c)
 	if err := h.service.ClearLoginLogs(c.Request.Context(), filter.StartDate, filter.EndDate); err != nil {
@@ -79,6 +124,23 @@ func (h *LogHandler) ClearLoginLogs(c *gin.Context) {
 	response.Success(c, gin.H{"message": "ok"})
 }
 
+// ListLoginLogs lists login logs.
+// @Summary List Login Logs
+// @Description Get paginated login logs.
+// @Tags System Logs
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param page query int false "Page number" default(1) minimum(1)
+// @Param page_size query int false "Items per page" default(20) minimum(1) maximum(500)
+// @Param username query string false "Username filter"
+// @Param status query string false "Login result filter" Enums(success,failed)
+// @Param start_date query string false "Start date, format YYYY-MM-DD" Format(date)
+// @Param end_date query string false "End date, format YYYY-MM-DD" Format(date)
+// @Success 200 {object} loginLogListEnvelope
+// @Failure 401 {object} response.ErrorDetail
+// @Failure 500 {object} response.ErrorDetail
+// @Router /system/logs/login [get]
 func (h *LogHandler) ListLoginLogs(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))

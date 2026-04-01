@@ -15,7 +15,7 @@ type OperationLogDAO interface {
 	database.DAO[OperationLog]
 	database.TenantMigrator
 	ListLogs(ctx context.Context, page, pageSize int, filter *LogFilter) ([]*OperationLog, int64, error)
-	ClearLogs(ctx context.Context, tenantID string, startDate, endDate *time.Time) error
+	ClearLogs(ctx context.Context, tenantID string, filter *LogFilter) error
 }
 
 // LoginLogDAO defines login log DAO behavior.
@@ -23,7 +23,7 @@ type LoginLogDAO interface {
 	database.DAO[LoginLog]
 	database.TenantMigrator
 	ListLogs(ctx context.Context, page, pageSize int, filter *LogFilter) ([]*LoginLog, int64, error)
-	ClearLogs(ctx context.Context, tenantID string, startDate, endDate *time.Time) error
+	ClearLogs(ctx context.Context, tenantID string, filter *LogFilter) error
 	MarkLogout(ctx context.Context, userID string, logoutAt time.Time) error
 }
 
@@ -84,13 +84,18 @@ func (r *operationLogDAO) ListLogs(ctx context.Context, page, pageSize int, filt
 	return logs, total, err
 }
 
-func (r *operationLogDAO) ClearLogs(ctx context.Context, tenantID string, startDate, endDate *time.Time) error {
+func (r *operationLogDAO) ClearLogs(ctx context.Context, tenantID string, filter *LogFilter) error {
 	query := r.GetDB(ctx).Where("tenant_id = ?", tenantID)
-	if startDate != nil {
-		query = query.Where("created_at >= ?", *startDate)
-	}
-	if endDate != nil {
-		query = query.Where("created_at <= ?", *endDate)
+	if filter != nil {
+		if v := strings.TrimSpace(filter.UserID); v != "" {
+			query = query.Where("user_id = ?", v)
+		}
+		if filter.StartDate != nil {
+			query = query.Where("created_at >= ?", *filter.StartDate)
+		}
+		if filter.EndDate != nil {
+			query = query.Where("created_at <= ?", *filter.EndDate)
+		}
 	}
 	return query.Delete(&OperationLog{}).Error
 }
@@ -149,13 +154,18 @@ func (r *loginLogDAO) ListLogs(ctx context.Context, page, pageSize int, filter *
 	return logs, total, err
 }
 
-func (r *loginLogDAO) ClearLogs(ctx context.Context, tenantID string, startDate, endDate *time.Time) error {
+func (r *loginLogDAO) ClearLogs(ctx context.Context, tenantID string, filter *LogFilter) error {
 	query := r.GetDB(ctx).Where("tenant_id = ?", tenantID)
-	if startDate != nil {
-		query = query.Where("login_at >= ?", *startDate)
-	}
-	if endDate != nil {
-		query = query.Where("login_at <= ?", *endDate)
+	if filter != nil {
+		if v := strings.TrimSpace(filter.UserID); v != "" {
+			query = query.Where("user_id = ?", v)
+		}
+		if filter.StartDate != nil {
+			query = query.Where("login_at >= ?", *filter.StartDate)
+		}
+		if filter.EndDate != nil {
+			query = query.Where("login_at <= ?", *filter.EndDate)
+		}
 	}
 	return query.Delete(&LoginLog{}).Error
 }

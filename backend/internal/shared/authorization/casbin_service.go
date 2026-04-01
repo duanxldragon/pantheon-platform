@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -17,42 +18,61 @@ import (
 	"gorm.io/gorm"
 )
 
-// DataScope 数据权限范围
 type DataScope string
 
 const (
-	DataScopeAll        DataScope = "all"          // 全部数据
-	DataScopeCustom     DataScope = "custom"       // 自定义数据
-	DataScopeDept       DataScope = "dept"         // 本部门数据
-	DataScopeDeptAndSub DataScope = "dept_and_sub" // 本部门及子部门数据
-	DataScopeSelf       DataScope = "self"         // 仅本人数据
+	DataScopeAll        DataScope = "all"
+	DataScopeCustom     DataScope = "custom"
+	DataScopeDept       DataScope = "dept"
+	DataScopeDeptAndSub DataScope = "dept_and_sub"
+	DataScopeSelf       DataScope = "self"
 )
 
-// FieldPermissionType 字段权限类型
 const (
-	FieldPermissionRead  = "read"  // 可读
-	FieldPermissionWrite = "write" // 可写
-	FieldPermissionHide  = "hide"  // 隐藏
+	FieldPermissionRead  = "read"
+	FieldPermissionWrite = "write"
+	FieldPermissionHide  = "hide"
 )
 
-// 自定义错误
+const (
+	ctxKeyTxDB     = "tx_db"
+	ctxKeyTenantDB = "tenant_db"
+	ctxKeyTenantID = "tenant_id"
+)
+
 var (
 	ErrUnauthorized = errors.New("unauthorized")
+
+	customScopePrefixes = []string{"dept:", "dept_and_sub:", "project:", "custom:"}
+
+	allowedCustomScopeFields = map[string]struct{}{
+		"id":            {},
+		"user_id":       {},
+		"creator_id":    {},
+		"department_id": {},
+		"project_id":    {},
+		"tenant_id":     {},
+		"receiver_id":   {},
+	}
 )
 
-// AuthorizationService 授权服务
+const authStateTTL = 8 * 24 * time.Hour
+
 type AuthorizationService struct {
 	masterDB        *gorm.DB
 	masterEnforcer  *casbin.Enforcer
-	tenantEnforcers map[string]*casbin.Enforcer
+	tenantEnforcers map[string]tenantEnforcerEntry
 	modelPath       string
 	redisClient     *cache.RedisClient
 	mu              sync.RWMutex
 }
 
-// NewAuthorizationService 创建授权服务
+type tenantEnforcerEntry struct {
+	db       *gorm.DB
+	enforcer *casbin.Enforcer
+}
+
 func NewAuthorizationService(db *gorm.DB, modelPath string) (*AuthorizationService, error) {
-	// 使用 GORM 适配器
 	adapter, err := gormadapter.NewAdapterByDB(db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create casbin adapter: %w", err)
@@ -62,19 +82,15 @@ func NewAuthorizationService(db *gorm.DB, modelPath string) (*AuthorizationServi
 	if err != nil {
 		return nil, fmt.Errorf("failed to create casbin enforcer: %w", err)
 	}
-
-	// 自动保存策略
 	enforcer.EnableAutoSave(true)
 
 	return &AuthorizationService{
 		masterDB:        db,
 		masterEnforcer:  enforcer,
-		tenantEnforcers: make(map[string]*casbin.Enforcer),
+		tenantEnforcers: make(map[string]tenantEnforcerEntry),
 		modelPath:       modelPath,
 	}, nil
 }
-
-const authStateTTL = 8 * 24 * time.Hour
 
 func (s *AuthorizationService) SetRedisClient(redisClient *cache.RedisClient) {
 	if s == nil {
@@ -83,32 +99,27 @@ func (s *AuthorizationService) SetRedisClient(redisClient *cache.RedisClient) {
 	s.redisClient = redisClient
 }
 
-// getEnforcer 获取合适的 Enforcer (租户或全局)
 func (s *AuthorizationService) getEnforcer(ctx context.Context) (*casbin.Enforcer, error) {
-	s.mu.RLock()
-	tenantDB, ok := ctx.Value("tenant_db").(*gorm.DB)
-	tenantID, _ := ctx.Value("tenant_id").(string)
-	s.mu.RUnlock()
+	if s == nil {
+		return nil, fmt.Errorf("authorization service is nil")
+	}
 
-	if !ok || tenantDB == nil || tenantID == "" {
+	if txDB := txDBFromContext(ctx); txDB != nil {
+		adapter, err := gormadapter.NewAdapterByDB(txDB)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create transaction casbin adapter: %w", err)
+		}
+		enforcer, err := casbin.NewEnforcer(s.modelPath, adapter)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create transaction casbin enforcer: %w", err)
+		}
+		enforcer.EnableAutoSave(true)
+		return enforcer, nil
+	}
+
+	tenantDB, tenantID := tenantDBAndIDFromContext(ctx)
+	if tenantDB == nil || tenantID == "" {
 		return s.masterEnforcer, nil
-	}
-
-	s.mu.RLock()
-	enforcer, exists := s.tenantEnforcers[tenantID]
-	s.mu.RUnlock()
-
-	if exists {
-		return enforcer, nil
-	}
-
-	// 创建新的租户 Enforcer
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// 双重检查
-	if enforcer, exists := s.tenantEnforcers[tenantID]; exists {
-		return enforcer, nil
 	}
 
 	adapter, err := gormadapter.NewAdapterByDB(tenantDB)
@@ -116,79 +127,82 @@ func (s *AuthorizationService) getEnforcer(ctx context.Context) (*casbin.Enforce
 		return nil, fmt.Errorf("failed to create tenant casbin adapter: %w", err)
 	}
 
-	newEnforcer, err := casbin.NewEnforcer(s.modelPath, adapter)
+	enforcer, err := casbin.NewEnforcer(s.modelPath, adapter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create tenant casbin enforcer: %w", err)
 	}
-
-	newEnforcer.EnableAutoSave(true)
-	s.tenantEnforcers[tenantID] = newEnforcer
-
-	return newEnforcer, nil
+	enforcer.EnableAutoSave(true)
+	return enforcer, nil
 }
 
-// ========== RBAC 权限检查 ==========
-
-// CheckPermission 检查用户是否有指定权限
 func (s *AuthorizationService) CheckPermission(ctx context.Context, userID, resource, action string) bool {
 	e, err := s.getEnforcer(ctx)
 	if err != nil {
 		return false
 	}
 
-	allowed, _ := e.Enforce(userID, resource, action)
+	allowed, err := e.Enforce(userID, resource, action)
+	if err != nil {
+		return false
+	}
 	return allowed
 }
 
-// CheckPermissionWithDomain 检查用户在指定域（租户）的权限
 func (s *AuthorizationService) CheckPermissionWithDomain(ctx context.Context, userID, domain, resource, action string) bool {
 	e, err := s.getEnforcer(ctx)
 	if err != nil {
 		return false
 	}
 
-	allowed, _ := e.Enforce(userID, domain, resource, action)
+	allowed, err := e.Enforce(userID, domain, resource, action)
+	if err != nil {
+		return false
+	}
 	return allowed
 }
 
-// GetUserPermissions 获取用户的所有权限
 func (s *AuthorizationService) GetUserPermissions(ctx context.Context, userID string) ([]string, error) {
 	e, err := s.getEnforcer(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	permissions := make([]string, 0)
+	permissionSet := make(map[string]struct{})
 
-	// 获取用户的所有角色
 	roles, err := e.GetRolesForUser(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	// 收集所有权限
-	for _, role := range roles {
-		policies, err := e.GetFilteredPolicy(0, role)
+	for _, roleID := range roles {
+		policies, err := e.GetFilteredPolicy(0, roleID)
 		if err != nil {
-			// 记录警告日志，但继续处理其他角色
-			log.Printf("Warning: failed to load policy for role %s: %v", role, err)
+			log.Printf("warning: failed to load policy for role %s: %v", roleID, err)
 			continue
 		}
-		for _, policy := range policies {
-			if len(policy) >= 3 {
-				resource := policy[1]
-				action := policy[2]
-				permissions = append(permissions, fmt.Sprintf("%s:%s", resource, action))
-			}
+		for permission := range toPermissionSet(policies) {
+			permissionSet[permission] = struct{}{}
 		}
 	}
+
+	directPolicies, err := e.GetFilteredPolicy(0, userID)
+	if err != nil {
+		log.Printf("warning: failed to load direct policy for user %s: %v", userID, err)
+	} else {
+		for permission := range toPermissionSet(directPolicies) {
+			permissionSet[permission] = struct{}{}
+		}
+	}
+
+	permissions := make([]string, 0, len(permissionSet))
+	for permission := range permissionSet {
+		permissions = append(permissions, permission)
+	}
+	sort.Strings(permissions)
 
 	return permissions, nil
 }
 
-// ========== 角色权限管理 ==========
-
-// AddPermissionForRole 为角色添加权限
 func (s *AuthorizationService) AddPermissionForRole(ctx context.Context, roleID, resource, action string) error {
 	e, err := s.getEnforcer(ctx)
 	if err != nil {
@@ -199,7 +213,6 @@ func (s *AuthorizationService) AddPermissionForRole(ctx context.Context, roleID,
 	return err
 }
 
-// RemovePermissionForRole 移除角色权限
 func (s *AuthorizationService) RemovePermissionForRole(ctx context.Context, roleID, resource, action string) error {
 	e, err := s.getEnforcer(ctx)
 	if err != nil {
@@ -210,7 +223,6 @@ func (s *AuthorizationService) RemovePermissionForRole(ctx context.Context, role
 	return err
 }
 
-// AddPermissionsForRole 批量为角色添加权限
 func (s *AuthorizationService) AddPermissionsForRole(ctx context.Context, roleID string, permissions []struct {
 	Resource string
 	Action   string
@@ -220,16 +232,15 @@ func (s *AuthorizationService) AddPermissionsForRole(ctx context.Context, roleID
 		return err
 	}
 
-	rules := make([][]string, len(permissions))
-	for i, perm := range permissions {
-		rules[i] = []string{roleID, perm.Resource, perm.Action}
+	rules := make([][]string, 0, len(permissions))
+	for _, permission := range permissions {
+		rules = append(rules, []string{roleID, permission.Resource, permission.Action})
 	}
 
 	_, err = e.AddPolicies(rules)
 	return err
 }
 
-// RemovePermissionsForRole 批量移除角色权限
 func (s *AuthorizationService) RemovePermissionsForRole(ctx context.Context, roleID string, permissions []struct {
 	Resource string
 	Action   string
@@ -239,16 +250,15 @@ func (s *AuthorizationService) RemovePermissionsForRole(ctx context.Context, rol
 		return err
 	}
 
-	rules := make([][]string, len(permissions))
-	for i, perm := range permissions {
-		rules[i] = []string{roleID, perm.Resource, perm.Action}
+	rules := make([][]string, 0, len(permissions))
+	for _, permission := range permissions {
+		rules = append(rules, []string{roleID, permission.Resource, permission.Action})
 	}
 
 	_, err = e.RemovePolicies(rules)
 	return err
 }
 
-// ClearPermissionsForRole 清除角色的所有权限
 func (s *AuthorizationService) ClearPermissionsForRole(ctx context.Context, roleID string) error {
 	e, err := s.getEnforcer(ctx)
 	if err != nil {
@@ -259,9 +269,6 @@ func (s *AuthorizationService) ClearPermissionsForRole(ctx context.Context, role
 	return err
 }
 
-// ========== 用户角色管理 ==========
-
-// AddRoleForUser 为用户添加角色
 func (s *AuthorizationService) AddRoleForUser(ctx context.Context, userID, roleID string) error {
 	e, err := s.getEnforcer(ctx)
 	if err != nil {
@@ -272,7 +279,6 @@ func (s *AuthorizationService) AddRoleForUser(ctx context.Context, userID, roleI
 	return err
 }
 
-// DeleteRoleForUser 删除用户角色
 func (s *AuthorizationService) DeleteRoleForUser(ctx context.Context, userID, roleID string) error {
 	e, err := s.getEnforcer(ctx)
 	if err != nil {
@@ -283,7 +289,6 @@ func (s *AuthorizationService) DeleteRoleForUser(ctx context.Context, userID, ro
 	return err
 }
 
-// DeleteRolesForUser 删除用户的所有角色
 func (s *AuthorizationService) DeleteRolesForUser(ctx context.Context, userID string) error {
 	e, err := s.getEnforcer(ctx)
 	if err != nil {
@@ -294,7 +299,6 @@ func (s *AuthorizationService) DeleteRolesForUser(ctx context.Context, userID st
 	return err
 }
 
-// GetRolesForUser 获取用户的所有角色
 func (s *AuthorizationService) GetRolesForUser(ctx context.Context, userID string) ([]string, error) {
 	e, err := s.getEnforcer(ctx)
 	if err != nil {
@@ -304,19 +308,16 @@ func (s *AuthorizationService) GetRolesForUser(ctx context.Context, userID strin
 	return e.GetRolesForUser(userID)
 }
 
-// SetRolesForUser 设置用户的角色（替换）
 func (s *AuthorizationService) SetRolesForUser(ctx context.Context, userID string, roleIDs []string) error {
 	e, err := s.getEnforcer(ctx)
 	if err != nil {
 		return err
 	}
 
-	// 先清除现有角色
 	if _, err := e.DeleteRolesForUser(userID); err != nil {
 		return err
 	}
 
-	// 添加新角色
 	for _, roleID := range roleIDs {
 		if _, err := e.AddRoleForUser(userID, roleID); err != nil {
 			return err
@@ -326,7 +327,6 @@ func (s *AuthorizationService) SetRolesForUser(ctx context.Context, userID strin
 	return nil
 }
 
-// GetUsersForRole 获取拥有指定角色的所有用户
 func (s *AuthorizationService) GetUsersForRole(ctx context.Context, roleID string) ([]string, error) {
 	e, err := s.getEnforcer(ctx)
 	if err != nil {
@@ -340,6 +340,7 @@ func (s *AuthorizationService) BumpUserAuthVersion(ctx context.Context, userID s
 	if s == nil || s.redisClient == nil || userID == "" {
 		return nil
 	}
+
 	if _, err := s.redisClient.Incr(ctx, s.authVersionKey(userID)); err != nil {
 		return err
 	}
@@ -351,6 +352,7 @@ func (s *AuthorizationService) BumpUsersAuthVersion(ctx context.Context, userIDs
 	if s == nil || s.redisClient == nil || len(userIDs) == 0 {
 		return nil
 	}
+
 	seen := make(map[string]struct{}, len(userIDs))
 	for _, userID := range userIDs {
 		if userID == "" {
@@ -364,6 +366,7 @@ func (s *AuthorizationService) BumpUsersAuthVersion(ctx context.Context, userIDs
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -371,10 +374,12 @@ func (s *AuthorizationService) BumpRoleUsersAuthVersion(ctx context.Context, rol
 	if s == nil || roleID == "" {
 		return nil
 	}
+
 	userIDs, err := s.GetUsersForRole(ctx, roleID)
 	if err != nil {
 		return err
 	}
+
 	return s.BumpUsersAuthVersion(ctx, userIDs)
 }
 
@@ -382,6 +387,7 @@ func (s *AuthorizationService) RevokeUserSessions(ctx context.Context, userID st
 	if s == nil || s.redisClient == nil || userID == "" {
 		return nil
 	}
+
 	return s.redisClient.Set(ctx, s.revokedAfterKey(userID), fmt.Sprintf("%d", time.Now().Unix()), authStateTTL)
 }
 
@@ -389,6 +395,7 @@ func (s *AuthorizationService) RevokeUsersSessions(ctx context.Context, userIDs 
 	if s == nil || s.redisClient == nil || len(userIDs) == 0 {
 		return nil
 	}
+
 	seen := make(map[string]struct{}, len(userIDs))
 	for _, userID := range userIDs {
 		if userID == "" {
@@ -402,140 +409,103 @@ func (s *AuthorizationService) RevokeUsersSessions(ctx context.Context, userIDs 
 			return err
 		}
 	}
+
 	return nil
 }
 
-// ========== 数据权限 ==========
-
-// CheckDataScope 检查数据权限范围
 func (s *AuthorizationService) CheckDataScope(ctx context.Context, userID, resource string) (DataScope, error) {
-	e, err := s.getEnforcer(ctx)
-	if err != nil {
-		return DataScopeSelf, err
-	}
-
 	maxScope := DataScopeSelf
 	if userID == "" {
 		return maxScope, ErrUnauthorized
 	}
 
-	// 获取用户的所有角色
-	roles, err := e.GetRolesForUser(userID)
+	scopes, err := s.loadUserRoleDataScopes(ctx, userID)
 	if err != nil {
 		return maxScope, err
 	}
 
-	// 获取用户通过角色获得的所有权限
-	maxScope = DataScopeSelf
-	for _, role := range roles {
-		permissions, err := e.GetPermissionsForUser(role)
-		if err != nil {
-			// 记录警告日志，但继续处理其他角色
-			log.Printf("Warning: failed to get permissions for role %s: %v", role, err)
+	for _, scope := range scopes {
+		normalized := normalizeDataScope(scope)
+		if normalized == "" {
 			continue
 		}
-
-		for _, permission := range permissions {
-			if len(permission) >= 3 && permission[0] == resource {
-				scope := permission[2]
-				if s.isDataScopeLarger(scope, string(maxScope)) {
-					maxScope = DataScope(scope)
-				}
-			}
+		if s.isDataScopeLarger(normalized, string(maxScope)) {
+			maxScope = DataScope(normalized)
 		}
 	}
 
 	return maxScope, nil
 }
 
-// isDataScopeLarger 判断数据权限范围是否更大
 func (s *AuthorizationService) isDataScopeLarger(scope1, scope2 string) bool {
 	scopeOrder := map[string]int{
-		"self":         1,
-		"dept_and_sub": 2,
-		"dept":         3,
-		"custom":       4,
-		"all":          5,
+		string(DataScopeSelf):       1,
+		string(DataScopeDept):       2,
+		string(DataScopeDeptAndSub): 3,
+		string(DataScopeCustom):     4,
+		string(DataScopeAll):        5,
 	}
 
 	return scopeOrder[scope1] > scopeOrder[scope2]
 }
 
-// DepartmentInfo 部门信息
 type DepartmentInfo struct {
 	ID       string
 	ParentID *string
 }
 
-// GetUserDepartmentID 获取用户的部门ID
 func (s *AuthorizationService) GetUserDepartmentID(ctx context.Context, userID string) (string, error) {
-	// 获取租户数据库
-	tenantDB, ok := ctx.Value("tenant_db").(*gorm.DB)
-	if !ok || tenantDB == nil {
+	tenantDB := tenantDBFromContext(ctx)
+	if tenantDB == nil {
 		return "", fmt.Errorf("tenant db not found in context")
 	}
 
-	// 查询用户的部门ID
-	type UserDepartment struct {
+	type userDepartment struct {
 		DepartmentID *string
 	}
-	var userDept UserDepartment
+
+	var row userDepartment
 	err := tenantDB.Table("system_users").
 		Select("department_id").
 		Where("id = ?", userID).
-		First(&userDept).Error
-
+		First(&row).Error
 	if err != nil {
 		return "", err
 	}
-
-	if userDept.DepartmentID == nil {
+	if row.DepartmentID == nil {
 		return "", nil
 	}
 
-	return *userDept.DepartmentID, nil
+	return *row.DepartmentID, nil
 }
 
-// GetDepartmentTree 获取部门树（包含所有子部门）
 func (s *AuthorizationService) GetDepartmentTree(ctx context.Context, deptID string) ([]string, error) {
-	// 获取租户数据库
-	tenantDB, ok := ctx.Value("tenant_db").(*gorm.DB)
-	if !ok || tenantDB == nil {
+	tenantDB := tenantDBFromContext(ctx)
+	if tenantDB == nil {
 		return nil, fmt.Errorf("tenant db not found in context")
 	}
 
-	var deptIDs []string
-
-	// 递归查询所有子部门ID
+	deptIDs := make([]string, 0, 4)
 	s.getDepartmentChildrenRecursive(tenantDB, deptID, &deptIDs)
-
-	// 添加自身部门ID
 	deptIDs = append(deptIDs, deptID)
-
 	return deptIDs, nil
 }
 
-// getDepartmentChildrenRecursive 递归获取子部门
 func (s *AuthorizationService) getDepartmentChildrenRecursive(db *gorm.DB, parentID string, deptIDs *[]string) {
 	var departments []DepartmentInfo
-
-	err := db.Table("system_dept").
+	if err := db.Table("system_dept").
 		Select("id, parent_id").
 		Where("parent_id = ? AND status = ?", parentID, "active").
-		Find(&departments).Error
-
-	if err != nil {
+		Find(&departments).Error; err != nil {
 		return
 	}
 
-	for _, dept := range departments {
-		*deptIDs = append(*deptIDs, dept.ID)
-		// 递归查询子部门
-		s.getDepartmentChildrenRecursive(db, dept.ID, deptIDs)
+	for _, department := range departments {
+		*deptIDs = append(*deptIDs, department.ID)
+		s.getDepartmentChildrenRecursive(db, department.ID, deptIDs)
 	}
 }
 
-// GetDataScopeFilter 根据数据权限范围获取过滤条件
 func (s *AuthorizationService) GetDataScopeFilter(ctx context.Context, userID, resource string) (map[string]interface{}, error) {
 	scope, err := s.CheckDataScope(ctx, userID, resource)
 	if err != nil {
@@ -544,233 +514,254 @@ func (s *AuthorizationService) GetDataScopeFilter(ctx context.Context, userID, r
 
 	switch scope {
 	case DataScopeAll:
-		return nil, nil // 无限制
+		return nil, nil
 	case DataScopeSelf:
-		return map[string]interface{}{"creator_id": userID}, nil
+		return s.selfScopeFilter(resource, userID), nil
 	case DataScopeDept:
-		// 获取用户部门ID，只返回本部门数据
 		deptID, err := s.GetUserDepartmentID(ctx, userID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get user department: %w", err)
 		}
-		if deptID == "" {
-			// 用户没有部门，返回空结果
-			return map[string]interface{}{"id": ""}, nil
+		if strings.TrimSpace(deptID) == "" {
+			return denyAllScopeFilter(), nil
 		}
 		return map[string]interface{}{"department_id": deptID}, nil
 	case DataScopeDeptAndSub:
-		// 获取用户部门及其所有子部门
 		deptID, err := s.GetUserDepartmentID(ctx, userID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get user department: %w", err)
 		}
-		if deptID == "" {
-			// 用户没有部门，返回空结果
-			return map[string]interface{}{"id": ""}, nil
+		if strings.TrimSpace(deptID) == "" {
+			return denyAllScopeFilter(), nil
 		}
 		deptIDs, err := s.GetDepartmentTree(ctx, deptID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get department tree: %w", err)
 		}
-		// 返回部门及其子部门的ID列表
 		return map[string]interface{}{"department_id": deptIDs}, nil
 	case DataScopeCustom:
-		// 自定义数据范围 - 支持基于业务规则的灵活权限控制
-		// 获取租户数据库
-		tenantDB, ok := ctx.Value("tenant_db").(*gorm.DB)
-		if !ok || tenantDB == nil {
+		tenantDB := tenantDBFromContext(ctx)
+		if tenantDB == nil {
 			return nil, fmt.Errorf("tenant db not found in context")
 		}
 
-		// 获取用户信息和角色
-		type UserRoleInfo struct {
-			RoleID    string
-			RoleName  string
-			DataScope string
-		}
-		var userRoles []UserRoleInfo
-		err := tenantDB.Table("sys_user_roles").
-			Joins("LEFT JOIN sys_roles ON sys_roles.id = sys_user_roles.role_id").
-			Select("sys_roles.id, sys_roles.name as role_name, sys_roles.data_scope").
-			Where("sys_user_roles.user_id = ?", userID).
-			Find(&userRoles).Error
-
+		scopes, err := s.loadUserRoleDataScopes(ctx, userID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to load user roles: %w", err)
+			return nil, fmt.Errorf("failed to load user role data scopes: %w", err)
 		}
 
-		// 检查是否配置了自定义数据范围
-		for _, role := range userRoles {
-			if role.DataScope != "" && role.DataScope != "all" {
-				// 解析并应用自定义规则
-				filter, parseErr := s.parseCustomDataScope(role.DataScope, userID, tenantDB)
-				if parseErr != nil {
-					// 记录错误但继续处理其他角色
-					log.Printf("Warning: failed to parse custom data scope %s for role %s: %v", role.DataScope, role.RoleName, parseErr)
-					continue
-				}
-				if filter != nil {
-					return filter, nil
-				}
+		for _, roleScope := range scopes {
+			roleScope = strings.TrimSpace(roleScope)
+			if roleScope == "" || roleScope == string(DataScopeCustom) {
+				continue
+			}
+			if !isCustomScopeRule(roleScope) {
+				continue
+			}
+
+			filter, parseErr := s.parseCustomDataScope(ctx, roleScope, userID, tenantDB)
+			if parseErr != nil {
+				log.Printf("warning: failed to parse custom data scope %s: %v", roleScope, parseErr)
+				continue
+			}
+			if filter != nil {
+				return filter, nil
 			}
 		}
 
-		// 没有自定义规则，默认返回当前用户数据
-		return map[string]interface{}{"creator_id": userID}, nil
+		return s.selfScopeFilter(resource, userID), nil
 	default:
 		return nil, fmt.Errorf("unknown data scope: %s", scope)
 	}
 }
 
-// ========== 自定义数据范围解析 ==========
+func (s *AuthorizationService) parseCustomDataScope(ctx context.Context, rule, userID string, db *gorm.DB) (map[string]interface{}, error) {
+	rule = strings.TrimSpace(rule)
 
-// parseCustomDataScope 解析自定义数据范围规则
-func (s *AuthorizationService) parseCustomDataScope(rule string, userID string, db *gorm.DB) (map[string]interface{}, error) {
-	// 规则格式支持：
-	// 1. "dept:123,124" - 限制指定部门
-	// 2. "dept_and_sub:125" - 限制指定部门及其子部门
-	// 3. "project:abc,def" - 限制指定项目（需要实现项目相关表）
-	// 4. "custom:sql_expr" - 自定义 SQL 表达式（高级功能）
-
-	if strings.HasPrefix(rule, "dept:") {
+	switch {
+	case strings.HasPrefix(rule, "dept:"):
 		return s.parseDepartmentScopeRule(rule[5:], userID, db)
-	}
-
-	if strings.HasPrefix(rule, "dept_and_sub:") {
-		return s.parseDepartmentAndSubScopeRule(rule[13:], userID, db)
-	}
-
-	if strings.HasPrefix(rule, "project:") {
+	case strings.HasPrefix(rule, "dept_and_sub:"):
+		return s.parseDepartmentAndSubScopeRule(ctx, rule[13:], userID, db)
+	case strings.HasPrefix(rule, "project:"):
 		return s.parseProjectScopeRule(rule[8:], userID, db)
+	case strings.HasPrefix(rule, "custom:"):
+		return s.parseCustomExpressionRule(ctx, rule[7:], userID, db)
+	default:
+		return nil, fmt.Errorf("unsupported custom rule format: %s", rule)
 	}
-
-	if strings.HasPrefix(rule, "custom:") {
-		// 自定义表达式，需要实现更复杂的解析器
-		return s.parseCustomExpressionRule(rule[7:], userID, db)
-	}
-
-	return nil, fmt.Errorf("unsupported custom rule format: %s", rule)
 }
 
-// parseDepartmentScopeRule 解析部门范围规则：dept:123,124
-func (s *AuthorizationService) parseDepartmentScopeRule(depts string, userID string, db *gorm.DB) (map[string]interface{}, error) {
-	deptIDs := strings.Split(strings.TrimSpace(depts), ",")
-	result := make(map[string]interface{})
+func (s *AuthorizationService) parseDepartmentScopeRule(depts, userID string, db *gorm.DB) (map[string]interface{}, error) {
+	deptIDs := splitTrimmedUnique(depts)
+	if len(deptIDs) == 0 {
+		return nil, fmt.Errorf("department scope requires at least one department id")
+	}
 
-	// 验证部门ID是否存在
-	var validDepts []string
-	type DeptID struct {
+	validDepts := make([]string, 0, len(deptIDs))
+	type deptRow struct {
 		ID string
 	}
+
 	for _, deptID := range deptIDs {
-		if deptID == "" {
+		var row deptRow
+		err := firstMatchingDepartment(db, deptID, &row)
+		if err == nil && row.ID != "" {
+			validDepts = append(validDepts, deptID)
 			continue
 		}
-		var dept DeptID
-		err := db.Table("sys_departments").Where("id = ?", deptID).First(&dept).Error
-		if err != nil {
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, err
-		}
-		if dept.ID != "" {
-			validDepts = append(validDepts, deptID)
 		}
 	}
 
-	result["department_id"] = validDepts
-	return result, nil
+	if len(validDepts) == 0 {
+		return denyAllScopeFilter(), nil
+	}
+
+	return map[string]interface{}{"department_id": validDepts}, nil
 }
 
-// parseDepartmentAndSubScopeRule 解析部门及子部门范围规则：dept_and_sub:125
-func (s *AuthorizationService) parseDepartmentAndSubScopeRule(deptID string, userID string, db *gorm.DB) (map[string]interface{}, error) {
+func (s *AuthorizationService) parseDepartmentAndSubScopeRule(ctx context.Context, deptID, userID string, db *gorm.DB) (map[string]interface{}, error) {
 	deptID = strings.TrimSpace(deptID)
 	if deptID == "" {
 		return nil, fmt.Errorf("department id is required for dept_and_sub scope")
 	}
 
-	// 获取部门及其所有子部门
-	// Note: context.Background() is used here as a placeholder; in a real scenario, you might want to pass the context from the caller.
-	deptIDs, err := s.GetDepartmentTree(context.WithValue(context.Background(), "tenant_db", db), deptID)
+	ctx = ensureTenantDB(ctx, db)
+	deptIDs, err := s.GetDepartmentTree(ctx, deptID)
 	if err != nil {
 		return nil, err
 	}
+	if len(deptIDs) == 0 {
+		return denyAllScopeFilter(), nil
+	}
 
-	result := make(map[string]interface{})
-	result["department_id"] = deptIDs
-	return result, nil
+	return map[string]interface{}{"department_id": deptIDs}, nil
 }
 
-// parseProjectScopeRule 解析项目范围规则：project:abc,def
-func (s *AuthorizationService) parseProjectScopeRule(projectIDs string, userID string, db *gorm.DB) (map[string]interface{}, error) {
-	// TODO: 实现项目相关表和权限逻辑
-	// 这里需要根据业务需求实现项目的关联逻辑
-	// 例如：查询用户参与的项目，返回项目ID列表
+func (s *AuthorizationService) parseProjectScopeRule(projectIDs, userID string, db *gorm.DB) (map[string]interface{}, error) {
+	ids := splitTrimmedUnique(projectIDs)
+	if len(ids) == 0 {
+		return nil, fmt.Errorf("project scope requires at least one project id")
+	}
 
-	ids := strings.Split(strings.TrimSpace(projectIDs), ",")
-	result := make(map[string]interface{})
-	result["project_id"] = ids
-	return result, nil
+	return map[string]interface{}{"project_id": ids}, nil
 }
 
-// parseCustomExpressionRule 解析自定义表达式规则：custom:expression
-func (s *AuthorizationService) parseCustomExpressionRule(expression string, userID string, db *gorm.DB) (map[string]interface{}, error) {
-	// TODO: 实现表达式解析器
-	// 当前作为占位符实现，返回用户数据
-	log.Printf("Custom expression rule not fully implemented: %s", expression)
-	return map[string]interface{}{"creator_id": userID}, nil
+func (s *AuthorizationService) parseCustomExpressionRule(ctx context.Context, expression, userID string, db *gorm.DB) (map[string]interface{}, error) {
+	expression = strings.TrimSpace(expression)
+	parts := strings.SplitN(expression, "=", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid custom expression, expected field=value")
+	}
+
+	field := strings.TrimSpace(parts[0])
+	rawValue := strings.TrimSpace(parts[1])
+	if _, ok := allowedCustomScopeFields[field]; !ok {
+		return nil, fmt.Errorf("unsupported custom scope field: %s", field)
+	}
+	if rawValue == "" {
+		return nil, fmt.Errorf("custom scope value is required")
+	}
+
+	ctx = ensureTenantDB(ctx, db)
+
+	switch rawValue {
+	case "@user_id":
+		if !isUserScopedField(field) {
+			return nil, fmt.Errorf("field %s does not support @user_id", field)
+		}
+		return map[string]interface{}{field: userID}, nil
+	case "@department_id":
+		if field != "department_id" {
+			return nil, fmt.Errorf("field %s does not support @department_id", field)
+		}
+		deptID, err := s.GetUserDepartmentID(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if strings.TrimSpace(deptID) == "" {
+			return denyAllScopeFilter(), nil
+		}
+		return map[string]interface{}{field: deptID}, nil
+	case "@department_and_sub_ids":
+		if field != "department_id" {
+			return nil, fmt.Errorf("field %s does not support @department_and_sub_ids", field)
+		}
+		deptID, err := s.GetUserDepartmentID(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if strings.TrimSpace(deptID) == "" {
+			return denyAllScopeFilter(), nil
+		}
+		deptIDs, err := s.GetDepartmentTree(ctx, deptID)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]interface{}{field: deptIDs}, nil
+	case "@tenant_id":
+		if field != "tenant_id" {
+			return nil, fmt.Errorf("field %s does not support @tenant_id", field)
+		}
+		tenantID, _ := ctx.Value(ctxKeyTenantID).(string)
+		return map[string]interface{}{field: strings.TrimSpace(tenantID)}, nil
+	default:
+		values := splitTrimmedUnique(rawValue)
+		if len(values) == 0 {
+			return nil, fmt.Errorf("custom scope value is required")
+		}
+		if len(values) == 1 {
+			return map[string]interface{}{field: values[0]}, nil
+		}
+		return map[string]interface{}{field: values}, nil
+	}
 }
 
-// ========== 字段权限 ==========
-
-// GetFieldPermissions 获取角色对指定表的字段权限
 func (s *AuthorizationService) GetFieldPermissions(ctx context.Context, roleID, tableName string) (map[string]string, error) {
-	// 获取租户数据库
-	tenantDB, ok := ctx.Value("tenant_db").(*gorm.DB)
-	if !ok || tenantDB == nil {
-		return make(map[string]string), nil
+	tenantDB := tenantDBFromContext(ctx)
+	if tenantDB == nil {
+		return map[string]string{}, nil
 	}
 
 	var fieldPerms []model.FieldPermission
 	err := tenantDB.Table("system_field_permissions").
 		Where("role_id = ? AND table_name = ?", roleID, tableName).
 		Find(&fieldPerms).Error
-
 	if err != nil {
-		return make(map[string]string), err
+		return map[string]string{}, err
 	}
 
-	// 转换为map格式：字段名 -> 权限类型
-	result := make(map[string]string)
-	for _, fp := range fieldPerms {
-		result[fp.Field] = fp.Permission
+	result := make(map[string]string, len(fieldPerms))
+	for _, fieldPerm := range fieldPerms {
+		result[fieldPerm.Field] = fieldPerm.Permission
 	}
 
-	// 如果没有配置字段权限，返回空map（表示所有字段都有默认权限）
 	return result, nil
 }
 
-// CheckFieldPermission 检查字段权限
 func (s *AuthorizationService) CheckFieldPermission(ctx context.Context, roleID, tableName, field, permission string) bool {
 	permissions, err := s.GetFieldPermissions(ctx, roleID, tableName)
 	if err != nil {
 		return false
 	}
 
-	perm, exists := permissions[field]
+	fieldPermission, exists := permissions[field]
 	if !exists {
-		return true // 默认允许
+		return true
 	}
 
-	if permission == FieldPermissionRead {
-		return perm == FieldPermissionRead || perm == FieldPermissionWrite
+	switch permission {
+	case FieldPermissionRead:
+		return fieldPermission == FieldPermissionRead || fieldPermission == FieldPermissionWrite
+	case FieldPermissionWrite:
+		return fieldPermission == FieldPermissionWrite
+	default:
+		return fieldPermission != FieldPermissionHide
 	}
-	if permission == FieldPermissionWrite {
-		return perm == FieldPermissionWrite
-	}
-
-	return perm != FieldPermissionHide
 }
 
-// LoadPolicy 从数据库加载策略
 func (s *AuthorizationService) LoadPolicy(ctx context.Context) error {
 	e, err := s.getEnforcer(ctx)
 	if err != nil {
@@ -779,7 +770,6 @@ func (s *AuthorizationService) LoadPolicy(ctx context.Context) error {
 	return e.LoadPolicy()
 }
 
-// SavePolicy 保存策略到数据库
 func (s *AuthorizationService) SavePolicy(ctx context.Context) error {
 	e, err := s.getEnforcer(ctx)
 	if err != nil {
@@ -788,7 +778,6 @@ func (s *AuthorizationService) SavePolicy(ctx context.Context) error {
 	return e.SavePolicy()
 }
 
-// ReloadPolicy 重新加载策略
 func (s *AuthorizationService) ReloadPolicy(ctx context.Context) error {
 	e, err := s.getEnforcer(ctx)
 	if err != nil {
@@ -797,53 +786,214 @@ func (s *AuthorizationService) ReloadPolicy(ctx context.Context) error {
 	return e.LoadPolicy()
 }
 
-// ========== 自定义数据范围扩展方法 ==========
-
-// HasCustomScopeRules 检查是否配置了自定义数据范围规则
 func (s *AuthorizationService) HasCustomScopeRules(ctx context.Context, userID string) (bool, error) {
-	tenantDB, ok := ctx.Value("tenant_db").(*gorm.DB)
-	if !ok || tenantDB == nil {
-		return false, fmt.Errorf("tenant db not found in context")
-	}
-
-	type RoleDataScope struct {
-		DataScope string
-	}
-	var roles []RoleDataScope
-	err := tenantDB.Table("sys_roles").
-		Select("data_scope").
-		InnerJoins("sys_user_roles ON sys_user_roles.role_id = sys_roles.id").
-		Where("sys_user_roles.user_id = ? AND sys_roles.data_scope != '' AND sys_roles.data_scope != 'all'", userID).
-		Find(&roles).Error
-
+	scopes, err := s.loadUserRoleDataScopes(ctx, userID)
 	if err != nil {
 		return false, err
 	}
 
-	return len(roles) > 0, nil
-}
-
-// ParseCustomScopeRule 解析并验证自定义范围规则
-func (s *AuthorizationService) ParseCustomScopeRule(rule string) (bool, error) {
-	if rule == "" || rule == "all" {
-		return false, nil
-	}
-
-	// 检查规则格式是否有效
-	validPrefixes := []string{"dept:", "dept_and_sub:", "project:", "custom:"}
-	hasValidPrefix := false
-	for _, prefix := range validPrefixes {
-		if strings.HasPrefix(rule, prefix) {
-			hasValidPrefix = true
-			break
+	for _, scope := range scopes {
+		if isCustomScopeRule(scope) || normalizeDataScope(scope) == string(DataScopeCustom) {
+			return true, nil
 		}
 	}
 
-	if !hasValidPrefix {
-		return false, fmt.Errorf("invalid custom rule format, must start with one of: %v", validPrefixes)
+	return false, nil
+}
+
+func (s *AuthorizationService) ParseCustomScopeRule(rule string) (bool, error) {
+	rule = strings.TrimSpace(rule)
+	if rule == "" || rule == string(DataScopeAll) {
+		return false, nil
 	}
 
-	return true, nil
+	for _, prefix := range customScopePrefixes {
+		if !strings.HasPrefix(rule, prefix) {
+			continue
+		}
+
+		switch {
+		case strings.HasPrefix(rule, "dept:"):
+			if len(splitTrimmedUnique(rule[5:])) == 0 {
+				return false, fmt.Errorf("department scope requires at least one department id")
+			}
+		case strings.HasPrefix(rule, "dept_and_sub:"):
+			if strings.TrimSpace(rule[13:]) == "" {
+				return false, fmt.Errorf("department id is required for dept_and_sub scope")
+			}
+		case strings.HasPrefix(rule, "project:"):
+			if len(splitTrimmedUnique(rule[8:])) == 0 {
+				return false, fmt.Errorf("project scope requires at least one project id")
+			}
+		case strings.HasPrefix(rule, "custom:"):
+			if _, err := s.parseCustomExpressionRule(context.Background(), rule[7:], "user-id", nil); err != nil {
+				return false, err
+			}
+		}
+
+		return true, nil
+	}
+
+	return false, fmt.Errorf("invalid custom rule format, must start with one of: %v", customScopePrefixes)
+}
+
+func (s *AuthorizationService) selfScopeFilter(resource, userID string) map[string]interface{} {
+	switch resource {
+	case "/api/v1/system/users", "system_users":
+		return map[string]interface{}{"id": userID}
+	case "/api/v1/system/logs", "/api/v1/system/logs/operation", "/api/v1/system/logs/login", "system_oper_log", "system_login_log":
+		return map[string]interface{}{"user_id": userID}
+	default:
+		return map[string]interface{}{"creator_id": userID}
+	}
+}
+
+func (s *AuthorizationService) loadUserRoleDataScopes(ctx context.Context, userID string) ([]string, error) {
+	tenantDB := tenantDBFromContext(ctx)
+	if tenantDB == nil {
+		return nil, fmt.Errorf("tenant db not found in context")
+	}
+
+	type roleScopeRow struct {
+		DataScope string
+	}
+
+	attempts := []struct {
+		roleTable     string
+		userRoleTable string
+	}{
+		{roleTable: "system_roles", userRoleTable: "system_user_roles"},
+		{roleTable: "sys_roles", userRoleTable: "sys_user_roles"},
+	}
+
+	for _, attempt := range attempts {
+		var rows []roleScopeRow
+		err := tenantDB.Table(attempt.roleTable).
+			Select(attempt.roleTable+".data_scope").
+			Joins("INNER JOIN "+attempt.userRoleTable+" ON "+attempt.userRoleTable+".role_id = "+attempt.roleTable+".id").
+			Where(attempt.userRoleTable+".user_id = ? AND "+attempt.roleTable+".data_scope != ''", userID).
+			Find(&rows).Error
+		if err != nil {
+			continue
+		}
+
+		scopes := make([]string, 0, len(rows))
+		for _, row := range rows {
+			if strings.TrimSpace(row.DataScope) == "" {
+				continue
+			}
+			scopes = append(scopes, row.DataScope)
+		}
+		return scopes, nil
+	}
+
+	return nil, nil
+}
+
+func normalizeDataScope(scope string) string {
+	scope = strings.TrimSpace(scope)
+	switch scope {
+	case string(DataScopeAll), string(DataScopeCustom), string(DataScopeDept), string(DataScopeDeptAndSub), string(DataScopeSelf):
+		return scope
+	default:
+		if isCustomScopeRule(scope) {
+			return string(DataScopeCustom)
+		}
+		return ""
+	}
+}
+
+func isCustomScopeRule(scope string) bool {
+	scope = strings.TrimSpace(scope)
+	for _, prefix := range customScopePrefixes {
+		if strings.HasPrefix(scope, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func isUserScopedField(field string) bool {
+	switch field {
+	case "id", "user_id", "creator_id", "receiver_id":
+		return true
+	default:
+		return false
+	}
+}
+
+func splitTrimmedUnique(raw string) []string {
+	parts := strings.Split(strings.TrimSpace(raw), ",")
+	result := make([]string, 0, len(parts))
+	seen := make(map[string]struct{}, len(parts))
+
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if _, ok := seen[part]; ok {
+			continue
+		}
+		seen[part] = struct{}{}
+		result = append(result, part)
+	}
+
+	return result
+}
+
+func firstMatchingDepartment(db *gorm.DB, deptID string, out interface{}) error {
+	tables := []string{"system_dept", "sys_departments"}
+	var lastErr error
+
+	for _, table := range tables {
+		if err := db.Table(table).Where("id = ?", deptID).First(out).Error; err != nil {
+			lastErr = err
+			continue
+		}
+		return nil
+	}
+
+	return lastErr
+}
+
+func denyAllScopeFilter() map[string]interface{} {
+	return map[string]interface{}{"id": ""}
+}
+
+func txDBFromContext(ctx context.Context) *gorm.DB {
+	if ctx == nil {
+		return nil
+	}
+	db, _ := ctx.Value(ctxKeyTxDB).(*gorm.DB)
+	return db
+}
+
+func tenantDBFromContext(ctx context.Context) *gorm.DB {
+	if ctx == nil {
+		return nil
+	}
+	db, _ := ctx.Value(ctxKeyTenantDB).(*gorm.DB)
+	return db
+}
+
+func tenantDBAndIDFromContext(ctx context.Context) (*gorm.DB, string) {
+	if ctx == nil {
+		return nil, ""
+	}
+	db, _ := ctx.Value(ctxKeyTenantDB).(*gorm.DB)
+	tenantID, _ := ctx.Value(ctxKeyTenantID).(string)
+	return db, tenantID
+}
+
+func ensureTenantDB(ctx context.Context, db *gorm.DB) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if db != nil && tenantDBFromContext(ctx) == nil {
+		ctx = context.WithValue(ctx, ctxKeyTenantDB, db)
+	}
+	return ctx
 }
 
 func (s *AuthorizationService) authVersionKey(userID string) string {
@@ -852,4 +1002,23 @@ func (s *AuthorizationService) authVersionKey(userID string) string {
 
 func (s *AuthorizationService) revokedAfterKey(userID string) string {
 	return fmt.Sprintf("auth:revoked_after:%s", userID)
+}
+
+func toPermissionSet(policies [][]string) map[string]struct{} {
+	result := make(map[string]struct{}, len(policies))
+	for _, policy := range policies {
+		if len(policy) < 3 {
+			continue
+		}
+
+		resource := strings.TrimSpace(policy[1])
+		action := strings.TrimSpace(policy[2])
+		if resource == "" || action == "" {
+			continue
+		}
+
+		result[fmt.Sprintf("%s:%s", resource, action)] = struct{}{}
+	}
+
+	return result
 }

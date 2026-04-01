@@ -22,25 +22,25 @@ func NewTranslationHandler(service *TranslationService, defaultTenantID string) 
 
 // CreateTranslationRequest defines the create-translation payload.
 type CreateTranslationRequest struct {
-	Module   string   `json:"module" binding:"required"`
-	Key      string   `json:"key" binding:"required"`
-	Language Language `json:"language" binding:"required"`
-	Value    string   `json:"value" binding:"required"`
-	TenantID *string  `json:"tenant_id"`
+	Module   string   `json:"module" binding:"required" example:"system"`
+	Key      string   `json:"key" binding:"required" example:"user.create.success"`
+	Language Language `json:"language" binding:"required" example:"zh"`
+	Value    string   `json:"value" binding:"required" example:"User created successfully"`
+	TenantID *string  `json:"tenant_id" example:"tenant-default"`
 }
 
 // UpdateTranslationRequest defines the update-translation payload.
 type UpdateTranslationRequest struct {
-	Value string `json:"value" binding:"required"`
+	Value string `json:"value" binding:"required" example:"Updated translation value"`
 }
 
 // ListTranslationsRequest defines translation list filters.
 type ListTranslationsRequest struct {
-	Module   string  `form:"module"`
-	Language string  `form:"language"`
-	Page     int     `form:"page,default=1"`
-	PageSize int     `form:"page_size,default=20"`
-	TenantID *string `form:"tenant_id"`
+	Module   string  `form:"module" example:"system"`
+	Language string  `form:"language" example:"en"`
+	Page     int     `form:"page,default=1" example:"1"`
+	PageSize int     `form:"page_size,default=20" example:"20"`
+	TenantID *string `form:"tenant_id" example:"tenant-default"`
 }
 
 func normalizeTenantPointer(value *string) *string {
@@ -93,9 +93,9 @@ type ImportTranslationsRequest struct {
 
 // ExportTranslationsRequest defines the export filters.
 type ExportTranslationsRequest struct {
-	Module   string  `form:"module"`
-	Language string  `form:"language"`
-	TenantID *string `form:"tenant_id"`
+	Module   string  `form:"module" example:"system"`
+	Language string  `form:"language" example:"en"`
+	TenantID *string `form:"tenant_id" example:"tenant-default"`
 }
 
 // CreateTranslation creates a translation.
@@ -198,38 +198,23 @@ func (h *TranslationHandler) DeleteTranslation(c *gin.Context) {
 	response.Success(c, gin.H{"message": "Translation deleted successfully"})
 }
 
-// GetTranslation fetches one translation.
+// GetTranslation fetches one translation by ID.
 func (h *TranslationHandler) GetTranslation(c *gin.Context) {
-	module := c.Query("module")
-	key := c.Query("key")
-	language := Language(c.Query("language"))
-	tenantParam := c.Query("tenant_id")
-	var requestedTenant *string
-	if tenantParam != "" {
-		requestedTenant = &tenantParam
-	}
-	requestedTenant = normalizeTenantPointer(requestedTenant)
-	includeGlobal := strings.EqualFold(c.DefaultQuery("include_global", "false"), "true")
-
-	if module == "" || key == "" || language == "" {
-		response.BadRequest(c, "MISSING_PARAMETERS", "Missing required parameters")
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		response.BadRequest(c, "INVALID_ID", "Invalid translation ID")
 		return
 	}
 
-	if !IsValidLanguage(language) {
-		response.BadRequest(c, "INVALID_LANGUAGE", "Invalid language code")
-		return
-	}
-
-	currentTenant := h.currentTenantID(c)
-	if !h.isPlatformTenant(currentTenant) {
-		requestedTenant = h.tenantPtr(currentTenant)
-		includeGlobal = true
-	}
-
-	translation, err := h.service.GetTranslation(c.Request.Context(), module, key, language, requestedTenant, includeGlobal)
+	translation, err := h.service.GetByID(c.Request.Context(), uint(id))
 	if err != nil {
 		response.NotFound(c, "NOT_FOUND", "Translation not found")
+		return
+	}
+
+	if !h.canAccessTranslation(h.currentTenantID(c), translation) {
+		response.Forbidden(c, "FORBIDDEN", "You are not allowed to view this translation")
 		return
 	}
 
