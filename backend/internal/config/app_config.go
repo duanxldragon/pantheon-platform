@@ -72,12 +72,23 @@ type Config struct {
 
 	// Storage Configuration
 	Storage StorageConfig `mapstructure:"storage"`
+
+	// Swagger Configuration
+	Swagger SwaggerConfig `mapstructure:"swagger"`
 }
 
 // SecurityConfig represents security-related configurations
 type SecurityConfig struct {
-	Enable2FA             bool `mapstructure:"enable_2fa"`
-	MaxConcurrentSessions int  `mapstructure:"max_concurrent_sessions"` // 0 = unlimited
+	Enable2FA             bool            `mapstructure:"enable_2fa"`
+	MaxConcurrentSessions int             `mapstructure:"max_concurrent_sessions"` // 0 = unlimited
+	RateLimit             RateLimitConfig `mapstructure:"rate_limit"`
+}
+
+// RateLimitConfig represents public API rate limiting settings.
+type RateLimitConfig struct {
+	Enabled           bool `mapstructure:"enabled"`
+	RequestsPerMinute int  `mapstructure:"requests_per_minute"`
+	RequestsPerHour   int  `mapstructure:"requests_per_hour"`
 }
 
 // DeploymentConfig controls how the platform exposes the tenant foundation.
@@ -98,6 +109,11 @@ type StorageConfig struct {
 	S3AccessKey string `mapstructure:"s3_access_key"`
 	S3SecretKey string `mapstructure:"s3_secret_key"`
 	S3Endpoint  string `mapstructure:"s3_endpoint"`
+}
+
+// SwaggerConfig controls whether Swagger routes are exposed.
+type SwaggerConfig struct {
+	Enabled bool `mapstructure:"enabled"`
 }
 
 // DatabaseConfig represents a database configuration
@@ -240,14 +256,18 @@ func (c DatabaseConfig) DSN() string {
 
 // Load loads configuration from file and environment variables
 func Load() *Config {
+	viper.Reset()
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("./config")
 	viper.AddConfigPath("/etc/pantheon-platform")
+	viper.SetEnvPrefix("PANTHEON")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	// Set defaults
 	setDefaults()
+	bindSensitiveEnvKeys()
 
 	// Read config file
 	if err := viper.ReadInConfig(); err != nil {
@@ -261,7 +281,6 @@ func Load() *Config {
 	normalizeConfigAliases()
 
 	// Override with environment variables
-	viper.SetEnvPrefix("PANTHEON")
 	viper.AutomaticEnv()
 
 	// Unmarshal config
@@ -377,6 +396,12 @@ func setDefaults() {
 	// Security defaults
 	viper.SetDefault("security.enable_2fa", true)
 	viper.SetDefault("security.max_concurrent_sessions", 0) // 0 = unlimited
+	viper.SetDefault("security.rate_limit.enabled", true)
+	viper.SetDefault("security.rate_limit.requests_per_minute", 100)
+	viper.SetDefault("security.rate_limit.requests_per_hour", 1000)
+
+	// Swagger defaults
+	viper.SetDefault("swagger.enabled", true)
 }
 
 func normalizeConfigAliases() {
@@ -421,6 +446,36 @@ func copyIfEmpty(targetKey, sourceKey string) {
 	}
 }
 
+func bindSensitiveEnvKeys() {
+	sensitiveKeys := []string{
+		"master_db.password",
+		"monitor_db.password",
+		"redis.password",
+		"jwt_secret",
+		"encryption_key",
+		"default_admin.username",
+		"default_admin.password",
+		"email.smtp_password",
+		"email.sendgrid_api_key",
+		"email.aliyun_access_key_id",
+		"email.aliyun_access_key_secret",
+		"sms.aliyun_access_key_id",
+		"sms.aliyun_access_key_secret",
+		"sms.tencent_secret_id",
+		"sms.tencent_secret_key",
+		"sms.twilio_account_sid",
+		"sms.twilio_auth_token",
+		"storage.s3_access_key",
+		"storage.s3_secret_key",
+	}
+
+	for _, key := range sensitiveKeys {
+		if err := viper.BindEnv(key); err != nil {
+			panic(fmt.Errorf("failed to bind env for %s: %w", key, err))
+		}
+	}
+}
+
 func validate(cfg *Config) error {
 	if cfg.Port <= 0 || cfg.Port > 65535 {
 		return fmt.Errorf("invalid port: %d", cfg.Port)
@@ -436,6 +491,21 @@ func validate(cfg *Config) error {
 
 	if strings.EqualFold(cfg.Environment, "production") && cfg.DefaultAdmin.Enabled {
 		return fmt.Errorf("default admin fallback must be disabled in production")
+	}
+
+	if cfg.DefaultAdmin.Enabled {
+		if strings.TrimSpace(cfg.DefaultAdmin.Username) == "" {
+			return fmt.Errorf("default admin username must be configured when enabled")
+		}
+
+		password := strings.TrimSpace(cfg.DefaultAdmin.Password)
+		if password == "" {
+			return fmt.Errorf("default admin password must be configured when enabled")
+		}
+
+		if len(password) < 12 {
+			return fmt.Errorf("default admin password must be at least 12 characters when enabled")
+		}
 	}
 
 	if cfg.Security.MaxConcurrentSessions < 0 {

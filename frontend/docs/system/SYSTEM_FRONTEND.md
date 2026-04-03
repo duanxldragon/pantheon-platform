@@ -5,6 +5,7 @@
 本文件只说明系统管理模块在前端的页面组织、状态管理、动态挂载与交互链路，不重复业务规则。
 
 - 业务边界与对象关系：看 `docs/system/SYSTEM_MANAGEMENT.md`
+- UI 实现入口与组件基座：看 `./UI_IMPLEMENTATION_GUIDE.md`
 - 登录、会话、2FA：看 `docs/auth/AUTH_SECURITY.md`
 - 权限刷新与强制失效：看 `docs/auth/AUTH_SESSION_STRATEGY.md`
 - 租户初始化：看 `docs/tenant/TENANT_INITIALIZATION.md`

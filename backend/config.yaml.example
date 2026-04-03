@@ -27,7 +27,7 @@ master_db:
   port: 3306                 # 数据库端口
   database: pantheon_master  # 主数据库名
   username: root             # 数据库用户名
-  password: your_password    # 数据库密码
+  password: ""               # 数据库密码，优先使用 PANTHEON_MASTER_DB_PASSWORD
   charset: utf8mb4           # 字符集
   max_open_conns: 100        # 最大打开连接数
   max_idle_conns: 10         # 最大空闲连接数
@@ -49,7 +49,7 @@ redis:
 # JWT配置
 # ========================================
 jwt:
-  secret: your-jwt-secret-key-change-in-production  # JWT签名密钥 (生产环境必须修改)
+  secret: ""                 # JWT签名密钥，优先使用 PANTHEON_JWT_SECRET
   expires_in: 7200          # Access Token过期时间(秒)
   refresh_expiry: 604800     # Refresh Token过期时间(秒)
   issuer: pantheon-platform  # Token签发者
@@ -59,7 +59,7 @@ jwt:
 # ========================================
 multi_tenant:
   enabled: true              # 是否启用多租户
-  encryption_key: 32-byte-encryption-key-change-me  # 租户数据库密码加密密钥 (必须32字节)
+  encryption_key: ""         # 32字节密钥，优先使用 PANTHEON_ENCRYPTION_KEY
 
 # ========================================
 # 多租户数据库配置
@@ -101,7 +101,7 @@ monitor_db:
   port: 3306
   database: pantheon_monitor
   username: root
-  password: your_password
+  password: ""               # 监控库密码，优先使用 PANTHEON_MONITOR_DB_PASSWORD
   enable_sync: false        # 是否启用日志双写
 
 # ========================================
@@ -148,8 +148,9 @@ cors:
 # 默认管理员配置
 # ========================================
 default_admin:
+  enabled: false             # 仅限本地初始化时启用
   username: admin            # 默认管理员用户名
-  password: admin123         # 默认管理员密码
+  password: ""               # 默认管理员密码，启用时请使用 PANTHEON_DEFAULT_ADMIN_PASSWORD 且不少于12位
   email: admin@example.com   # 默认管理员邮箱
   real_name: 系统管理员      # 默认管理员真实姓名
 
@@ -168,16 +169,16 @@ email:
     host: smtp.example.com   # SMTP主机
     port: 587                # SMTP端口
     username: your_username  # SMTP用户名
-    password: your_password  # SMTP密码
+    password: ""             # SMTP密码，优先使用 PANTHEON_EMAIL_SMTP_PASSWORD
     use_tls: true            # 是否使用TLS
 
   # SendGrid配置
-  sendgrid_api_key: ""       # SendGrid API密钥
+  sendgrid_api_key: ""       # SendGrid API密钥，优先使用 PANTHEON_EMAIL_SENDGRID_API_KEY
 
   # 阿里云邮件配置
   aliyun:
-    access_key_id: ""        # 阿里云AccessKey ID
-    access_key_secret: ""    # 阿里云AccessKey Secret
+    access_key_id: ""        # 阿里云AccessKey ID，优先使用 PANTHEON_EMAIL_ALIYUN_ACCESS_KEY_ID
+    access_key_secret: ""    # 阿里云AccessKey Secret，优先使用 PANTHEON_EMAIL_ALIYUN_ACCESS_KEY_SECRET
     region: ""               # 区域
 
 # ========================================
@@ -189,8 +190,8 @@ sms:
 
   # 阿里云短信配置
   aliyun:
-    access_key_id: ""        # 阿里云AccessKey ID
-    access_key_secret: ""    # 阿里云AccessKey Secret
+    access_key_id: ""        # 阿里云AccessKey ID，优先使用 PANTHEON_SMS_ALIYUN_ACCESS_KEY_ID
+    access_key_secret: ""    # 阿里云AccessKey Secret，优先使用 PANTHEON_SMS_ALIYUN_ACCESS_KEY_SECRET
     region: ""               # 区域
     sign_name: ""            # 短信签名
     template_code: ""        # 短信模板代码
@@ -198,7 +199,7 @@ sms:
   # 腾讯云短信配置
   tencent:
     secret_id: ""            # 腾讯云Secret ID
-    secret_key: ""           # 腾讯云Secret Key
+    secret_key: ""           # 腾讯云Secret Key，优先使用 PANTHEON_SMS_TENCENT_SECRET_KEY
     region: ""               # 区域
     app_id: ""               # 应用ID
     sign_name: ""            # 短信签名
@@ -207,7 +208,7 @@ sms:
   # Twilio短信配置
   twilio:
     account_sid: ""          # Twilio Account SID
-    auth_token: ""           # Twilio Auth Token
+    auth_token: ""           # Twilio Auth Token，优先使用 PANTHEON_SMS_TWILIO_AUTH_TOKEN
     from_number: ""          # 发送号码
 
 # ========================================

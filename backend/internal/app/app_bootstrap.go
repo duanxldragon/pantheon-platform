@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -200,6 +201,18 @@ func Start() {
 	translator := i18n.NewGormTranslator(db, nil)
 	_ = translator.LoadTranslations(context.Background())
 	engine := gin.Default()
+	if cfg.Security.RateLimit.Enabled {
+		if cfg.Security.RateLimit.RequestsPerMinute > 0 {
+			minuteLimiter := middleware.NewRateLimiter(cfg.Security.RateLimit.RequestsPerMinute, time.Minute)
+			go minuteLimiter.MemoryCleanup()
+			engine.Use(minuteLimiter.Limit())
+		}
+		if cfg.Security.RateLimit.RequestsPerHour > 0 {
+			hourLimiter := middleware.NewRateLimiter(cfg.Security.RateLimit.RequestsPerHour, time.Hour)
+			go hourLimiter.MemoryCleanup()
+			engine.Use(hourLimiter.Limit())
+		}
+	}
 	engine.Use(middleware.CORS(cfg))
 	engine.Use(i18n.TranslationMiddleware(translator))
 	engine.Use(middleware.OperationLog(sysContainer.GetLogService()))
@@ -207,7 +220,7 @@ func Start() {
 	// Security middlewares
 	securityHeadersMiddleware := middleware.NewSecurityHeadersMiddleware(middleware.DefaultSecurityHeadersConfig())
 
-	// Register CSRF and security headers middleware globally
+	// Register security headers globally.
 	engine.Use(securityHeadersMiddleware.Middleware())
 
 	engine.GET("/health", func(c *gin.Context) {
@@ -216,13 +229,15 @@ func Start() {
 			"environment": cfg.Environment,
 		})
 	})
-	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	if cfg.Swagger.Enabled && cfg.Environment != "production" {
+		engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
 
 	authMiddleware := middleware.Auth(redisClient)
 	tenantMiddleware := middleware.Tenant(dbManager, cfg, tenantSvc)
 
 	authRouter.RegisterRoutes(engine, authMiddleware)
-	tenantRouter.RegisterRoutes(engine, authMiddleware)
+	tenantRouter.RegisterRoutes(engine, authMiddleware, tenantMiddleware)
 
 	api := engine.Group("/api/v1")
 
