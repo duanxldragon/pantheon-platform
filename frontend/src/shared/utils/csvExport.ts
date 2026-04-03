@@ -44,7 +44,7 @@ export function convertToCSV(
     }).join(',');
   });
 
-  return [headerRow, ...dataRows].join('\n');
+  return [headerRow, ...dataRows].join('\r\n');
 }
 
 /**
@@ -117,7 +117,7 @@ export function generateCSVTemplate(config: CSVTemplateConfig): string {
     escapeCSVField(h.description ? `(${h.description})` : '')
   ).join(',');
   
-  return [headerRow, exampleRow, descriptionRow].join('\n');
+  return [headerRow, exampleRow, descriptionRow].join('\r\n');
 }
 
 /**
@@ -240,7 +240,8 @@ export function readCSVFile(
     
     reader.onload = (e) => {
       try {
-        const text = e.target?.result as string;
+        const raw = e.target?.result as ArrayBuffer;
+        const text = decodeCSVText(raw);
         const data = parseCSV(text, headers);
         resolve(data);
       } catch (error) {
@@ -252,8 +253,28 @@ export function readCSVFile(
       reject(new Error('Failed to read file'));
     };
     
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   });
+}
+
+function decodeCSVText(raw: ArrayBuffer): string {
+  const utf8 = new TextDecoder('utf-8').decode(raw);
+  if (!looksMojibake(utf8)) {
+    return utf8;
+  }
+
+  try {
+    return new TextDecoder('gb18030').decode(raw);
+  } catch {
+    return utf8;
+  }
+}
+
+function looksMojibake(text: string): boolean {
+  if (!text) return false;
+  const replacementCount = (text.match(/�/g) || []).length;
+  const suspiciousCount = (text.match(/[Ãâ]/g) || []).length;
+  return replacementCount > 0 || suspiciousCount > Math.max(3, text.length / 200);
 }
 
 /**
