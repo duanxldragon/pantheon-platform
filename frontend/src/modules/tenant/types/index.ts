@@ -28,6 +28,7 @@ export interface DatabaseConnectionConfig {
   database: string;
   username?: string;
   password?: string;
+  adminPassword?: string;
   filepath?: string;
   sslMode?: SSLMode;
   maxOpenConns?: number;
@@ -112,7 +113,6 @@ export interface TenantBootstrapResult {
   roleCreated: boolean;
   adminUsername?: string;
   adminEmail?: string;
-  initialPassword?: string;
   roleCode?: string;
   menuCount?: number;
   permissionCount?: number;

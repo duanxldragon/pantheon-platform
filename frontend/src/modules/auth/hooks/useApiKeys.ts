@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { operationNotification, systemNotification } from '../../../shared/utils/notification';
 import { useLanguageStore } from '../../../stores/languageStore';
@@ -30,7 +30,7 @@ export function useApiKeys() {
   const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
   const [apiKeys, setApiKeys] = useState<ManagedApiKey[]>([]);
 
-  const loadApiKeys = async () => {
+  const loadApiKeys = useCallback(async () => {
     setLoading(true);
     try {
       const resp = await authApi.listApiKeys();
@@ -41,11 +41,11 @@ export function useApiKeys() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [zh]);
 
   useEffect(() => {
     void loadApiKeys();
-  }, []);
+  }, [loadApiKeys]);
 
   const toggleVisible = (id: string) => {
     setVisibleKeys((current) => ({ ...current, [id]: !current[id] }));

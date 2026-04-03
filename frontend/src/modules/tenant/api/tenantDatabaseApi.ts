@@ -81,8 +81,6 @@ type TenantBootstrapPayload = {
   adminUsername?: string;
   admin_email?: string;
   adminEmail?: string;
-  initial_password?: string;
-  initialPassword?: string;
   role_code?: string;
   roleCode?: string;
   menu_count?: number;
@@ -191,7 +189,6 @@ function normalizeBootstrap(payload?: TenantBootstrapPayload): TenantBootstrapRe
     roleCreated: payload.roleCreated ?? payload.role_created ?? false,
     adminUsername: payload.adminUsername ?? payload.admin_username,
     adminEmail: payload.adminEmail ?? payload.admin_email,
-    initialPassword: payload.initialPassword ?? payload.initial_password,
     roleCode: payload.roleCode ?? payload.role_code,
     menuCount: payload.menuCount ?? payload.menu_count,
     permissionCount: payload.permissionCount ?? payload.permission_count,
@@ -220,6 +217,7 @@ function toTenantDatabasePayload(config: DatabaseConnectionConfig) {
     database: config.database,
     username: config.username,
     password: config.password,
+    admin_password: config.adminPassword,
     filepath: config.filepath,
     ssl_mode: config.sslMode,
     max_open_conns: config.maxOpenConns,

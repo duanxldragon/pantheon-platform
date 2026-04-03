@@ -185,12 +185,19 @@ export const useUIStore = create<UIState>()(
 
 // 监听全屏变化
 if (typeof document !== 'undefined') {
+  type FullscreenDocument = Document & {
+    webkitFullscreenElement?: Element | null;
+    mozFullScreenElement?: Element | null;
+    msFullscreenElement?: Element | null;
+  };
+
   const handleFullscreenChange = () => {
+    const fullscreenDocument = document as FullscreenDocument;
     const isFullscreen = !!(
       document.fullscreenElement ||
-      (document as any).webkitFullscreenElement ||
-      (document as any).mozFullScreenElement ||
-      (document as any).msFullscreenElement
+      fullscreenDocument.webkitFullscreenElement ||
+      fullscreenDocument.mozFullScreenElement ||
+      fullscreenDocument.msFullscreenElement
     );
     
     if (useUIStore.getState().isFullscreen !== isFullscreen) {

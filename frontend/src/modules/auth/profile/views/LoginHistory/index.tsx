@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
+import { useCallback } from 'react';
 import { enUS, zhCN } from 'date-fns/locale';
 import { Badge } from '../../../../../components/ui/badge';
 import { Button } from '../../../../../components/ui/button';
@@ -8,21 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { systemNotification } from '../../../../../shared/utils/notification';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import { useThemeStore } from '../../../../../stores/themeStore';
-import { authApi } from '../../../api/authApi';
+import { authApi, type LoginHistoryResponse } from '../../../api/authApi';
 import { useProfilePreferenceSettings } from '../../hooks/useProfilePreferenceSettings';
-
-interface LoginRecord {
-  id: string;
-  username: string;
-  ip: string;
-  location: string;
-  browser: string;
-  os: string;
-  status: string;
-  message: string;
-  login_at: string;
-  logout_at?: string;
-}
 
 export function LoginHistory() {
   const { theme } = useThemeStore();
@@ -35,25 +23,29 @@ export function LoginHistory() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(Number(preferenceSettings.pageSize) || 20);
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<{ items: LoginRecord[]; pagination: { page: number; page_size: number; total: number } } | null>(null);
+  const [data, setData] = useState<LoginHistoryResponse | null>(null);
 
-  const loadLoginHistory = async () => {
+  const loadLoginHistory = useCallback(async () => {
     setLoading(true);
     try {
       const response = await authApi.getLoginHistory({ page, page_size: pageSize });
       setData(response.data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       systemNotification.error(
-        error?.response?.data?.message || (zh ? '加载登录历史失败' : 'Failed to load login history'),
+        error instanceof Error
+          ? error.message
+          : zh
+            ? '加载登录历史失败'
+            : 'Failed to load login history',
       );
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, pageSize, zh]);
 
   useEffect(() => {
     void loadLoginHistory();
-  }, [page, pageSize]);
+  }, [loadLoginHistory]);
 
   useEffect(() => {
     const nextPageSize = Number(preferenceSettings.pageSize) || 20;
@@ -75,7 +67,7 @@ export function LoginHistory() {
     }, 30000);
 
     return () => window.clearInterval(timer);
-  }, [page, pageSize, preferenceSettings.autoRefresh]);
+  }, [loadLoginHistory, preferenceSettings.autoRefresh]);
 
   const filteredHistory = useMemo(() => {
     if (!data) return [];

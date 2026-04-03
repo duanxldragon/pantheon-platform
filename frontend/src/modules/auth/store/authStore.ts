@@ -9,7 +9,7 @@ import { ApiError } from '../../../shared/utils/apiClient';
 import type { ID } from '../../system/types';
 import tenantDatabaseApi from '../../tenant/api/tenantDatabaseApi';
 import type { TenantInfo, TenantSetupStatus } from '../../tenant/types';
-import { authApi, type User as ApiUser } from '../api/authApi';
+import { authApi, type LoginResponse, type PublicAuthConfig, type User as ApiUser } from '../api/authApi';
 
 export interface UserInfo {
   id: ID;
@@ -104,26 +104,6 @@ function buildAccountLockedMessage(remainingMinutes: number): string {
   );
 }
 
-function buildMockUser(): UserInfo {
-  return {
-    id: '1' as ID,
-    username: 'admin',
-    realName: text('系统管理员', 'System Admin'),
-    email: 'admin@example.com',
-    phone: '13800138000',
-    avatar: '',
-    departmentId: '' as ID,
-    departmentName: text('研发部', 'Engineering'),
-    positionId: '' as ID,
-    positionName: text('技术负责人', 'CTO'),
-    roleIds: [],
-    roleNames: [text('超级管理员', 'Super Admin')],
-    permissions: ['*:*:*'],
-    status: 'active',
-    lastLoginTime: new Date().toISOString(),
-  };
-}
-
 function splitPermission(permission: string): PermissionTuple {
   const raw = String(permission || '').trim();
   const idx = raw.lastIndexOf(':');
@@ -173,12 +153,6 @@ function matchPermissionPattern(userPerm: string, requiredPerm: string): boolean
   if (uAct === '*' || rAct === '*') return true;
   if (!uAct || !rAct) return userPerm === requiredPerm;
   return uAct === rAct;
-}
-
-function shouldUseMockAuth(error: unknown): boolean {
-  if (!import.meta.env.DEV || import.meta.env.VITE_USE_MOCK_API !== 'true') return false;
-  if (error instanceof TypeError) return error.message.includes('fetch');
-  return error instanceof Error && error.message.includes('Network Error');
 }
 
 function buildUserInfo(apiUser: ApiUser, tenantCode?: string, currentUser?: UserInfo | null): UserInfo {
@@ -237,6 +211,15 @@ function sanitizeStoredAuthState(state: Partial<AuthState>): Partial<AuthState> 
   };
 }
 
+function sanitizePersistedPublicAuthState(state: Partial<AuthState>): Partial<AuthState> {
+  const sanitized = sanitizeStoredAuthState(state);
+  return {
+    enableMultiTenant: sanitized.enableMultiTenant,
+    loginRequiresTenantCode: sanitized.loginRequiresTenantCode,
+    enable2FA: sanitized.enable2FA,
+  };
+}
+
 function cleanupLegacyTenantState(): void {
   if (typeof window === 'undefined') {
     return;
@@ -258,7 +241,7 @@ function cleanupLegacyTenantState(): void {
       return;
     }
 
-    const sanitizedState = sanitizeStoredAuthState(parsed.state);
+    const sanitizedState = sanitizePersistedPublicAuthState(parsed.state);
     if (JSON.stringify(parsed.state) !== JSON.stringify(sanitizedState)) {
       window.localStorage.setItem(
         'auth-storage',
@@ -344,12 +327,13 @@ export const useAuthStore = create<AuthState>()(
           try {
             const resp = await authApi.getPublicConfig();
             if (resp.data) {
+              const config: PublicAuthConfig = resp.data;
               set({
-                enableMultiTenant: Boolean((resp.data as any).enable_multi_tenant),
+                enableMultiTenant: Boolean(config.enable_multi_tenant),
                 loginRequiresTenantCode: Boolean(
-                  (resp.data as any).login_requires_tenant_code ?? (resp.data as any).enable_multi_tenant,
+                  config.login_requires_tenant_code ?? config.enable_multi_tenant,
                 ),
-                enable2FA: (resp.data as any).enable_2fa ?? true,
+                enable2FA: config.enable_2fa ?? true,
               });
             }
           } catch (error) {
@@ -383,8 +367,8 @@ export const useAuthStore = create<AuthState>()(
 
             const resp = await authApi.login(payload);
 
-            if (resp.data && (resp.data as any).require_2fa) {
-              const data = resp.data as any;
+            if (resp.data?.require_2fa) {
+              const data: LoginResponse = resp.data;
               set({
                 requires2FA: true,
                 tempToken: data.temp_token,
@@ -428,28 +412,6 @@ export const useAuthStore = create<AuthState>()(
             return { success: true, requires2FA: false };
           } catch (error) {
             console.error('Login error:', error);
-            if (shouldUseMockAuth(error)) {
-              if (username === 'admin' && password === 'admin123') {
-                set({
-                  user: buildMockUser(),
-                  isAuthenticated: true,
-                  accessToken: `mock_token_${Date.now()}`,
-                  refreshToken: `mock_refresh_${Date.now()}`,
-                  tokenExpiry: Date.now() + 7200 * 1000,
-                  loginAttempts: 0,
-                  isLocked: false,
-                  lockUntil: null,
-                  isFirstLogin: false,
-                  tenantSetupRequired: false,
-                  tenantInfo: null,
-                  loginRequiresTenantCode: true,
-                });
-                useUIStore.getState().clearTabs();
-                return { success: true, requires2FA: false };
-              }
-              get().incrementLoginAttempts();
-              return { success: false };
-            }
             throw error;
           }
         },
@@ -728,23 +690,13 @@ export const useAuthStore = create<AuthState>()(
       {
         name: 'auth-storage',
         partialize: (state) => ({
-          isAuthenticated: state.isAuthenticated,
-          user: state.user,
-          accessToken: state.accessToken,
-          refreshToken: state.refreshToken,
-          tokenExpiry: state.tokenExpiry,
-          loginAttempts: state.loginAttempts,
-          isLocked: state.isLocked,
-          lockUntil: state.lockUntil,
           enableMultiTenant: state.enableMultiTenant,
           loginRequiresTenantCode: state.loginRequiresTenantCode,
-          isFirstLogin: state.isFirstLogin,
-          tenantSetupRequired: state.tenantSetupRequired,
-          tenantInfo: state.tenantInfo,
+          enable2FA: state.enable2FA,
         }),
         merge: (persistedState, currentState) => ({
           ...currentState,
-          ...sanitizeStoredAuthState((persistedState as Partial<AuthState>) || {}),
+          ...sanitizePersistedPublicAuthState((persistedState as Partial<AuthState>) || {}),
         }),
       },
     ),

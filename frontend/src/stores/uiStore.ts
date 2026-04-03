@@ -114,7 +114,7 @@ export const useUIStore = create<UIState>()(
     {
       name: 'ui-storage',
       version: STORAGE_VERSION,
-      migrate: (persistedState: any, version: number) => {
+      migrate: (persistedState: unknown, version: number) => {
         // 如果版本不匹配，重置为默认状态
         if (version !== STORAGE_VERSION) {
           return {
@@ -123,7 +123,7 @@ export const useUIStore = create<UIState>()(
             sidebarCollapsed: false,
           };
         }
-        return persistedState;
+        return persistedState as UIState;
       },
     }
   )

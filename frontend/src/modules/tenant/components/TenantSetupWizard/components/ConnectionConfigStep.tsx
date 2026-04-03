@@ -11,7 +11,11 @@ interface ConnectionConfigStepProps {
   onChange: (updates: Partial<DatabaseConnectionConfig>) => void;
 }
 
-export function ConnectionConfigStep({ databaseType, config, onChange }: ConnectionConfigStepProps) {
+export function ConnectionConfigStep({
+  databaseType,
+  config,
+  onChange,
+}: ConnectionConfigStepProps) {
   const { language } = useLanguageStore();
   const zh = language === 'zh';
   const isSqlite = databaseType === 'sqlite';
@@ -19,7 +23,9 @@ export function ConnectionConfigStep({ databaseType, config, onChange }: Connect
   return (
     <div className="animate-in slide-in-from-right-4 space-y-6 py-4 duration-500">
       <div className="mb-8 text-center">
-        <h3 className="text-lg font-bold text-slate-900">{zh ? '配置连接信息' : 'Configure Connection Settings'}</h3>
+        <h3 className="text-lg font-bold text-slate-900">
+          {zh ? '配置连接信息' : 'Configure Connection Settings'}
+        </h3>
         <p className="mt-1 text-xs text-slate-400">
           {zh
             ? '请填写租户数据库连接参数，系统将使用这些参数完成初始化和运行时接入。'
@@ -32,13 +38,22 @@ export function ConnectionConfigStep({ databaseType, config, onChange }: Connect
           <FormField
             label={zh ? '数据库文件路径' : 'Database File Path'}
             required
-            description={zh ? '适合单机或私有化轻量部署场景。' : 'Best for standalone or lightweight private deployments.'}
+            description={
+              zh
+                ? '适合单机或私有化轻量部署场景。'
+                : 'Best for standalone or lightweight private deployments.'
+            }
           >
             <div className="relative">
               <FileCode className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 value={config.filepath || ''}
-                onChange={(event) => onChange({ filepath: event.target.value, database: config.database || 'pantheon' })}
+                onChange={(event) =>
+                  onChange({
+                    filepath: event.target.value,
+                    database: config.database || 'pantheon',
+                  })
+                }
                 placeholder="/data/pantheon.db"
                 className="h-12 rounded-xl bg-white pl-9"
               />
@@ -111,6 +126,31 @@ export function ConnectionConfigStep({ databaseType, config, onChange }: Connect
                 </div>
               </FormField>
             </div>
+
+            <FormField
+              label={zh ? '管理员初始密码' : 'Admin Password'}
+              required
+              description={
+                zh
+                  ? '用于租户初始管理员账户。至少 12 位，不会在完成页面再次明文展示。'
+                  : 'Used for the initial tenant admin account. Use at least 12 characters. It will not be shown again after setup.'
+              }
+            >
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  type="password"
+                  value={config.adminPassword || ''}
+                  onChange={(event) => onChange({ adminPassword: event.target.value })}
+                  placeholder={
+                    zh
+                      ? '请输入 12 位以上的管理员密码'
+                      : 'Enter an admin password with at least 12 characters'
+                  }
+                  className="h-12 rounded-xl bg-white pl-9"
+                />
+              </div>
+            </FormField>
           </>
         )}
       </div>

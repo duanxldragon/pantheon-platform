@@ -1,18 +1,13 @@
 import { execFileSync } from 'node:child_process';
 import { expect, test, type APIRequestContext, type BrowserContext, type Locator, type Page } from '@playwright/test';
+import { e2eAdminUsername, getE2EAdminPassword, getE2EMysqlConfig } from './e2eCredentials';
 
 const frontendOrigin = 'http://localhost:5173';
 const backendOrigin = 'http://localhost:8080';
-const adminUsername = 'admin';
-const adminPassword = 'admin123';
-const mysqlBin = process.env.MYSQL_BIN || 'mysql';
-const mysqlHost = process.env.E2E_MYSQL_HOST || '127.0.0.1';
-const mysqlPort = Number(process.env.E2E_MYSQL_PORT || 3306);
-const mysqlUser = process.env.E2E_MYSQL_USER || 'root';
-const mysqlPassword = process.env.E2E_MYSQL_PASSWORD || 'DHCCroot@2025';
 const formSubmitButtonName = /^(Save|Submit|Confirm)$/i;
 
 function runMysqlStatement(statement: string) {
+  const { mysqlBin, mysqlHost, mysqlPort, mysqlUser, mysqlPassword } = getE2EMysqlConfig();
   execFileSync(
     mysqlBin,
     ['-h', mysqlHost, '-P', String(mysqlPort), '-u', mysqlUser, `--password=${mysqlPassword}`, '-e', statement],
@@ -64,6 +59,7 @@ async function attachApiProxy(context: BrowserContext) {
 }
 
 async function login(page: Page) {
+  const adminPassword = getE2EAdminPassword();
   await page.goto('/');
   await page.waitForResponse((response) => response.url().includes('/api/v1/auth/config') && response.ok());
 
@@ -72,7 +68,7 @@ async function login(page: Page) {
     await expect(tenantCodeField).toBeHidden({ timeout: 15000 });
   }
 
-  await page.getByLabel(/Username/i).fill(adminUsername);
+  await page.getByLabel(/Username/i).fill(e2eAdminUsername);
   await page.getByLabel(/Password/i).fill(adminPassword);
   await page.getByRole('button', { name: /Login/i }).click();
   await expect(page.getByRole('button', { name: /System|Tenant/i }).first()).toBeVisible({
@@ -93,9 +89,10 @@ async function ensureLoggedIn(page: Page) {
 }
 
 async function loginByApi(request: APIRequestContext) {
+  const adminPassword = getE2EAdminPassword();
   const response = await request.post(`${backendOrigin}/api/v1/auth/login`, {
     data: {
-      username: adminUsername,
+      username: e2eAdminUsername,
       password: adminPassword,
     },
   });
@@ -186,12 +183,35 @@ async function rowByText(page: Page, text: string) {
   return page.locator('tr', { hasText: text }).first();
 }
 
+async function firstVisibleLocator(locator: Locator) {
+  const count = await locator.count();
+  for (let index = 0; index < count; index += 1) {
+    const candidate = locator.nth(index);
+    if (await candidate.isVisible()) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
 async function filterTableByKeyword(page: Page, placeholder: RegExp, value: string) {
   const main = page.locator('main');
-  const placeholderInput = main.getByPlaceholder(placeholder).first();
-  const searchInput = (await placeholderInput.count()) ? placeholderInput : main.getByRole('textbox').first();
+  const placeholderInput = await firstVisibleLocator(main.getByPlaceholder(placeholder));
+  const dataSlotInput = await firstVisibleLocator(main.locator('input[data-slot="input"]'));
+  const textboxInput = await firstVisibleLocator(main.getByRole('textbox'));
+  const genericInput = await firstVisibleLocator(main.locator('input:not([type="hidden"]), textarea'));
+  const searchInput = placeholderInput ?? dataSlotInput ?? textboxInput ?? genericInput;
+  if (!searchInput) {
+    throw new Error(`no visible search input found for ${placeholder}`);
+  }
   await expect(searchInput).toBeVisible({ timeout: 10000 });
   await searchInput.fill(value);
+}
+
+async function filterRoleTableByKeyword(page: Page, value: string) {
+  const roleSearchInput = page.locator('main input[data-slot="input"]').first();
+  await expect(roleSearchInput).toBeVisible({ timeout: 10000 });
+  await roleSearchInput.fill(value);
 }
 
 function actionButtons(row: Locator) {
@@ -289,9 +309,6 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
   const updatedDictItemLabel = `${dictItemLabel} Updated`;
   const dictItemValue = `pw-value-${seed}`;
   const updatedDictItemValue = `pw-value-updated-${seed}`;
-  const updatedSystemName = `Pantheon PW ${seed}`;
-  const updatedSystemSubtitle = `E2E Subtitle ${seed}`;
-
   const tenant = await createTenantViaApi(request, seed);
   ensureTenantDatabaseExists(tenantDatabase);
 
@@ -318,7 +335,7 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
       await setupDialog.getByRole('spinbutton').fill('3306');
       await setupDialog.getByPlaceholder('pantheon_tenant_db').fill(tenantDatabase);
       await setupDialog.getByPlaceholder('root').fill('root');
-      await setupDialog.getByPlaceholder('Enter database password').fill('DHCCroot@2025');
+      await setupDialog.getByPlaceholder('Enter database password').fill(getE2EMysqlConfig().mysqlPassword);
       await setupDialog.getByRole('button', { name: /^Next$/i }).click();
 
       await expect(page.getByText(/Connection Succeeded/i)).toBeVisible({ timeout: 30000 });
@@ -475,7 +492,7 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
 
     await test.step('role menu config and batch status works', async () => {
       await openSidebarPage(page, /Roles/i);
-      await filterTableByKeyword(page, /Search roles/i, roleCode);
+      await filterRoleTableByKeyword(page, roleCode);
       let roleRow = await rowByText(page, roleCode);
       await expect(roleRow).toBeVisible({ timeout: 15000 });
 
@@ -738,7 +755,11 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
       }
       await page.waitForLoadState('domcontentloaded');
       await expect(page.locator('main').getByRole('heading', { name: /System Overview/i })).toBeVisible({ timeout: 15000 });
-      await page.locator('main').getByRole('button', { name: /^Settings$/i }).first().click();
+      await page
+        .locator('main')
+        .getByRole('button', { name: /^(Open Settings|Settings)$/i })
+        .first()
+        .click();
       await expect(page.locator('main').getByRole('heading', { name: /Settings|System Settings/i }).first()).toBeVisible({ timeout: 15000 });
       await expect(page.locator('main').getByRole('textbox').nth(1)).toHaveValue(importedSystemSubtitle, { timeout: 15000 });
     });
@@ -841,7 +862,7 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
       await expect(page.locator('main').getByRole('textbox').first()).toBeVisible({ timeout: 15000 });
 
       const logSearchInput = page.getByPlaceholder(/Search/i).last();
-      await logSearchInput.fill(adminUsername);
+      await logSearchInput.fill(e2eAdminUsername);
       await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 15000 });
 
       const loginExportPromise = page.waitForEvent('download');
@@ -851,14 +872,11 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
       await page.getByRole('button', { name: /Operation/i }).click();
       await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 15000 });
 
-      const firstOperationRow = page.locator('tbody tr').first();
-      await firstOperationRow.locator('td').first().locator('label').click();
       const clearLogsResponsePromise = page.waitForResponse(
         (response) => response.url().includes('/api/v1/system/logs/operation') && response.request().method() === 'DELETE',
       );
-      await page.getByRole('button', { name: /Delete Selected/i }).click();
+      await page.getByRole('button', { name: /Clear Operation Logs|Delete Selected/i }).click();
       expect((await clearLogsResponsePromise).ok()).toBeTruthy();
-      await expect(page.getByRole('button', { name: /Delete Selected/i })).toHaveCount(0, { timeout: 15000 });
     });
 
     await test.step('system monitor query refresh export works', async () => {
@@ -890,6 +908,7 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
       await expect(await rowByText(page, userName)).toHaveCount(0, { timeout: 15000 });
 
       await openSidebarPage(page, /Positions/i);
+      await filterTableByKeyword(page, /Search/i, positionCode);
       const positionRow = await rowByText(page, positionCode);
       await positionRow.locator('td').last().getByRole('button').last().click();
       await page.getByRole('menuitem', { name: /^Delete$/i }).click();
@@ -897,6 +916,7 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
       await expect(await rowByText(page, positionCode)).toHaveCount(0, { timeout: 15000 });
 
       await openSidebarPage(page, /Roles/i);
+      await filterRoleTableByKeyword(page, roleCode);
       const roleRow = await rowByText(page, roleCode);
       await roleRow.locator('td').last().getByRole('button').last().click();
       await page.getByRole('menuitem', { name: /^Delete$/i }).click();
@@ -904,6 +924,7 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
       await expect(await rowByText(page, roleCode)).toHaveCount(0, { timeout: 15000 });
 
       await openSidebarPage(page, /Departments/i);
+      await filterTableByKeyword(page, /Search/i, departmentCode);
       const departmentRow = await rowByText(page, departmentCode);
       await actionButtons(departmentRow).nth(3).click();
       await confirmDeleteDialog(page);

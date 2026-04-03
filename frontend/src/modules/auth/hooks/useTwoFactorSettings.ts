@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { operationNotification, systemNotification } from '../../../shared/utils/notification';
 import { useLanguageStore } from '../../../stores/languageStore';
@@ -92,16 +92,16 @@ export function useTwoFactorSettings() {
     setPasswords((current) => ({ ...current, [key]: value }));
   };
 
-  const fetch2FAStatus = async () => {
+  const fetch2FAStatus = useCallback(async () => {
     try {
       const res = await authApi.get2FAStatus();
       setTwoFactorEnabled(Boolean(res.data.enabled));
     } catch (error) {
       console.error('Failed to fetch 2FA status', error);
     }
-  };
+  }, []);
 
-  const loadDeviceSessions = async () => {
+  const loadDeviceSessions = useCallback(async () => {
     try {
       const res = await authApi.listSessions();
       setDeviceSessions((res.data.sessions || []).map((session) => mapSession(session, zh)));
@@ -109,12 +109,12 @@ export function useTwoFactorSettings() {
       console.error('Failed to load active sessions', error);
       setDeviceSessions([]);
     }
-  };
+  }, [zh]);
 
   useEffect(() => {
     void fetch2FAStatus();
     void loadDeviceSessions();
-  }, [zh]);
+  }, [fetch2FAStatus, loadDeviceSessions]);
 
   const handleToggle2FA = async (checked: boolean) => {
     if (checked) {

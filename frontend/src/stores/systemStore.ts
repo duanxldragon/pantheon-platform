@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { devtools, persist } from 'zustand/middleware';
+import { devtools } from 'zustand/middleware';
 import {
   User,
   Department,
@@ -48,10 +48,19 @@ interface SystemState {
   reset: () => void;
 }
 
+function cleanupLegacySystemState(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.removeItem('system-storage');
+}
+
+cleanupLegacySystemState();
+
 export const useSystemStore = create<SystemState>()(
   devtools(
-    persist(
-      (set, get) => ({
+    (set, _get) => ({
         users: [],
         departments: [],
         roles: [],
@@ -175,19 +184,6 @@ export const useSystemStore = create<SystemState>()(
           });
         },
       }),
-      {
-        name: 'system-storage',
-        partialize: (state) => ({
-          users: state.users,
-          departments: state.departments,
-          roles: state.roles,
-          menus: state.menus,
-          positions: state.positions,
-          operationLogs: state.operationLogs,
-          systemSettings: state.systemSettings,
-        }),
-      }
-    ),
     { name: 'SystemStore' }
   )
 );

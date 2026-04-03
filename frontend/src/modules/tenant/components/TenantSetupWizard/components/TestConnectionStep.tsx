@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { CheckCircle2, RefreshCcw, ShieldAlert, Terminal, Wifi } from 'lucide-react';
 
@@ -18,7 +18,7 @@ export function TestConnectionStep({ config, onComplete }: TestConnectionStepPro
   const [status, setStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
   const [result, setResult] = useState<TestConnectionResult | null>(null);
 
-  const handleTest = async () => {
+  const handleTest = useCallback(async () => {
     setStatus('testing');
     try {
       const response = await tenantDatabaseApi.testConnection(config);
@@ -34,11 +34,11 @@ export function TestConnectionStep({ config, onComplete }: TestConnectionStepPro
       setStatus('failed');
       onComplete(failedResult);
     }
-  };
+  }, [config, onComplete, zh]);
 
   useEffect(() => {
     void handleTest();
-  }, []);
+  }, [handleTest]);
 
   const targetLabel =
     config.databaseType === 'sqlite'

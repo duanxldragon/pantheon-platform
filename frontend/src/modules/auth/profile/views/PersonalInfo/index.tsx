@@ -66,8 +66,8 @@ export function PersonalInfo() {
       updateUser(formData);
       systemNotification.success(t.profile.messages.updateProfileSuccess);
       setEditing(false);
-    } catch (error: any) {
-      systemNotification.error(error?.message || copy.updateFailed);
+    } catch (error) {
+      systemNotification.error(error instanceof Error ? error.message : copy.updateFailed);
     } finally {
       setSaving(false);
     }
@@ -102,8 +102,8 @@ export function PersonalInfo() {
       await authApi.updateProfile({ avatar: avatarUrl });
       updateUser({ avatar: avatarUrl });
       systemNotification.success(copy.avatarUpdated);
-    } catch (error: any) {
-      systemNotification.error(error?.message || copy.avatarUploadFailed);
+    } catch (error) {
+      systemNotification.error(error instanceof Error ? error.message : copy.avatarUploadFailed);
     } finally {
       setUploadingAvatar(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

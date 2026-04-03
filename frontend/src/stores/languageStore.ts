@@ -906,6 +906,7 @@ const zhTranslations = {
   },
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Translations = Record<string, any>;
 
 const enTranslations: Translations = {
@@ -2512,7 +2513,7 @@ const zhTranslationOverrides = {
   },
 };
 
-const zhRuntimeCleanupOverrides: Record<string, unknown> = {
+const zhRuntimeCleanupOverrides = {
   common: {
     confirm: '确认',
     cancel: '取消',
@@ -3046,7 +3047,7 @@ const zhRuntimeCleanupOverrides: Record<string, unknown> = {
   },
 };
 
-const zhSystemDashboardOverrides: Record<string, unknown> = {
+const zhSystemDashboardOverrides = {
   systemManagement: {
     dashboard: {
       overviewDescription: '统一综合用户、组织、权限、菜单、日志、监控与系统配置的核心指标，用于系统管理日常巡检与快速处置。',
@@ -3163,7 +3164,29 @@ const zhSystemDashboardOverrides: Record<string, unknown> = {
   },
 };
 
-const enSystemDashboardOverrides: Record<string, unknown> = {
+const zhMenuManagementOverrides = {
+  systemManagement: {
+    menuManagement: {
+      typeAll: '全部类型',
+      typeDirectory: '目录',
+      typeMenu: '菜单',
+      typeButton: '按钮',
+      searchPlaceholder: '搜索菜单名称、路由或权限标识...',
+      typePlaceholder: '选择菜单类型',
+      statusAll: '全部状态',
+      columns: {
+        type: '类型',
+        routePermission: '路由/权限',
+        sort: '排序',
+      },
+      actions: {
+        addChild: '新增子菜单',
+      },
+    },
+  },
+};
+
+const enSystemDashboardOverrides = {
   systemManagement: {
     dashboard: {
       overviewDescription: 'Monitor the core operational state of users, roles, menus, logs, monitoring, and system settings for daily system administration.',
@@ -3280,10 +3303,34 @@ const enSystemDashboardOverrides: Record<string, unknown> = {
   },
 };
 
+const enMenuManagementOverrides = {
+  systemManagement: {
+    menuManagement: {
+      typeAll: 'All Types',
+      typeDirectory: 'Directory',
+      typeMenu: 'Menu',
+      typeButton: 'Button',
+      searchPlaceholder: 'Search menu name, route, or permission code...',
+      typePlaceholder: 'Select menu type',
+      statusAll: 'All Status',
+      columns: {
+        type: 'Type',
+        routePermission: 'Route / Permission',
+        sort: 'Sort',
+      },
+      actions: {
+        addChild: 'Add Child',
+      },
+    },
+  },
+};
+
 applyLocaleOverrides(zhTranslations as Record<string, unknown>, zhTranslationOverrides as Record<string, unknown>);
 applyLocaleOverrides(zhTranslations as Record<string, unknown>, zhRuntimeCleanupOverrides as Record<string, unknown>);
 applyLocaleOverrides(zhTranslations as Record<string, unknown>, zhSystemDashboardOverrides as Record<string, unknown>);
+applyLocaleOverrides(zhTranslations as Record<string, unknown>, zhMenuManagementOverrides as Record<string, unknown>);
 applyLocaleOverrides(enTranslations as Record<string, unknown>, enSystemDashboardOverrides as Record<string, unknown>);
+applyLocaleOverrides(enTranslations as Record<string, unknown>, enMenuManagementOverrides as Record<string, unknown>);
 
 const safeZhTranslations: Translations = zhTranslations;
 

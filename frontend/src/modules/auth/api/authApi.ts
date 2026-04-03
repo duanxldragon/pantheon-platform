@@ -49,6 +49,12 @@ export interface LoginResponse {
   user: User;
 }
 
+export interface PublicAuthConfig {
+  enable_multi_tenant: boolean;
+  login_requires_tenant_code?: boolean;
+  enable_2fa?: boolean;
+}
+
 export interface SessionInfo {
   jti: string;
   device_name: string;
@@ -115,7 +121,7 @@ export interface ValidatePasswordResponse {
 }
 
 export const authApi = {
-  getPublicConfig: () => http.get<Record<string, unknown>>('/v1/auth/config'),
+  getPublicConfig: () => http.get<PublicAuthConfig>('/v1/auth/config'),
 
   login: (data: {
     username: string;

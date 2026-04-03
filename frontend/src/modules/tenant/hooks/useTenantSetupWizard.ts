@@ -54,7 +54,9 @@ function validateConfig(config: Partial<DatabaseConnectionConfig>) {
       config.port > 0 &&
       config.database?.trim() &&
       config.username?.trim() &&
-      config.password?.trim(),
+      config.password?.trim() &&
+      config.adminPassword?.trim() &&
+      config.adminPassword.trim().length >= 12,
   );
 }
 
@@ -103,6 +105,7 @@ export function useTenantSetupWizard(options: UseTenantSetupWizardOptions = {}) 
       host: databaseType === 'sqlite' ? undefined : current.host || '',
       username: databaseType === 'sqlite' ? undefined : current.username || '',
       password: databaseType === 'sqlite' ? undefined : current.password || '',
+      adminPassword: databaseType === 'sqlite' ? undefined : current.adminPassword || '',
       filepath: databaseType === 'sqlite' ? current.filepath || '/data/pantheon.db' : undefined,
     }));
     setTestResult(null);
