@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { CheckCircle2, Download, RefreshCw, Users, XCircle } from 'lucide-react';
+import { Activity, ArrowDownUp, CheckCircle2, Download, HardDrive, RefreshCw, Users, XCircle } from 'lucide-react';
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 
@@ -8,6 +8,7 @@ import { PageLayout } from '../../../../components/layouts/PageLayout';
 import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import { Card } from '../../../../components/ui/card';
+import { Progress } from '../../../../components/ui/progress';
 import { QueryAccessBoundary } from '../../../../shared/components/QueryAccessBoundary';
 import { ManagementActionBar } from '../../../../shared/components/ui';
 import { useActionPermissionDialogGuard } from '../../../../shared/hooks/useActionPermissionDialogGuard';
@@ -45,6 +46,10 @@ function formatBytes(bytes: number): string {
   }
 
   return `${value.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+function formatRate(bytesPerSec: number): string {
+  return `${formatBytes(bytesPerSec)}/s`;
 }
 
 function downloadJson(name: string, data: unknown) {
@@ -108,6 +113,8 @@ export function SystemMonitor() {
       return;
     }
     void load();
+    const timer = setInterval(() => void load(), 10000);
+    return () => clearInterval(timer);
   }, [canQueryMonitor, load]);
 
   return (
@@ -243,6 +250,54 @@ export function SystemMonitor() {
                 {!overview?.services?.length ? (
                   <div className="py-10 text-center text-sm text-slate-500">{copy.panels.noData}</div>
                 ) : null}
+              </div>
+            </Card>
+
+            <Card className={panelCardClass}>
+              <div className="mb-4 flex items-center justify-between">
+                <div className="text-sm font-semibold text-slate-900">{copy.panels.diskAndNetwork}</div>
+              </div>
+              <div className="space-y-4">
+                {overview?.disk?.map((disk) => (
+                  <div key={disk.path} className="space-y-2 rounded-2xl border border-slate-100 bg-white/92 p-4">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <HardDrive className="h-4 w-4 text-slate-500" />
+                        <span className="font-medium text-slate-700">{disk.path}</span>
+                      </div>
+                      <span className="text-slate-400">
+                        {formatBytes(disk.used)} / {formatBytes(disk.total)}
+                      </span>
+                    </div>
+                    <Progress value={disk.used_percent} className="h-1.5" />
+                    <div className="text-right text-[10px] text-slate-400">{disk.used_percent.toFixed(1)}% {copy.panels.diskUsage}</div>
+                  </div>
+                ))}
+
+                {overview?.network && (
+                  <div className="space-y-3 rounded-2xl border border-slate-100 bg-white/92 p-4">
+                    <div className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                      <Activity className="h-4 w-4 text-blue-500" />
+                      {copy.panels.networkTraffic}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex flex-col gap-1 rounded-xl bg-slate-50 p-2">
+                        <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                          <ArrowDownUp className="h-3 w-3 text-emerald-500" /> {copy.panels.received}
+                        </span>
+                        <span className="text-xs font-semibold text-slate-700">{formatRate(overview.network.recv_rate_bps)}</span>
+                        <span className="text-[10px] text-slate-300">{formatBytes(overview.network.bytes_recv)}</span>
+                      </div>
+                      <div className="flex flex-col gap-1 rounded-xl bg-slate-50 p-2">
+                        <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                          <ArrowDownUp className="h-3 w-3 text-blue-500 rotate-180" /> {copy.panels.sent}
+                        </span>
+                        <span className="text-xs font-semibold text-slate-700">{formatRate(overview.network.sent_rate_bps)}</span>
+                        <span className="text-[10px] text-slate-300">{formatBytes(overview.network.bytes_sent)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
 

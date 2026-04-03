@@ -533,31 +533,31 @@ func setDepartmentAuditFields(ctx context.Context, fields audit.OperationFields)
 func buildDepartmentAuditSummary(action, departmentName, status string, affectedUsers int) string {
 	switch action {
 	case "create":
-		return fmt.Sprintf("\u521b\u5efa\u90e8\u95e8\u300c%s\u300d", departmentName)
+		return fmt.Sprintf("创建部门「%s」", departmentName)
 	case "delete":
-		return fmt.Sprintf("\u5220\u9664\u90e8\u95e8\u300c%s\u300d", departmentName)
+		return fmt.Sprintf("删除部门「%s」", departmentName)
 	default:
 		if affectedUsers > 0 {
-			return fmt.Sprintf("\u66f4\u65b0\u90e8\u95e8\u300c%s\u300d\uff0c\u5f71\u54cd %d \u4e2a\u7528\u6237\u5e76\u5237\u65b0\u6743\u9650", departmentName, affectedUsers)
+			return fmt.Sprintf("更新部门「%s」，影响 %d 个用户并刷新权限", departmentName, affectedUsers)
 		}
 		if status == "inactive" {
-			return fmt.Sprintf("\u66f4\u65b0\u90e8\u95e8\u300c%s\u300d\u4e3a\u505c\u7528", departmentName)
+			return fmt.Sprintf("更新部门「%s」为停用", departmentName)
 		}
-		return fmt.Sprintf("\u66f4\u65b0\u90e8\u95e8\u300c%s\u300d", departmentName)
+		return fmt.Sprintf("更新部门「%s」", departmentName)
 	}
 }
 
 func buildDepartmentAuditDetail(departmentID, departmentName string, attrs map[string]string) string {
 	parts := []string{
-		"\u90e8\u95e8ID=" + departmentID,
-		"\u90e8\u95e8\u540d\u79f0=" + departmentName,
+		"部门ID=" + departmentID,
+		"部门名称=" + departmentName,
 	}
 	for _, key := range []string{"code", "status", "previous_status", "affected_users", "refresh_strategy", "action"} {
 		if value := strings.TrimSpace(attrs[key]); value != "" {
 			parts = append(parts, key+"="+value)
 		}
 	}
-	return strings.Join(parts, "\uff1b")
+	return strings.Join(parts, "；")
 }
 
 func uniqueDepartmentUserIDs(values []string) []string {

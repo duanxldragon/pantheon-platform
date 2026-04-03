@@ -86,7 +86,7 @@ func (s *menuService) Create(ctx context.Context, req *MenuRequest) (*Menu, erro
 			Resource:     "menu",
 			ResourceID:   record.ID.String(),
 			ResourceName: record.Name,
-			Summary:      fmt.Sprintf("\u521b\u5efa\u83dc\u5355\u300c%s\u300d", record.Name),
+			Summary:      fmt.Sprintf("创建菜单「%s」", record.Name),
 			Detail: buildMenuAuditDetail(record.ID.String(), record.Name, map[string]string{
 				"path":   record.Path,
 				"type":   record.Type,
@@ -159,7 +159,7 @@ func (s *menuService) Update(ctx context.Context, id string, req *MenuRequest) (
 		ResourceID:   record.ID.String(),
 		ResourceName: record.Name,
 		Summary: fmt.Sprintf(
-			"\u66f4\u65b0\u83dc\u5355\u300c%s\u300d\uff0c\u5f71\u54cd %d \u4e2a\u89d2\u8272\u3001%d \u4e2a\u7528\u6237\u7684\u52a8\u6001\u83dc\u5355\u6743\u9650",
+			"更新菜单「%s」，影响 %d 个角色、%d 个用户的动态菜单权限",
 			record.Name,
 			len(uniqueStrings(roleIDs)),
 			len(uniqueStrings(userIDs)),
@@ -217,7 +217,7 @@ func (s *menuService) Delete(ctx context.Context, id string) error {
 		ResourceID:   record.ID.String(),
 		ResourceName: record.Name,
 		Summary: fmt.Sprintf(
-			"\u5220\u9664\u83dc\u5355\u300c%s\u300d\uff0c\u5f71\u54cd %d \u4e2a\u89d2\u8272\u3001%d \u4e2a\u7528\u6237\u7684\u52a8\u6001\u83dc\u5355\u6743\u9650",
+			"删除菜单「%s」，影响 %d 个角色、%d 个用户的动态菜单权限",
 			record.Name,
 			len(uniqueStrings(roleIDs)),
 			len(uniqueStrings(userIDs)),
@@ -613,15 +613,15 @@ func setMenuAuditFields(ctx context.Context, fields audit.OperationFields) {
 
 func buildMenuAuditDetail(menuID, menuName string, attrs map[string]string) string {
 	parts := []string{
-		"\u83dc\u5355ID=" + menuID,
-		"\u83dc\u5355\u540d\u79f0=" + menuName,
+		"菜单ID=" + menuID,
+		"菜单名称=" + menuName,
 	}
 	for _, key := range []string{"path", "type", "status", "affected_roles", "affected_users", "refresh_strategy"} {
 		if value := strings.TrimSpace(attrs[key]); value != "" {
 			parts = append(parts, key+"="+value)
 		}
 	}
-	return strings.Join(parts, "\uff1b")
+	return strings.Join(parts, "；")
 }
 
 func uniqueStrings(values []string) []string {

@@ -37,6 +37,11 @@ export interface SystemMonitorCopy {
     noData: string;
     redisAndUsers: string;
     onlineUsers: string;
+    diskAndNetwork: string;
+    diskUsage: string;
+    networkTraffic: string;
+    sent: string;
+    received: string;
   };
 }
 
@@ -47,7 +52,7 @@ const zhCopy: SystemMonitorCopy = {
   },
   page: {
     title: '系统监控',
-    description: '查看运行状态、服务健康、Redis 延迟和在线用户快照。',
+    description: '查看运行状态、服务健康、资源占用及网络流量快照。',
     refresh: '刷新',
     exportSnapshot: '导出监控快照',
   },
@@ -71,6 +76,11 @@ const zhCopy: SystemMonitorCopy = {
     noData: '暂无数据',
     redisAndUsers: 'Redis 与在线用户',
     onlineUsers: '在线用户',
+    diskAndNetwork: '存储与网络',
+    diskUsage: '磁盘占用',
+    networkTraffic: '网络流量',
+    sent: '发送',
+    received: '接收',
   },
 };
 
@@ -81,7 +91,7 @@ const enCopy: SystemMonitorCopy = {
   },
   page: {
     title: 'System Monitor',
-    description: 'Review runtime health, service checks, Redis latency, and online user snapshots.',
+    description: 'Review runtime health, service checks, resource usage, and network traffic.',
     refresh: 'Refresh',
     exportSnapshot: 'Export Snapshot',
   },
@@ -105,6 +115,11 @@ const enCopy: SystemMonitorCopy = {
     noData: 'No Data',
     redisAndUsers: 'Redis & Online Users',
     onlineUsers: 'Online Users',
+    diskAndNetwork: 'Disk & Network',
+    diskUsage: 'Disk Usage',
+    networkTraffic: 'Network Traffic',
+    sent: 'Sent',
+    received: 'Received',
   },
 };
 

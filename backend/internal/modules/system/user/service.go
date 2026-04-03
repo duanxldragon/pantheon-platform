@@ -371,7 +371,7 @@ func (s *userService) Delete(ctx context.Context, id string) error {
 			Resource:     "user",
 			ResourceID:   user.ID.String(),
 			ResourceName: user.Username,
-			Summary:      fmt.Sprintf("\u5220\u9664\u7528\u6237\u300c%s\u300d\u5e76\u5f3a\u5236\u5176\u4f1a\u8bdd\u5931\u6548", user.Username),
+			Summary:      fmt.Sprintf("删除用户「%s」并强制其会话失效", user.Username),
 			Detail:       buildUserAuditDetail(user.Username, user.RealName, nil, nil, map[string]string{"action": "delete", "status": user.Status, "session_strategy": "revoke"}),
 		})
 	}
@@ -418,8 +418,8 @@ func (s *userService) BatchDelete(ctx context.Context, userIDs []string) error {
 	setUserAuditFields(ctx, audit.OperationFields{
 		Module:   "system/users",
 		Resource: "user_batch_delete",
-		Summary:  fmt.Sprintf("\u6279\u91cf\u5220\u9664 %d \u4e2a\u7528\u6237\u5e76\u5f3a\u5236\u5931\u6548\u4f1a\u8bdd", len(deletedUsers)),
-		Detail:   "\u5220\u9664\u7528\u6237=" + strings.Join(deletedUsers, "\u3001"),
+		Summary:  fmt.Sprintf("批量删除 %d 个用户并强制失效会话", len(deletedUsers)),
+		Detail:   "删除用户=" + strings.Join(deletedUsers, "、"),
 	})
 	return nil
 }
@@ -594,7 +594,7 @@ func (s *userService) BatchUpdateStatus(ctx context.Context, req *UserStatusRequ
 	}
 	setUserAuditFields(ctx, audit.OperationFields{
 		Module: "system/users",
-		Detail: "\u7528\u6237=" + strings.Join(affectedUsers, "\u3001") + "\uff1bstatus=" + req.Status,
+		Detail: "用户=" + strings.Join(affectedUsers, "、") + "；status=" + req.Status,
 	})
 	return nil
 }
@@ -797,9 +797,9 @@ func setUserAuditFields(ctx context.Context, fields audit.OperationFields) {
 
 func buildUserCreateAuditSummary(username string, assignedRoles []*UserRoleInfo) string {
 	if len(assignedRoles) == 0 {
-		return fmt.Sprintf("\u521b\u5efa\u7528\u6237\u300c%s\u300d", username)
+		return fmt.Sprintf("创建用户「%s」", username)
 	}
-	return fmt.Sprintf("\u521b\u5efa\u7528\u6237\u300c%s\u300d\u5e76\u5206\u914d %d \u4e2a\u89d2\u8272", username, len(assignedRoles))
+	return fmt.Sprintf("创建用户「%s」并分配 %d 个角色", username, len(assignedRoles))
 }
 
 func buildUserUpdateAuditSummary(
@@ -818,14 +818,14 @@ func buildUserUpdateAuditSummary(
 	}
 	if nextStatus != nil && previousStatus != *nextStatus {
 		if *nextStatus == "active" {
-			return fmt.Sprintf("\u542f\u7528\u7528\u6237\u300c%s\u300d", username)
+			return fmt.Sprintf("启用用户「%s」", username)
 		}
-		return fmt.Sprintf("\u5c06\u7528\u6237\u300c%s\u300d\u8bbe\u7f6e\u4e3a%s\u5e76\u5f3a\u5236\u5176\u4f1a\u8bdd\u5931\u6548", username, userStatusText(*nextStatus))
+		return fmt.Sprintf("将用户「%s」设置为%s并强制其会话失效", username, userStatusText(*nextStatus))
 	}
 	if beforeDepartmentName != afterDepartmentName || beforePositionName != afterPositionName {
 		return buildUserOrgAuditSummary(username, beforeDepartmentName, afterDepartmentName, beforePositionName, afterPositionName)
 	}
-	return fmt.Sprintf("\u66f4\u65b0\u7528\u6237\u300c%s\u300d\u57fa\u7840\u4fe1\u606f", username)
+	return fmt.Sprintf("更新用户「%s」基础信息", username)
 }
 
 type roleDiff struct {
@@ -838,33 +838,33 @@ func buildUserRoleAuditSummary(username string, beforeRoles, afterRoles []*UserR
 	diff := diffRoleSets(beforeRoles, afterRoles)
 	parts := make([]string, 0, 3)
 	if len(diff.Added) > 0 {
-		parts = append(parts, fmt.Sprintf("\u65b0\u589e %d \u4e2a\u89d2\u8272", len(diff.Added)))
+		parts = append(parts, fmt.Sprintf("新增 %d 个角色", len(diff.Added)))
 	}
 	if len(diff.Removed) > 0 {
-		parts = append(parts, fmt.Sprintf("\u79fb\u9664 %d \u4e2a\u89d2\u8272", len(diff.Removed)))
+		parts = append(parts, fmt.Sprintf("移除 %d 个角色", len(diff.Removed)))
 	}
 	if len(parts) == 0 {
-		return fmt.Sprintf("\u66f4\u65b0\u7528\u6237\u300c%s\u300d\u89d2\u8272\uff0c\u89d2\u8272\u672a\u53d1\u751f\u53d8\u5316", username)
+		return fmt.Sprintf("更新用户「%s」角色，角色未发生变化", username)
 	}
-	return fmt.Sprintf("\u66f4\u65b0\u7528\u6237\u300c%s\u300d\u89d2\u8272\uff1a%s\uff0c\u5f53\u524d\u5171 %d \u4e2a\u89d2\u8272", username, strings.Join(parts, "\uff0c"), len(diff.Current))
+	return fmt.Sprintf("更新用户「%s」角色：%s，当前共 %d 个角色", username, strings.Join(parts, "，"), len(diff.Current))
 }
 
 func buildUserAuditDetail(username, realName string, beforeRoles, afterRoles []*UserRoleInfo, attrs map[string]string) string {
-	parts := []string{"\u7528\u6237\u540d=" + username}
+	parts := []string{"用户名=" + username}
 	if strings.TrimSpace(realName) != "" {
-		parts = append(parts, "\u59d3\u540d="+realName)
+		parts = append(parts, "姓名="+realName)
 	}
 
 	if beforeRoles != nil || afterRoles != nil {
 		diff := diffRoleSets(beforeRoles, afterRoles)
 		if len(diff.Added) > 0 {
-			parts = append(parts, "\u65b0\u589e\u89d2\u8272="+strings.Join(diff.Added, "\u3001"))
+			parts = append(parts, "新增角色="+strings.Join(diff.Added, "、"))
 		}
 		if len(diff.Removed) > 0 {
-			parts = append(parts, "\u79fb\u9664\u89d2\u8272="+strings.Join(diff.Removed, "\u3001"))
+			parts = append(parts, "移除角色="+strings.Join(diff.Removed, "、"))
 		}
 		if len(diff.Current) > 0 {
-			parts = append(parts, "\u5f53\u524d\u89d2\u8272="+strings.Join(diff.Current, "\u3001"))
+			parts = append(parts, "当前角色="+strings.Join(diff.Current, "、"))
 		}
 	}
 
@@ -875,17 +875,17 @@ func buildUserAuditDetail(username, realName string, beforeRoles, afterRoles []*
 	}
 
 	for _, pair := range [][2]string{
-		{"before_department", "\u539f\u90e8\u95e8"},
-		{"after_department", "\u65b0\u90e8\u95e8"},
-		{"before_position", "\u539f\u5c97\u4f4d"},
-		{"after_position", "\u65b0\u5c97\u4f4d"},
+		{"before_department", "原部门"},
+		{"after_department", "新部门"},
+		{"before_position", "原岗位"},
+		{"after_position", "新岗位"},
 	} {
 		if value := strings.TrimSpace(attrs[pair[0]]); value != "" {
 			parts = append(parts, pair[1]+"="+value)
 		}
 	}
 
-	return strings.Join(parts, "\uff1b")
+	return strings.Join(parts, "；")
 }
 
 func buildUserUpdateAttributes(
@@ -966,11 +966,11 @@ func firstNonEmptyString(values ...string) string {
 func userStatusText(status string) string {
 	switch status {
 	case "active":
-		return "\u542f\u7528"
+		return "启用"
 	case "inactive":
-		return "\u505c\u7528"
+		return "停用"
 	case "locked":
-		return "\u9501\u5b9a"
+		return "锁定"
 	default:
 		return status
 	}
@@ -981,27 +981,27 @@ func buildUserOrgAuditSummary(username, beforeDepartmentName, afterDepartmentNam
 	if beforeDepartmentName != afterDepartmentName {
 		switch {
 		case beforeDepartmentName == "" && afterDepartmentName != "":
-			parts = append(parts, fmt.Sprintf("\u52a0\u5165\u90e8\u95e8\u300c%s\u300d", afterDepartmentName))
+			parts = append(parts, fmt.Sprintf("加入部门「%s」", afterDepartmentName))
 		case beforeDepartmentName != "" && afterDepartmentName == "":
-			parts = append(parts, fmt.Sprintf("\u79fb\u51fa\u90e8\u95e8\u300c%s\u300d", beforeDepartmentName))
+			parts = append(parts, fmt.Sprintf("移出部门「%s」", beforeDepartmentName))
 		default:
-			parts = append(parts, fmt.Sprintf("\u90e8\u95e8\u7531\u300c%s\u300d\u8c03\u6574\u4e3a\u300c%s\u300d", beforeDepartmentName, afterDepartmentName))
+			parts = append(parts, fmt.Sprintf("部门由「%s」调整为「%s」", beforeDepartmentName, afterDepartmentName))
 		}
 	}
 	if beforePositionName != afterPositionName {
 		switch {
 		case beforePositionName == "" && afterPositionName != "":
-			parts = append(parts, fmt.Sprintf("\u52a0\u5165\u5c97\u4f4d\u300c%s\u300d", afterPositionName))
+			parts = append(parts, fmt.Sprintf("加入岗位「%s」", afterPositionName))
 		case beforePositionName != "" && afterPositionName == "":
-			parts = append(parts, fmt.Sprintf("\u79fb\u51fa\u5c97\u4f4d\u300c%s\u300d", beforePositionName))
+			parts = append(parts, fmt.Sprintf("移出岗位「%s」", beforePositionName))
 		default:
-			parts = append(parts, fmt.Sprintf("\u5c97\u4f4d\u7531\u300c%s\u300d\u8c03\u6574\u4e3a\u300c%s\u300d", beforePositionName, afterPositionName))
+			parts = append(parts, fmt.Sprintf("岗位由「%s」调整为「%s」", beforePositionName, afterPositionName))
 		}
 	}
 	if len(parts) == 0 {
-		return fmt.Sprintf("\u66f4\u65b0\u7528\u6237\u300c%s\u300d\u7ec4\u7ec7\u5f52\u5c5e", username)
+		return fmt.Sprintf("更新用户「%s」组织归属", username)
 	}
-	return fmt.Sprintf("\u66f4\u65b0\u7528\u6237\u300c%s\u300d\u7ec4\u7ec7\u5f52\u5c5e\uff1a%s", username, strings.Join(parts, "\uff0c"))
+	return fmt.Sprintf("更新用户「%s」组织归属：%s", username, strings.Join(parts, "，"))
 }
 
 func (s *userService) getDepartmentName(ctx context.Context, departmentID *string) string {

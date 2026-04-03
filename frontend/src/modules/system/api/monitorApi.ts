@@ -26,6 +26,21 @@ export interface MonitorMemoryStats {
   num_gc: number;
 }
 
+export interface MonitorDiskStatus {
+  path: string;
+  total: number;
+  free: number;
+  used: number;
+  used_percent: number;
+}
+
+export interface MonitorNetworkStatus {
+  bytes_sent: number;
+  bytes_recv: number;
+  sent_rate_bps: number;
+  recv_rate_bps: number;
+}
+
 export interface MonitorOverview {
   timestamp: string;
   uptime_sec: number;
@@ -33,6 +48,8 @@ export interface MonitorOverview {
   num_cpu: number;
   goroutines: number;
   memory: MonitorMemoryStats;
+  disk?: MonitorDiskStatus[];
+  network?: MonitorNetworkStatus;
   services: MonitorServiceStatus[];
   redis?: MonitorRedisStatus;
   online?: MonitorOnlineStatus;

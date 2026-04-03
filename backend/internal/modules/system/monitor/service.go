@@ -4,14 +4,22 @@ import (
 	"context"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/shirou/gopsutil/v4/disk"
+	"github.com/shirou/gopsutil/v4/net"
 	"gorm.io/gorm"
 
 	"pantheon-platform/backend/internal/shared/cache"
 )
 
-var processStartTime = time.Now()
+var (
+	processStartTime = time.Now()
+	lastNetStats     []net.IOCountersStat
+	lastNetTime      time.Time
+	netMu            sync.Mutex
+)
 
 // ServiceStatus represents the health of a backend service.
 type ServiceStatus struct {
@@ -54,6 +62,23 @@ type MemoryStats struct {
 	NumGC      uint32 `json:"num_gc" example:"12"`
 }
 
+// DiskStatus represents disk usage and I/O.
+type DiskStatus struct {
+	Path        string  `json:"path"`
+	Total       uint64  `json:"total"`
+	Free        uint64  `json:"free"`
+	Used        uint64  `json:"used"`
+	UsedPercent float64 `json:"used_percent"`
+}
+
+// NetworkStatus represents network throughput.
+type NetworkStatus struct {
+	BytesSent   uint64  `json:"bytes_sent"`
+	BytesRecv   uint64  `json:"bytes_recv"`
+	SentRateBps float64 `json:"sent_rate_bps"` // Bytes per second
+	RecvRateBps float64 `json:"recv_rate_bps"` // Bytes per second
+}
+
 // OverviewResponse is the response for the monitor overview endpoint.
 type OverviewResponse struct {
 	Timestamp   string            `json:"timestamp" example:"2026-03-30T12:00:00Z"`
@@ -62,6 +87,8 @@ type OverviewResponse struct {
 	NumCPU      int               `json:"num_cpu" example:"8"`
 	Goroutines  int               `json:"goroutines" example:"42"`
 	Memory      MemoryStats       `json:"memory"`
+	Disk        []DiskStatus      `json:"disk,omitempty"`
+	Network     *NetworkStatus    `json:"network,omitempty"`
 	Services    []ServiceStatus   `json:"services"`
 	Redis       *RedisStatus      `json:"redis,omitempty"`
 	Online      *OnlineUserStatus `json:"online,omitempty"`
@@ -115,6 +142,12 @@ func (s *monitorService) Overview(ctx context.Context) (*OverviewResponse, error
 	// Online users count
 	online := s.countOnlineSessions(ctx)
 
+	// Disk status
+	disks := s.getDiskStatus()
+
+	// Network status
+	network := s.getNetworkStatus()
+
 	return &OverviewResponse{
 		Timestamp:  time.Now().UTC().Format(time.RFC3339),
 		UptimeSec:  int64(time.Since(processStartTime).Seconds()),
@@ -129,12 +162,73 @@ func (s *monitorService) Overview(ctx context.Context) (*OverviewResponse, error
 			HeapSys:    ms.HeapSys,
 			NumGC:      ms.NumGC,
 		},
+		Disk:        disks,
+		Network:     network,
 		Services:    statuses,
 		Redis:       redisStatus,
 		Online:      online,
 		TenantID:    tenantID,
 		HasTenantDB: tenantDB != nil,
 	}, nil
+}
+
+func (s *monitorService) getDiskStatus() []DiskStatus {
+	parts, err := disk.Partitions(false)
+	if err != nil {
+		return nil
+	}
+
+	var stats []DiskStatus
+	for _, p := range parts {
+		if !isInterestingPartition(p.Mountpoint) {
+			continue
+		}
+		usage, err := disk.Usage(p.Mountpoint)
+		if err != nil {
+			continue
+		}
+		stats = append(stats, DiskStatus{
+			Path:        p.Mountpoint,
+			Total:       usage.Total,
+			Free:        usage.Free,
+			Used:        usage.Used,
+			UsedPercent: usage.UsedPercent,
+		})
+	}
+	return stats
+}
+
+func isInterestingPartition(mountpoint string) bool {
+	return mountpoint == "/" || mountpoint == "C:" || strings.Contains(mountpoint, "/data") || strings.Contains(mountpoint, "/app")
+}
+
+func (s *monitorService) getNetworkStatus() *NetworkStatus {
+	netMu.Lock()
+	defer netMu.Unlock()
+
+	current, err := net.IOCounters(false)
+	if err != nil || len(current) == 0 {
+		return nil
+	}
+
+	now := time.Now()
+	stat := &NetworkStatus{
+		BytesSent: current[0].BytesSent,
+		BytesRecv: current[0].BytesRecv,
+	}
+
+	if !lastNetTime.IsZero() && len(lastNetStats) > 0 {
+		duration := now.Sub(lastNetTime).Seconds()
+		if duration > 0 {
+			stat.SentRateBps = float64(current[0].BytesSent-lastNetStats[0].BytesSent) / duration
+			stat.RecvRateBps = float64(current[0].BytesRecv-lastNetStats[0].BytesRecv) / duration
+		}
+	}
+
+	lastNetStats = current
+	lastNetTime = now
+
+	return stat
 }
 
 func (s *monitorService) OnlineUsers(ctx context.Context) (*OnlineUserStatus, error) {

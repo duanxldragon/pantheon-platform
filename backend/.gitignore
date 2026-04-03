@@ -1,0 +1,24 @@
+# Go binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+pantheon-server
+
+# Test binaries
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Build cache
+.gocache/
+
+# Local configuration
+config.yaml
+
+# IDEs
+.idea/
+.vscode/
+*.swp

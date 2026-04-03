@@ -442,34 +442,34 @@ func setPositionAuditFields(ctx context.Context, fields audit.OperationFields) {
 func buildPositionAuditSummary(action, positionName, status string, affectedUsers int) string {
 	switch action {
 	case "create":
-		return fmt.Sprintf("\u521b\u5efa\u5c97\u4f4d\u300c%s\u300d", positionName)
+		return fmt.Sprintf("创建岗位「%s」", positionName)
 	case "delete":
 		if affectedUsers > 0 {
-			return fmt.Sprintf("\u5220\u9664\u5c97\u4f4d\u300c%s\u300d\uff0c\u5f71\u54cd %d \u4e2a\u7528\u6237\u5e76\u5237\u65b0\u6743\u9650", positionName, affectedUsers)
+			return fmt.Sprintf("删除岗位「%s」，影响 %d 个用户并刷新权限", positionName, affectedUsers)
 		}
-		return fmt.Sprintf("\u5220\u9664\u5c97\u4f4d\u300c%s\u300d", positionName)
+		return fmt.Sprintf("删除岗位「%s」", positionName)
 	default:
 		if affectedUsers > 0 {
-			return fmt.Sprintf("\u66f4\u65b0\u5c97\u4f4d\u300c%s\u300d\uff0c\u5f71\u54cd %d \u4e2a\u7528\u6237\u5e76\u5237\u65b0\u6743\u9650", positionName, affectedUsers)
+			return fmt.Sprintf("更新岗位「%s」，影响 %d 个用户并刷新权限", positionName, affectedUsers)
 		}
 		if status == "inactive" {
-			return fmt.Sprintf("\u66f4\u65b0\u5c97\u4f4d\u300c%s\u300d\u4e3a\u505c\u7528", positionName)
+			return fmt.Sprintf("更新岗位「%s」为停用", positionName)
 		}
-		return fmt.Sprintf("\u66f4\u65b0\u5c97\u4f4d\u300c%s\u300d", positionName)
+		return fmt.Sprintf("更新岗位「%s」", positionName)
 	}
 }
 
 func buildPositionAuditDetail(positionID, positionName string, attrs map[string]string) string {
 	parts := []string{
-		"\u5c97\u4f4dID=" + positionID,
-		"\u5c97\u4f4d\u540d\u79f0=" + positionName,
+		"岗位ID=" + positionID,
+		"岗位名称=" + positionName,
 	}
 	for _, key := range []string{"code", "status", "previous_status", "affected_users", "refresh_strategy", "action"} {
 		if value := strings.TrimSpace(attrs[key]); value != "" {
 			parts = append(parts, key+"="+value)
 		}
 	}
-	return strings.Join(parts, "\uff1b")
+	return strings.Join(parts, "；")
 }
 
 func uniquePositionUserIDs(values []string) []string {
