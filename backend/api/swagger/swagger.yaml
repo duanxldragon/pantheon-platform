@@ -2716,8 +2716,8 @@ definitions:
         example: GET
         type: string
       code:
-        example: system_user_list
-        maxLength: 50
+        example: system:user:view
+        maxLength: 100
         minLength: 2
         type: string
       description:
@@ -3210,6 +3210,10 @@ definitions:
         maxLength: 50
         minLength: 2
         type: string
+      data_scope:
+        example: all
+        maxLength: 255
+        type: string
       description:
         example: Built-in platform administrator role
         maxLength: 500
@@ -3243,6 +3247,9 @@ definitions:
         type: string
       created_at:
         example: "2026-03-30T10:00:00Z"
+        type: string
+      data_scope:
+        example: all
         type: string
       description:
         example: Built-in platform administrator role
@@ -3303,12 +3310,17 @@ definitions:
         example: ops_admin
         maxLength: 50
         type: string
+      data_scope:
+        example: dept
+        maxLength: 255
+        type: string
       description:
         example: Operations management role
+        maxLength: 500
         type: string
       name:
         example: Operations Admin
-        maxLength: 100
+        maxLength: 50
         type: string
       status:
         enum:
@@ -3572,6 +3584,9 @@ definitions:
     type: object
   tenant.SetupDatabaseRequest:
     properties:
+      admin_password:
+        example: Use a strong admin password
+        type: string
       conn_max_lifetime:
         example: 3600
         type: integer
@@ -3678,9 +3693,6 @@ definitions:
         type: string
       admin_username:
         example: admin
-        type: string
-      initial_password:
-        example: P@ssw0rd123
         type: string
       menu_count:
         example: 42

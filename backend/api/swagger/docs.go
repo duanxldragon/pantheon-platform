@@ -11689,9 +11689,9 @@ const docTemplate = `{
                 },
                 "code": {
                     "type": "string",
-                    "maxLength": 50,
+                    "maxLength": 100,
                     "minLength": 2,
-                    "example": "system_user_list"
+                    "example": "system:user:view"
                 },
                 "description": {
                     "type": "string",
@@ -12380,6 +12380,11 @@ const docTemplate = `{
                     "minLength": 2,
                     "example": "platform_admin"
                 },
+                "data_scope": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "all"
+                },
                 "description": {
                     "type": "string",
                     "maxLength": 500,
@@ -12419,6 +12424,10 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string",
                     "example": "2026-03-30T10:00:00Z"
+                },
+                "data_scope": {
+                    "type": "string",
+                    "example": "all"
                 },
                 "description": {
                     "type": "string",
@@ -12502,13 +12511,19 @@ const docTemplate = `{
                     "maxLength": 50,
                     "example": "ops_admin"
                 },
+                "data_scope": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "dept"
+                },
                 "description": {
                     "type": "string",
+                    "maxLength": 500,
                     "example": "Operations management role"
                 },
                 "name": {
                     "type": "string",
-                    "maxLength": 100,
+                    "maxLength": 50,
                     "example": "Operations Admin"
                 },
                 "status": {
@@ -12887,6 +12902,10 @@ const docTemplate = `{
         "tenant.SetupDatabaseRequest": {
             "type": "object",
             "properties": {
+                "admin_password": {
+                    "type": "string",
+                    "example": "Use a strong admin password"
+                },
                 "conn_max_lifetime": {
                     "type": "integer",
                     "example": 3600
@@ -13035,10 +13054,6 @@ const docTemplate = `{
                 "admin_username": {
                     "type": "string",
                     "example": "admin"
-                },
-                "initial_password": {
-                    "type": "string",
-                    "example": "P@ssw0rd123"
                 },
                 "menu_count": {
                     "type": "integer",

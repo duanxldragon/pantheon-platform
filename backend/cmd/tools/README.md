@@ -26,6 +26,8 @@ backend/cmd/tools/
   - main.go
 - setup-default-tenant/
   - main.go
+- hash-password/
+  - main.go
 - verify-conn/
   - main.go
 - internal/
@@ -91,6 +93,14 @@ Initializes the default platform tenant and wires default tenant database config
 go run ./cmd/tools/setup-default-tenant
 ```
 
+### `hash-password`
+
+Generates a bcrypt password hash for local bootstrap, demo SQL rendering, and manual seed preparation.
+
+```bash
+go run ./cmd/tools/hash-password "StrongDemoPass!2026"
+```
+
 ### `seed-system-data`
 
 Seeds baseline system module data, mainly for local demos and initial setup.
@@ -145,6 +155,7 @@ The following one-off or outdated scripts were intentionally removed:
 - These tools still assume a local development environment.
 - Some tools depend on demo or bootstrap data shape.
 - They are suitable for development, debugging, and demos, not as production operations tooling.
+- `hash-password` is intended for local setup only; do not commit generated plaintext passwords.
 
 ## Windows Note
 
