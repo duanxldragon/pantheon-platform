@@ -25,6 +25,19 @@ type Claims struct {
 
 var jwtSecret []byte
 
+func validateJWTSigningMethod(token *jwt.Token, secret []byte) (interface{}, error) {
+	if token == nil || token.Method == nil {
+		return nil, fmt.Errorf("missing signing method")
+	}
+	if token.Method.Alg() != jwt.SigningMethodHS256.Alg() {
+		return nil, fmt.Errorf("unexpected signing method: %s", token.Method.Alg())
+	}
+	if len(secret) == 0 {
+		return nil, fmt.Errorf("jwt secret is not configured")
+	}
+	return secret, nil
+}
+
 // SetJWTSecret sets the JWT secret used for token validation.
 func SetJWTSecret(secret string) {
 	jwtSecret = []byte(secret)
@@ -63,7 +76,7 @@ func Auth(redisClient *cache.RedisClient) gin.HandlerFunc {
 		}
 
 		token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-			return secret, nil
+			return validateJWTSigningMethod(token, secret)
 		})
 		if err != nil || !token.Valid {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{

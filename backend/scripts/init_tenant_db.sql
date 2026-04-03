@@ -386,8 +386,7 @@ INSERT INTO sys_roles (
 -- ========================================
 -- 17. 初始化默认管理员用户
 -- ========================================
--- 密码: admin123 (bcrypt加密)
--- 注意：执行时需要替换 {tenant_id}
+-- 注意：执行时需要替换 {tenant_id} 和 {admin_password_hash}
 INSERT INTO users (
     id,
     tenant_id,
@@ -402,7 +401,7 @@ INSERT INTO users (
     '00000000-0000-0000-0000-000000000002',
     '{tenant_id}',
     'admin',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '{admin_password_hash}',
     '系统管理员',
     'admin@pantheon-platform.com',
     'active',

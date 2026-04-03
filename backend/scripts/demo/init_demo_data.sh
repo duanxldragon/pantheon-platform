@@ -3,7 +3,7 @@
 # Pantheon Platform - Demo Data Initialization Script
 # ========================================
 # Usage:
-#   ./init_demo_data.sh [mysql_host] [mysql_user] [mysql_password]
+#   ./init_demo_data.sh [mysql_host] [mysql_user] [mysql_password] [demo_user_password]
 # ========================================
 
 set -e
@@ -17,8 +17,10 @@ NC='\033[0m'
 MYSQL_HOST="${1:-localhost}"
 MYSQL_USER="${2:-root}"
 MYSQL_PASSWORD="${3:-}"
+DEMO_USER_PASSWORD="${4:-${PANTHEON_DEMO_USER_PASSWORD:-}}"
 MASTER_DB="pantheon_master"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 declare -A TENANTS
 TENANTS[enterprise]="00000000-0000-0000-0000-000000000010:pantheon_enterprise"
@@ -91,12 +93,35 @@ execute_sql() {
     return 1
 }
 
-replace_placeholder() {
+generate_demo_password_hash() {
+    if [ -z "${DEMO_USER_PASSWORD}" ]; then
+        print_error "A demo user password is required. Pass it as the 4th argument or set PANTHEON_DEMO_USER_PASSWORD."
+        exit 1
+    fi
+
+    if ! command -v go >/dev/null 2>&1; then
+        print_error "Go is required to generate the demo password hash."
+        exit 1
+    fi
+
+    print_info "Generating bcrypt hash for demo users..."
+    DEMO_PASSWORD_HASH="$(cd "${BACKEND_DIR}" && go run ./cmd/tools/hash-password "${DEMO_USER_PASSWORD}")"
+    export DEMO_PASSWORD_HASH
+    print_success "Demo password hash generated."
+}
+
+replace_placeholders() {
     local file=$1
     local tenant_id=$2
     local temp_file="${file}.tmp"
+    local password_hash_escaped="${DEMO_PASSWORD_HASH//\\/\\\\}"
+    password_hash_escaped="${password_hash_escaped//\//\\/}"
+    password_hash_escaped="${password_hash_escaped//&/\\&}"
 
-    sed "s/{tenant_id}/${tenant_id}/g" "${file}" > "${temp_file}"
+    sed \
+        -e "s/{tenant_id}/${tenant_id}/g" \
+        -e "s/{demo_password_hash}/${password_hash_escaped}/g" \
+        "${file}" > "${temp_file}"
     echo "${temp_file}"
 }
 
@@ -224,6 +249,7 @@ main() {
     print_info "========================================"
 
     check_mysql_connection
+    generate_demo_password_hash
 
     if ! check_master_database; then
         exit 0
@@ -237,10 +263,11 @@ main() {
     print_info "========================================"
     print_success "Demo data initialization completed."
     print_info "========================================"
-    print_info "Default demo accounts:"
-    print_info "  Enterprise: zhangsan / admin123"
-    print_info "  Dev: dev_user / admin123"
-    print_info "  Demo: demo_user / admin123"
+    print_info "Demo accounts initialized:"
+    print_info "  Enterprise: zhangsan"
+    print_info "  Dev: dev_user"
+    print_info "  Demo: demo_user"
+    print_info "The demo user password was supplied at runtime and is not printed."
     print_info "========================================"
 }
 

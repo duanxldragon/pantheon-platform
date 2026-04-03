@@ -55,6 +55,11 @@ func NewTenantHandler(tenantService TenantService, tenantDatabaseService TenantD
 // @Failure 500 {object} response.ErrorDetail
 // @Router /tenants/register [post]
 func (h *TenantHandler) RegisterTenant(c *gin.Context) {
+	if strings.TrimSpace(c.GetString("user_id")) == "" {
+		response.Unauthorized(c, "USER_NOT_AUTHENTICATED", "User not authenticated")
+		return
+	}
+
 	var req CreateTenantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "INVALID_REQUEST", "Invalid request parameters")

@@ -39,7 +39,7 @@ This file also uses `{tenant_id}` placeholders.
 ### `demo_users.sql`
 
 Seeds tenant users and related associations.
-This file also uses `{tenant_id}` placeholders.
+This file uses `{tenant_id}` and `{demo_password_hash}` placeholders.
 
 ### `demo_menus_permissions.sql`
 
@@ -51,10 +51,12 @@ This is mainly used for the enterprise demo tenant.
 ### `init_demo_data.sh`
 
 Linux/macOS/WSL helper for loading the demo SQL files.
+It requires a demo user password at runtime and renders bcrypt hashes locally.
 
 ### `init_demo_data.bat`
 
 Windows helper for loading the demo SQL files.
+It also requires a demo user password at runtime and renders bcrypt hashes locally.
 
 ## Recommended Order
 
@@ -63,7 +65,8 @@ Windows helper for loading the demo SQL files.
    - `demo_departments.sql`
    - `demo_roles.sql`
    - `demo_users.sql`
-3. For the enterprise tenant, also load `demo_menus_permissions.sql`.
+3. Also replace `{demo_password_hash}` in `demo_users.sql`, or use the helper scripts to do it for you.
+4. For the enterprise tenant, also load `demo_menus_permissions.sql`.
 
 ## Tooling
 
@@ -86,4 +89,5 @@ Demo files in this directory now follow the backend-wide naming rule:
 
 - These files are for local development and demos.
 - Review the SQL before running it against a real environment.
+- Do not commit real demo passwords or rendered bcrypt hashes back into the repository.
 - The `_fixed` variants are historical compatibility files and should not be treated as the preferred baseline unless a specific scenario requires them.

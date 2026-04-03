@@ -67,6 +67,7 @@ type SetupDatabaseRequest struct {
 	Database        string `json:"database" example:"pantheon_tenant_default"`
 	Username        string `json:"username" example:"postgres"`
 	Password        string `json:"password" example:"secret123"`
+	AdminPassword   string `json:"admin_password,omitempty" example:"Use a strong admin password"`
 	FilePath        string `json:"filepath" example:"D:/data/pantheon/default.db"`
 	SSLMode         string `json:"ssl_mode" example:"disable"`
 	MaxOpenConns    int    `json:"max_open_conns" example:"20"`
@@ -95,7 +96,6 @@ type TenantBootstrapResponse struct {
 	RoleCreated     bool   `json:"role_created" example:"true"`
 	AdminUsername   string `json:"admin_username,omitempty" example:"admin"`
 	AdminEmail      string `json:"admin_email,omitempty" example:"admin@example.com"`
-	InitialPassword string `json:"initial_password,omitempty" example:"P@ssw0rd123"`
 	RoleCode        string `json:"role_code,omitempty" example:"tenant_admin"`
 	MenuCount       int    `json:"menu_count,omitempty" example:"42"`
 	PermissionCount int    `json:"permission_count,omitempty" example:"128"`

@@ -61,10 +61,13 @@ func TestRefreshTokenPreservesSessionID(t *testing.T) {
 		t.Fatalf("parse refreshed refresh token: %v", err)
 	}
 
-	if accessClaims.ID != sessionID {
-		t.Fatalf("expected refreshed access jti %s, got %s", sessionID, accessClaims.ID)
+	if accessClaims.ID == sessionID {
+		t.Fatalf("expected refreshed access jti to rotate away from %s", sessionID)
 	}
-	if refreshClaims.ID != sessionID {
-		t.Fatalf("expected refreshed refresh jti %s, got %s", sessionID, refreshClaims.ID)
+	if refreshClaims.ID == sessionID {
+		t.Fatalf("expected refreshed refresh jti to rotate away from %s", sessionID)
+	}
+	if accessClaims.ID != refreshClaims.ID {
+		t.Fatalf("expected refreshed access/refresh to share one new session id, got %s and %s", accessClaims.ID, refreshClaims.ID)
 	}
 }

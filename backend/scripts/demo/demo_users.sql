@@ -4,7 +4,7 @@
 -- 说明：此脚本用于创建演示用户数据
 -- 包含：不同状态、不同角色的用户
 -- 数据库：pantheon_tenant_{tenant_code}
--- 使用方法：替换 {tenant_id} 为实际的租户ID
+-- 使用方法：替换 {tenant_id} 和 {demo_password_hash}
 -- 字符集：utf8mb4
 -- ========================================
 
@@ -29,7 +29,7 @@ INSERT INTO system_users (
     'active',
     '00000000-0000-0000-0000-000000001010',
     '00000000-0000-0000-0000-000000007001',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '{demo_password_hash}',
     UNIX_TIMESTAMP(NOW(3)) * 1000,
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
@@ -50,7 +50,7 @@ INSERT INTO system_users (
     'active',
     '00000000-0000-0000-0000-000000001020',
     '00000000-0000-0000-0000-000000007010',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '{demo_password_hash}',
     UNIX_TIMESTAMP(NOW(3)) * 1000,
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
@@ -71,7 +71,7 @@ INSERT INTO system_users (
     'active',
     '00000000-0000-0000-0000-000000001011',
     '00000000-0000-0000-0000-000000007020',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '{demo_password_hash}',
     UNIX_TIMESTAMP(NOW(3)) * 1000,
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
@@ -92,7 +92,7 @@ INSERT INTO system_users (
     'active',
     '00000000-0000-0000-0000-000000001012',
     '00000000-0000-0000-0000-000000007030',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '{demo_password_hash}',
     UNIX_TIMESTAMP(NOW(3)) * 1000,
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
@@ -113,7 +113,7 @@ INSERT INTO system_users (
     'active',
     '00000000-0000-0000-0000-000000001013',
     '00000000-0000-0000-0000-000000007040',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '{demo_password_hash}',
     UNIX_TIMESTAMP(NOW(3)) * 1000,
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
@@ -134,7 +134,7 @@ INSERT INTO system_users (
     'active',
     '00000000-0000-0000-0000-000000001021',
     '00000000-0000-0000-0000-000000007050',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '{demo_password_hash}',
     UNIX_TIMESTAMP(NOW(3)) * 1000,
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
@@ -155,7 +155,7 @@ INSERT INTO system_users (
     'active',
     '00000000-0000-0000-0000-000000001030',
     '00000000-0000-0000-0000-000000007060',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '{demo_password_hash}',
     UNIX_TIMESTAMP(NOW(3)) * 1000,
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
@@ -176,7 +176,7 @@ INSERT INTO system_users (
     'active',
     '00000000-0000-0000-0000-000000001040',
     '00000000-0000-0000-0000-000000007070',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '{demo_password_hash}',
     UNIX_TIMESTAMP(NOW(3)) * 1000,
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
@@ -197,7 +197,7 @@ INSERT INTO system_users (
     'active',
     '00000000-0000-0000-0000-000000001050',
     '00000000-0000-0000-0000-000000007080',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '{demo_password_hash}',
     UNIX_TIMESTAMP(NOW(3)) * 1000,
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
@@ -218,7 +218,7 @@ INSERT INTO system_users (
     'locked',
     '00000000-0000-0000-0000-000000001011',
     '00000000-0000-0000-0000-000000007020',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '{demo_password_hash}',
     UNIX_TIMESTAMP(NOW(3)) * 1000,
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
@@ -239,7 +239,7 @@ INSERT INTO system_users (
     'inactive',
     '00000000-0000-0000-0000-000000001012',
     '00000000-0000-0000-0000-000000007030',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '{demo_password_hash}',
     UNIX_TIMESTAMP(NOW(3)) * 1000,
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
@@ -341,7 +341,7 @@ INSERT INTO system_users (
     'active',
     '00000000-0000-0000-0000-000000002010',
     '00000000-0000-0000-0000-000000007101',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '{demo_password_hash}',
     UNIX_TIMESTAMP(NOW(3)) * 1000,
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
@@ -362,7 +362,7 @@ INSERT INTO system_users (
     'active',
     '00000000-0000-0000-0000-000000002020',
     '00000000-0000-0000-0000-000000007102',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '{demo_password_hash}',
     UNIX_TIMESTAMP(NOW(3)) * 1000,
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
@@ -403,7 +403,7 @@ INSERT INTO system_users (
     'active',
     '00000000-0000-0000-0000-000000003001',
     '00000000-0000-0000-0000-000000007201',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '{demo_password_hash}',
     UNIX_TIMESTAMP(NOW(3)) * 1000,
     UNIX_TIMESTAMP(NOW(3)) * 1000
 );
@@ -419,7 +419,7 @@ INSERT INTO system_user_roles (id, user_id, role_id, created_at) VALUES (
 -- ========================================
 -- 初始化完成
 -- ========================================
--- 默认密码：admin123
+-- 默认密码由 {demo_password_hash} 对应的运行时密码决定
 -- 执行后请检查用户是否创建成功
 -- SELECT * FROM system_users WHERE tenant_id = '{tenant_id}';
 -- SELECT u.*, r.name as role_name FROM system_users u

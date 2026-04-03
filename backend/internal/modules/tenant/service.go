@@ -467,7 +467,7 @@ func (s *tenantDatabaseService) SetupDatabase(ctx context.Context, tenantID stri
 		}
 	}
 
-	bootstrap, err := s.bootstrapTenantDatabase(ctx, tenantRecord, tenantDB)
+	bootstrap, err := s.bootstrapTenantDatabase(ctx, tenantRecord, req, tenantDB)
 	if err != nil {
 		return nil, err
 	}
@@ -552,6 +552,7 @@ func (s *tenantDatabaseService) LoadAllTenants(ctx context.Context) error {
 func (s *tenantDatabaseService) bootstrapTenantDatabase(
 	ctx context.Context,
 	tenantRecord *Tenant,
+	req *SetupDatabaseRequest,
 	tenantDB *gorm.DB,
 ) (*TenantBootstrapResponse, error) {
 	if tenantRecord == nil || tenantDB == nil {
@@ -560,7 +561,7 @@ func (s *tenantDatabaseService) bootstrapTenantDatabase(
 
 	adminUsername := "admin"
 	adminEmail := "admin@example.com"
-	adminPassword := "admin123"
+	adminPassword := strings.TrimSpace(req.AdminPassword)
 	adminRealName := "System Admin"
 	if s.cfg != nil {
 		if value := strings.TrimSpace(s.cfg.DefaultAdmin.Username); value != "" {
@@ -569,12 +570,18 @@ func (s *tenantDatabaseService) bootstrapTenantDatabase(
 		if value := strings.TrimSpace(s.cfg.DefaultAdmin.Email); value != "" {
 			adminEmail = value
 		}
-		if value := strings.TrimSpace(s.cfg.DefaultAdmin.Password); value != "" {
+		if value := strings.TrimSpace(s.cfg.DefaultAdmin.Password); value != "" && adminPassword == "" {
 			adminPassword = value
 		}
 		if value := strings.TrimSpace(s.cfg.DefaultAdmin.RealName); value != "" {
 			adminRealName = value
 		}
+	}
+	if adminPassword == "" {
+		return nil, fmt.Errorf("default admin password is required for tenant bootstrap")
+	}
+	if len(adminPassword) < 12 {
+		return nil, fmt.Errorf("default admin password must be at least 12 characters")
 	}
 
 	result := &TenantBootstrapResponse{
@@ -659,9 +666,6 @@ func (s *tenantDatabaseService) bootstrapTenantDatabase(
 	result.AdminCreated = adminCreated
 	result.MenuCount = len(menuAssignments)
 	result.PermissionCount = len(permissionRules)
-	if adminCreated {
-		result.InitialPassword = adminPassword
-	}
 
 	return result, nil
 }

@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
+import os
+import sys
+
 import mysql.connector
 
-# Connect to MySQL
+master_db_password = os.environ.get("PANTHEON_TOOL_MASTER_DB_PASSWORD", "").strip()
+if not master_db_password:
+    print("PANTHEON_TOOL_MASTER_DB_PASSWORD is required", file=sys.stderr)
+    sys.exit(1)
+
+# Connect to MySQL using explicit environment variables instead of repo-local secrets.
 conn = mysql.connector.connect(
-    host='localhost',
-    user='root',
-    password='DHCCroot@2025',
-    database='pantheon_master'
+    host=os.environ.get("PANTHEON_TOOL_MASTER_DB_HOST", "127.0.0.1"),
+    user=os.environ.get("PANTHEON_TOOL_MASTER_DB_USER", "root"),
+    password=master_db_password,
+    database=os.environ.get("PANTHEON_TOOL_MASTER_DB_NAME", "pantheon_master"),
+    port=int(os.environ.get("PANTHEON_TOOL_MASTER_DB_PORT", "3306"))
 )
 
 cursor = conn.cursor()

@@ -362,9 +362,11 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*R
 		return nil, ErrInvalidToken
 	}
 
+	oldSessionID := claims.ID
+
 	// If Redis is configured, enforce refresh-session existence and rotation.
-	if s.redisClient != nil && claims.UserID != "" && claims.ID != "" {
-		oldKey := s.refreshSessionKey(claims.UserID, claims.ID)
+	if s.redisClient != nil && claims.UserID != "" && oldSessionID != "" {
+		oldKey := s.refreshSessionKey(claims.UserID, oldSessionID)
 		exists, err := s.redisClient.Exists(ctx, oldKey)
 		if err != nil || !exists {
 			return nil, ErrInvalidToken
@@ -372,16 +374,21 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*R
 		if revoked, err := s.isRevoked(ctx, claims); err != nil || revoked {
 			return nil, ErrInvalidToken
 		}
-		// One-time use refresh token: delete old token before issuing new ones.
+
+		// Rotate the full session pair: old refresh token becomes one-time use,
+		// and the old access token must stop working immediately after refresh.
 		_ = s.redisClient.Del(ctx, oldKey)
+		_ = s.redisClient.Del(ctx, s.accessSessionKey(claims.UserID, oldSessionID))
+
+		if claims.ExpiresAt != nil {
+			ttl := time.Until(claims.ExpiresAt.Time)
+			if ttl > 0 {
+				_ = s.redisClient.Set(ctx, fmt.Sprintf("auth:session:blacklist:%s", oldSessionID), "1", ttl)
+			}
+		}
 	}
 
-	newAccessToken, err := s.generateTokenWithJTI(claims.UserID, claims.Username, claims.TenantID, time.Duration(s.expiresIn)*time.Second, claims.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	newRefreshToken, err := s.generateTokenWithJTI(claims.UserID, claims.Username, claims.TenantID, 7*24*time.Hour, claims.ID)
+	newAccessToken, newRefreshToken, newSessionID, err := s.issueSessionTokens(claims.UserID, claims.Username, claims.TenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +399,7 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*R
 	if err := s.storeRefreshSession(ctx, newRefreshToken, 7*24*time.Hour); err != nil {
 		return nil, err
 	}
-	_ = s.refreshSessionFingerprint(ctx, claims.UserID, claims.ID)
+	_ = s.rotateSessionFingerprint(ctx, claims.UserID, oldSessionID, newSessionID)
 
 	return &RefreshTokenResponse{
 		AccessToken:  newAccessToken,
@@ -562,6 +569,12 @@ func (s *authService) issueSessionTokens(userID, username, tenantID string) (str
 
 func (s *authService) parseTokenClaims(tokenString string) (*middleware.Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &middleware.Claims{}, func(token *jwt.Token) (interface{}, error) {
+		if token == nil || token.Method == nil {
+			return nil, ErrInvalidToken
+		}
+		if token.Method.Alg() != jwt.SigningMethodHS256.Alg() {
+			return nil, ErrInvalidToken
+		}
 		return s.jwtSecret, nil
 	})
 	if err != nil {

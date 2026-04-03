@@ -209,3 +209,25 @@ func TestParseCustomScopeRuleRejectsUnsupportedField(t *testing.T) {
 		t.Fatal("expected rule validation to fail")
 	}
 }
+
+func TestCheckPermissionAllowsExactWildcardPolicyResource(t *testing.T) {
+	db := newAuthorizationServiceTestDB(t)
+	modelPath := filepath.Join("..", "..", "..", "config", "rbac_model.conf")
+
+	service, err := NewAuthorizationService(db, modelPath)
+	if err != nil {
+		t.Fatalf("new authorization service: %v", err)
+	}
+
+	ctx := context.Background()
+	if err := service.AddRoleForUser(ctx, "user-1", "role-1"); err != nil {
+		t.Fatalf("add role for user: %v", err)
+	}
+	if err := service.AddPermissionForRole(ctx, "role-1", "/api/v1/tenants/*", "*"); err != nil {
+		t.Fatalf("add wildcard policy: %v", err)
+	}
+
+	if !service.CheckPermission(ctx, "user-1", "/api/v1/tenants/*", "*") {
+		t.Fatal("expected exact wildcard permission resource to be allowed")
+	}
+}

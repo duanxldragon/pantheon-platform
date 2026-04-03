@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 	"pantheon-platform/backend/internal/shared/response"
 	"strconv"
+	"strings"
 )
 
 // AuthErrorResponse documents auth error responses.
@@ -153,11 +154,14 @@ func (h *AuthHandler) GetLoginHistory(c *gin.Context) {
 
 // GetLoginAttempts returns the login-attempt summary for an account.
 func (h *AuthHandler) GetLoginAttempts(c *gin.Context) {
-	username := c.Query("username")
-	tenantCode := c.Query("tenant_code")
+	username := strings.TrimSpace(c.Query("username"))
 
 	if username == "" {
 		response.BadRequest(c, "INVALID_REQUEST", "Username is required")
+		return
+	}
+	tenantCode, ok := h.resolveSelfAccountTenantCode(c, username, c.Query("tenant_code"))
+	if !ok {
 		return
 	}
 
@@ -240,8 +244,17 @@ func (h *AuthHandler) UnlockAccount(c *gin.Context) {
 		response.BadRequest(c, "INVALID_REQUEST", "auth.error.invalid_request_parameters")
 		return
 	}
+	req.Username = strings.TrimSpace(req.Username)
+	if req.Username == "" {
+		response.BadRequest(c, "INVALID_REQUEST", "Username is required")
+		return
+	}
+	tenantCode, ok := h.resolveSelfAccountTenantCode(c, req.Username, req.TenantCode)
+	if !ok {
+		return
+	}
 
-	if err := h.authService.UnlockAccount(c.Request.Context(), req.Username, req.TenantCode); err != nil {
+	if err := h.authService.UnlockAccount(c.Request.Context(), req.Username, tenantCode); err != nil {
 		response.InternalError(c, "UNLOCK_FAILED", err.Error())
 		return
 	}
@@ -249,6 +262,61 @@ func (h *AuthHandler) UnlockAccount(c *gin.Context) {
 	response.Success(c, gin.H{
 		"message": "Account unlocked successfully",
 	})
+}
+
+func (h *AuthHandler) ensureSelfAccountOperation(c *gin.Context, username string) bool {
+	currentUsername := strings.TrimSpace(c.GetString("username"))
+	if currentUsername == "" {
+		response.Unauthorized(c, "UNAUTHORIZED", "auth.error.unauthorized")
+		return false
+	}
+	if !strings.EqualFold(currentUsername, strings.TrimSpace(username)) {
+		response.Forbidden(c, "FORBIDDEN", "Cannot access another account")
+		return false
+	}
+	return true
+}
+
+func (h *AuthHandler) resolveSelfAccountTenantCode(c *gin.Context, username, requestedTenantCode string) (string, bool) {
+	if !h.ensureSelfAccountOperation(c, username) {
+		return "", false
+	}
+
+	requestedTenantCode = strings.TrimSpace(requestedTenantCode)
+	currentTenantID := strings.TrimSpace(c.GetString("tenant_id"))
+	if currentTenantID == "" {
+		if requestedTenantCode != "" {
+			response.Forbidden(c, "FORBIDDEN", "Cannot access another tenant")
+			return "", false
+		}
+		return "", true
+	}
+
+	userID := strings.TrimSpace(c.GetString("user_id"))
+	currentUsername := strings.TrimSpace(c.GetString("username"))
+	if userID == "" || currentUsername == "" {
+		response.Unauthorized(c, "UNAUTHORIZED", "auth.error.unauthorized")
+		return "", false
+	}
+
+	currentUser, err := h.authService.GetCurrentUser(c.Request.Context(), userID, currentUsername, currentTenantID)
+	if err != nil {
+		response.InternalError(c, "GET_CURRENT_USER_FAILED", err.Error())
+		return "", false
+	}
+
+	currentTenantCode := strings.TrimSpace(currentUser.TenantCode)
+	if currentTenantCode == "" {
+		response.Forbidden(c, "FORBIDDEN", "Current account is missing tenant scope")
+		return "", false
+	}
+
+	if requestedTenantCode != "" && !strings.EqualFold(requestedTenantCode, currentTenantCode) {
+		response.Forbidden(c, "FORBIDDEN", "Cannot access another tenant")
+		return "", false
+	}
+
+	return currentTenantCode, true
 }
 
 // GetPublicConfig returns the public authentication configuration.

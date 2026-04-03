@@ -55,6 +55,46 @@ func (s *authService) refreshSessionFingerprint(ctx context.Context, userID, ses
 	return s.redisClient.Expire(ctx, key, time.Duration(s.expiresIn)*time.Second)
 }
 
+func (s *authService) rotateSessionFingerprint(ctx context.Context, userID, oldSessionID, newSessionID string) error {
+	if s.redisClient == nil || userID == "" || oldSessionID == "" || newSessionID == "" {
+		return nil
+	}
+	if oldSessionID == newSessionID {
+		return s.refreshSessionFingerprint(ctx, userID, newSessionID)
+	}
+
+	oldKey := fmt.Sprintf("auth:session:device:%s:%s", userID, oldSessionID)
+	newKey := fmt.Sprintf("auth:session:device:%s:%s", userID, newSessionID)
+
+	existing, err := s.redisClient.HGetAll(ctx, oldKey)
+	if err != nil || len(existing) == 0 {
+		return nil
+	}
+
+	loginAt := existing["login_at"]
+	if loginAt == "" {
+		loginAt = fmt.Sprintf("%d", time.Now().Unix())
+	}
+
+	if err := s.redisClient.HSet(ctx, newKey, "device_name", truncateString(existing["device_name"], 128)); err != nil {
+		return err
+	}
+	if err := s.redisClient.HSet(ctx, newKey, "ip", existing["ip"]); err != nil {
+		return err
+	}
+	if err := s.redisClient.HSet(ctx, newKey, "login_at", loginAt); err != nil {
+		return err
+	}
+	if err := s.redisClient.HSet(ctx, newKey, "last_active", fmt.Sprintf("%d", time.Now().Unix())); err != nil {
+		return err
+	}
+	if err := s.redisClient.Expire(ctx, newKey, time.Duration(s.expiresIn)*time.Second); err != nil {
+		return err
+	}
+
+	return s.redisClient.Del(ctx, oldKey)
+}
+
 // ListActiveSessions returns all active sessions for a user.
 func (s *authService) ListActiveSessions(ctx context.Context, userID, currentJTI string) (*ActiveSessionsResponse, error) {
 	resp := &ActiveSessionsResponse{

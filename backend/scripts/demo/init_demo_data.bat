@@ -3,7 +3,7 @@ REM ========================================
 REM Pantheon Platform - Demo Data Initialization Script (Windows)
 REM ========================================
 REM Usage:
-REM   init_demo_data.bat [mysql_host] [mysql_user] [mysql_password]
+REM   init_demo_data.bat [mysql_host] [mysql_user] [mysql_password] [demo_user_password]
 REM ========================================
 
 setlocal enabledelayedexpansion
@@ -15,6 +15,8 @@ set MYSQL_USER=%2
 if "%MYSQL_USER%"=="" set MYSQL_USER=root
 
 set MYSQL_PASSWORD=%3
+set DEMO_USER_PASSWORD=%4
+if "%DEMO_USER_PASSWORD%"=="" set DEMO_USER_PASSWORD=%PANTHEON_DEMO_USER_PASSWORD%
 set MASTER_DB=pantheon_master
 set SCRIPT_DIR=%~dp0
 
@@ -26,6 +28,25 @@ echo MySQL User: %MYSQL_USER%
 echo Master Database: %MASTER_DB%
 echo Script Directory: %SCRIPT_DIR%
 echo ========================================
+
+if "%DEMO_USER_PASSWORD%"=="" (
+    echo [ERROR] A demo user password is required. Pass it as the 4th argument or set PANTHEON_DEMO_USER_PASSWORD.
+    exit /b 1
+)
+
+where go >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Go is required to generate the demo password hash.
+    exit /b 1
+)
+
+echo [INFO] Generating bcrypt hash for demo users...
+for /f "delims=" %%i in ('pushd "%SCRIPT_DIR%..\.." ^>nul ^& go run ./cmd/tools/hash-password "%DEMO_USER_PASSWORD%" ^& popd ^>nul') do set DEMO_PASSWORD_HASH=%%i
+if not defined DEMO_PASSWORD_HASH (
+    echo [ERROR] Failed to generate the demo password hash.
+    exit /b 1
+)
+echo [SUCCESS] Demo password hash generated.
 
 set MYSQL_CMD=mysql -h %MYSQL_HOST% -u %MYSQL_USER%
 if not "%MYSQL_PASSWORD%"=="" (
@@ -83,22 +104,22 @@ if errorlevel 1 (
         echo [WARNING] PowerShell is not available. Placeholder replacement was skipped.
     ) else (
         echo [INFO] Running: department seed data
-        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_departments.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000010' | Set-Content '%SCRIPT_DIR%demo_departments.enterprise.tmp.sql'"
+        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_departments.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000010' | Set-Content -Encoding utf8 '%SCRIPT_DIR%demo_departments.enterprise.tmp.sql'"
         %MYSQL_CMD% pantheon_enterprise < "%SCRIPT_DIR%demo_departments.enterprise.tmp.sql"
         del "%SCRIPT_DIR%demo_departments.enterprise.tmp.sql"
 
         echo [INFO] Running: role seed data
-        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_roles.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000010' | Set-Content '%SCRIPT_DIR%demo_roles.enterprise.tmp.sql'"
+        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_roles.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000010' | Set-Content -Encoding utf8 '%SCRIPT_DIR%demo_roles.enterprise.tmp.sql'"
         %MYSQL_CMD% pantheon_enterprise < "%SCRIPT_DIR%demo_roles.enterprise.tmp.sql"
         del "%SCRIPT_DIR%demo_roles.enterprise.tmp.sql"
 
         echo [INFO] Running: user seed data
-        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_users.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000010' | Set-Content '%SCRIPT_DIR%demo_users.enterprise.tmp.sql'"
+        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_users.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000010' -replace '{demo_password_hash}', '%DEMO_PASSWORD_HASH%' | Set-Content -Encoding utf8 '%SCRIPT_DIR%demo_users.enterprise.tmp.sql'"
         %MYSQL_CMD% pantheon_enterprise < "%SCRIPT_DIR%demo_users.enterprise.tmp.sql"
         del "%SCRIPT_DIR%demo_users.enterprise.tmp.sql"
 
         echo [INFO] Running: menu and permission seed data
-        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_menus_permissions.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000010' | Set-Content '%SCRIPT_DIR%demo_menus_permissions.enterprise.tmp.sql'"
+        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_menus_permissions.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000010' | Set-Content -Encoding utf8 '%SCRIPT_DIR%demo_menus_permissions.enterprise.tmp.sql'"
         %MYSQL_CMD% pantheon_enterprise < "%SCRIPT_DIR%demo_menus_permissions.enterprise.tmp.sql"
         del "%SCRIPT_DIR%demo_menus_permissions.enterprise.tmp.sql"
 
@@ -121,15 +142,15 @@ if errorlevel 1 (
     if errorlevel 1 (
         echo [WARNING] PowerShell is not available. Placeholder replacement was skipped.
     ) else (
-        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_departments.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000020' | Set-Content '%SCRIPT_DIR%demo_departments.dev.tmp.sql'"
+        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_departments.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000020' | Set-Content -Encoding utf8 '%SCRIPT_DIR%demo_departments.dev.tmp.sql'"
         %MYSQL_CMD% pantheon_dev < "%SCRIPT_DIR%demo_departments.dev.tmp.sql"
         del "%SCRIPT_DIR%demo_departments.dev.tmp.sql"
 
-        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_roles.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000020' | Set-Content '%SCRIPT_DIR%demo_roles.dev.tmp.sql'"
+        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_roles.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000020' | Set-Content -Encoding utf8 '%SCRIPT_DIR%demo_roles.dev.tmp.sql'"
         %MYSQL_CMD% pantheon_dev < "%SCRIPT_DIR%demo_roles.dev.tmp.sql"
         del "%SCRIPT_DIR%demo_roles.dev.tmp.sql"
 
-        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_users.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000020' | Set-Content '%SCRIPT_DIR%demo_users.dev.tmp.sql'"
+        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_users.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000020' -replace '{demo_password_hash}', '%DEMO_PASSWORD_HASH%' | Set-Content -Encoding utf8 '%SCRIPT_DIR%demo_users.dev.tmp.sql'"
         %MYSQL_CMD% pantheon_dev < "%SCRIPT_DIR%demo_users.dev.tmp.sql"
         del "%SCRIPT_DIR%demo_users.dev.tmp.sql"
 
@@ -152,15 +173,15 @@ if errorlevel 1 (
     if errorlevel 1 (
         echo [WARNING] PowerShell is not available. Placeholder replacement was skipped.
     ) else (
-        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_departments.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000030' | Set-Content '%SCRIPT_DIR%demo_departments.demo.tmp.sql'"
+        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_departments.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000030' | Set-Content -Encoding utf8 '%SCRIPT_DIR%demo_departments.demo.tmp.sql'"
         %MYSQL_CMD% pantheon_demo < "%SCRIPT_DIR%demo_departments.demo.tmp.sql"
         del "%SCRIPT_DIR%demo_departments.demo.tmp.sql"
 
-        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_roles.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000030' | Set-Content '%SCRIPT_DIR%demo_roles.demo.tmp.sql'"
+        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_roles.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000030' | Set-Content -Encoding utf8 '%SCRIPT_DIR%demo_roles.demo.tmp.sql'"
         %MYSQL_CMD% pantheon_demo < "%SCRIPT_DIR%demo_roles.demo.tmp.sql"
         del "%SCRIPT_DIR%demo_roles.demo.tmp.sql"
 
-        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_users.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000030' | Set-Content '%SCRIPT_DIR%demo_users.demo.tmp.sql'"
+        powershell -Command "(Get-Content '%SCRIPT_DIR%demo_users.sql') -replace '{tenant_id}', '00000000-0000-0000-0000-000000000030' -replace '{demo_password_hash}', '%DEMO_PASSWORD_HASH%' | Set-Content -Encoding utf8 '%SCRIPT_DIR%demo_users.demo.tmp.sql'"
         %MYSQL_CMD% pantheon_demo < "%SCRIPT_DIR%demo_users.demo.tmp.sql"
         del "%SCRIPT_DIR%demo_users.demo.tmp.sql"
 
@@ -210,10 +231,11 @@ echo [SUCCESS] Demo data verification completed.
 echo ========================================
 echo [SUCCESS] Demo data initialization completed.
 echo ========================================
-echo Default demo accounts:
-echo   Enterprise: zhangsan / admin123
-echo   Dev: dev_user / admin123
-echo   Demo: demo_user / admin123
+echo Demo accounts initialized:
+echo   Enterprise: zhangsan
+echo   Dev: dev_user
+echo   Demo: demo_user
+echo The demo user password was supplied at runtime and is not printed.
 echo ========================================
 
 endlocal

@@ -17,18 +17,18 @@ func NewTenantRouter(handler *TenantHandler) *TenantRouter {
 }
 
 // RegisterRoutes registers tenant routes on the engine.
-func (r *TenantRouter) RegisterRoutes(router *gin.Engine, authMiddleware gin.HandlerFunc) {
-	r.registerRoutes(router.Group("/api/v1/tenants"), authMiddleware)
+func (r *TenantRouter) RegisterRoutes(router *gin.Engine, authMiddleware, tenantMiddleware gin.HandlerFunc) {
+	r.registerRoutes(router.Group("/api/v1/tenants"), authMiddleware, tenantMiddleware)
 }
 
-func (r *TenantRouter) registerRoutes(tenant *gin.RouterGroup, authMiddleware gin.HandlerFunc) {
+func (r *TenantRouter) registerRoutes(tenant *gin.RouterGroup, authMiddleware, tenantMiddleware gin.HandlerFunc) {
 	{
-		tenant.POST("/register", r.handler.RegisterTenant)
 		tenant.GET("/status", r.handler.GetStatus)
 
 		protected := tenant.Group("")
-		protected.Use(authMiddleware)
+		protected.Use(authMiddleware, tenantMiddleware)
 		{
+			protected.POST("/register", middleware.RequirePermission("/api/v1/tenants/*", "*"), r.handler.RegisterTenant)
 			protected.POST("/test-connection", middleware.RequirePermission("/api/v1/tenants/*", "*"), r.handler.TestConnection)
 			protected.POST("/setup", middleware.RequirePermission("/api/v1/tenants/*", "*"), r.handler.SetupDatabase)
 			protected.POST("/:id/setup", middleware.RequirePermission("/api/v1/tenants/*", "*"), r.handler.SetupDatabaseForTenant)
