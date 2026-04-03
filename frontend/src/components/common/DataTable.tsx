@@ -21,7 +21,7 @@ interface DataTableProps<T> {
   rowKey: (item: T) => string | number;
 }
 
-export function DataTable<T>({ columns, data, rowKey }: DataTableProps<T>) {
+export function DataTable<T extends object>({ columns, data, rowKey }: DataTableProps<T>) {
   return (
     <Table>
       <TableHeader>
@@ -46,7 +46,7 @@ export function DataTable<T>({ columns, data, rowKey }: DataTableProps<T>) {
               >
                 {column.render 
                   ? column.render(item) 
-                  : (item as any)[column.key]}
+                  : String((item as Record<string, unknown>)[column.key] ?? '')}
               </TableCell>
             ))}
           </TableRow>

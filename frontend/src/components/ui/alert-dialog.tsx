@@ -4,7 +4,7 @@ import * as React from "react";
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 
 import { cn } from "./utils";
-import { buttonVariants } from "./button";
+import { buttonVariants } from "./buttonVariants";
 
 const AlertDialog = AlertDialogPrimitive.Root;
 
@@ -37,7 +37,7 @@ const AlertDialogContent = React.forwardRef<
       <AlertDialogPrimitive.Content
         ref={ref}
         className={cn(
-          "pointer-events-auto relative grid max-h-[calc(100vh-2rem)] w-full max-w-[calc(100%-2rem)] gap-4 rounded-2xl border border-slate-200/80 bg-white p-6 text-slate-950 shadow-2xl duration-200 dark:border-slate-800/80 dark:bg-slate-950 dark:text-slate-50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:max-w-[448px]",
+          "pointer-events-auto relative grid max-h-[calc(100vh-2rem)] w-full max-w-[calc(100%-2rem)] gap-4 overflow-hidden rounded-[28px] border border-slate-200/80 bg-white p-6 text-slate-950 shadow-2xl duration-200 dark:border-slate-800/80 dark:bg-slate-950 dark:text-slate-50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:max-w-[448px]",
           className,
         )}
         {...props}

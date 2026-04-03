@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useLanguageStore } from '@/stores/languageStore';
+import type { AppTranslations } from '@/stores/languageStore';
 import type { NotificationViewItem, NotificationViewStatus } from '../../types';
 
 interface NotificationListProps {
@@ -32,14 +33,14 @@ interface NotificationListProps {
   onNotificationClick: (notification: NotificationViewItem) => void;
 }
 
-const statusLabel = (status: NotificationViewStatus, t: any) => {
+const statusLabel = (status: NotificationViewStatus, t: AppTranslations) => {
   if (status === 'sent') {
     return t.notification.sent;
   }
   return status === 'read' ? t.notification.read : t.notification.unread;
 };
 
-const channelLabel = (channel: NotificationViewItem['channel'], t: any) => {
+const channelLabel = (channel: NotificationViewItem['channel'], t: AppTranslations) => {
   switch (channel) {
     case 'system':
       return t.notification.channelSystem;

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
   AlertCircle,
@@ -22,7 +22,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { notification as toastNotification } from '@/shared/utils/notification';
 import { useLanguageStore } from '@/stores/languageStore';
-import { notificationApi, type Notification } from '../api/notificationApi';
+import {
+  notificationApi,
+  type Notification,
+  type NotificationInbox,
+  type NotificationTemplate,
+} from '../api/notificationApi';
 import type { NotificationViewItem } from '../types';
 import { NotificationDetail } from './components/NotificationDetail';
 import { NotificationList } from './components/NotificationList';
@@ -60,7 +65,7 @@ export function NotificationCenter() {
   const [notifications, setNotifications] = useState<NotificationViewItem[]>([]);
   const [selectedNotification, setSelectedNotification] = useState<NotificationViewItem | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [templates, setTemplates] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
   const [stats, setStats] = useState(defaultStats);
   const [loading, setLoading] = useState(false);
 
@@ -69,7 +74,7 @@ export function NotificationCenter() {
     [notifications],
   );
 
-  const mapInboxItem = (item: any): NotificationViewItem => {
+  const mapInboxItem = useCallback((item: NotificationInbox): NotificationViewItem => {
     const base = item.notification as Notification | undefined;
     return {
       inboxId: item.id,
@@ -88,9 +93,9 @@ export function NotificationCenter() {
       senderId: base?.senderId,
       tenantId: base?.tenantId,
     };
-  };
+  }, [copy.defaultTitle]);
 
-  const mapSentNotification = (item: Notification): NotificationViewItem => ({
+  const mapSentNotification = useCallback((item: Notification): NotificationViewItem => ({
     inboxId: item.id,
     notificationId: item.id,
     title: item.title,
@@ -105,23 +110,9 @@ export function NotificationCenter() {
     senderId: item.senderId,
     tenantId: item.tenantId,
     isSentView: true,
-  });
+  }), []);
 
-  const handleTabChange = (tab: 'notifications' | 'templates') => {
-    setActiveTab(tab);
-    if (tab === 'notifications') {
-      void loadNotifications(filter);
-      return;
-    }
-    void loadTemplates();
-  };
-
-  const handleFilterChange = (nextFilter: NotificationFilter) => {
-    setFilter(nextFilter);
-    void loadNotifications(nextFilter);
-  };
-
-  const loadUnreadCount = async () => {
+  const loadUnreadCount = useCallback(async () => {
     try {
       const count = await notificationApi.getUnreadCount();
       if (viewMode === 'inbox') {
@@ -130,9 +121,9 @@ export function NotificationCenter() {
     } catch (error) {
       console.error('Failed to load unread count:', error);
     }
-  };
+  }, [viewMode]);
 
-  const loadNotifications = async (currentFilter: NotificationFilter = filter) => {
+  const loadNotifications = useCallback(async (currentFilter: NotificationFilter = filter) => {
     try {
       if (currentFilter === 'sent') {
         setViewMode('sent');
@@ -157,9 +148,9 @@ export function NotificationCenter() {
       console.error('Failed to load notifications:', error);
       toastNotification.error(copy.loadNotificationsFailed);
     }
-  };
+  }, [copy.loadNotificationsFailed, filter, mapInboxItem, mapSentNotification]);
 
-  const loadTemplates = async () => {
+  const loadTemplates = useCallback(async () => {
     try {
       const { items } = await notificationApi.listTemplates();
       setTemplates(items);
@@ -167,9 +158,9 @@ export function NotificationCenter() {
       console.error('Failed to load templates:', error);
       toastNotification.error(copy.loadTemplatesFailed);
     }
-  };
+  }, [copy.loadTemplatesFailed]);
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try {
       const statsData = await notificationApi.getStats();
       setStats({
@@ -185,7 +176,21 @@ export function NotificationCenter() {
     } catch (error) {
       console.error('Failed to load stats:', error);
     }
-  };
+  }, [viewMode]);
+
+  const handleTabChange = useCallback((tab: 'notifications' | 'templates') => {
+    setActiveTab(tab);
+    if (tab === 'notifications') {
+      void loadNotifications(filter);
+      return;
+    }
+    void loadTemplates();
+  }, [filter, loadNotifications, loadTemplates]);
+
+  const handleFilterChange = useCallback((nextFilter: NotificationFilter) => {
+    setFilter(nextFilter);
+    void loadNotifications(nextFilter);
+  }, [loadNotifications]);
 
   const handleMarkAsRead = async (ids: string[]) => {
     if (viewMode !== 'inbox' || ids.length === 0) {
@@ -283,7 +288,7 @@ export function NotificationCenter() {
     };
 
     void initData();
-  }, []);
+  }, [loadNotifications, loadStats, loadUnreadCount]);
 
   const channelLabel = (channel: string) => {
     switch (channel) {

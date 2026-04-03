@@ -104,12 +104,14 @@ ${colorConfig
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
 
+type ChartPayloadRecord = Record<string, unknown>;
+
 type ChartTooltipPayloadItem = {
   color?: string;
   dataKey?: string | number;
   name?: string;
   value?: number | string;
-  payload?: Record<string, any>;
+  payload?: ChartPayloadRecord;
 };
 
 type ChartTooltipContentProps = React.ComponentProps<"div"> & {
@@ -122,7 +124,7 @@ type ChartTooltipContentProps = React.ComponentProps<"div"> & {
     name: string,
     item: ChartTooltipPayloadItem,
     index: number,
-    payload: Record<string, any>,
+    payload: ChartPayloadRecord,
   ) => React.ReactNode;
   color?: string;
   hideLabel?: boolean;
@@ -204,7 +206,8 @@ function ChartTooltipContent({
         {payload.map((item, index) => {
           const key = `${nameKey || item.name || item.dataKey || "value"}`;
           const itemConfig = getPayloadConfigFromPayload(config, item, key);
-          const indicatorColor = color || item.payload.fill || item.color;
+          const indicatorColor =
+            color || getStringValue(item.payload, "fill") || item.color;
 
           return (
             <div
@@ -276,8 +279,16 @@ type ChartLegendPayloadItem = {
   color?: string;
   dataKey?: string | number;
   value?: string;
-  payload?: Record<string, any>;
+  payload?: ChartPayloadRecord;
 };
+
+function getStringValue(
+  record: ChartPayloadRecord | undefined,
+  key: string,
+): string | undefined {
+  const value = record?.[key];
+  return typeof value === "string" ? value : undefined;
+}
 
 function ChartLegendContent({
   className,

@@ -15,7 +15,7 @@ import {
 
 import { useAuthStore } from '../modules/auth/store/authStore';
 import { notificationApi } from '../modules/notification/api/notificationApi';
-import { useViewManager } from '../shared/components/ViewManager';
+import { useViewManager } from '../shared/components/useViewManager';
 import { systemNotification } from '../shared/utils/notification';
 import { useLanguageStore } from '../stores/languageStore';
 import { themes, ThemeType, useThemeStore } from '../stores/themeStore';

@@ -26,6 +26,7 @@ import { useAuthStore } from '../modules/auth/store/authStore';
 import type { Menu as SystemMenu } from '../modules/system/types';
 import { getMenuLabel, inferMenuViewId, getViewConfig, getViewConfigByComponent, inferMenuComponent } from '../shared/constants/viewsConfig';
 import { useLanguageStore } from '../stores/languageStore';
+import type { AppTranslations } from '../stores/languageStore';
 import { useSystemStore } from '../stores/systemStore';
 import { useThemeStore } from '../stores/themeStore';
 import { useUIStore } from '../stores/uiStore';
@@ -113,7 +114,7 @@ function ensureSystemChildOrder(children: NavItem[]): NavItem[] {
 function normalizeSystemMenus(
   items: NavItem[],
   hasPermission: (permission: string | readonly string[]) => boolean,
-  t: any,
+  t: AppTranslations,
 ): NavItem[] {
   const systemItem = items.find((item) => item.group === 'system' || item.id === SYSTEM_GROUP_ID);
   if (!systemItem) {
@@ -158,7 +159,7 @@ function buildTree(
   menus: SystemMenu[],
   hasPermission: (permission: string | readonly string[]) => boolean,
   language: string,
-  t: any,
+  t: AppTranslations,
 ): NavItem[] {
   const visibleMenus = menus
     .filter((menu) => menu.status === 'active' && menu.visible !== false && menu.type !== 'button')

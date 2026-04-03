@@ -1,6 +1,7 @@
 import * as React from "react";
 import { cn } from "./utils";
-import { Button, buttonVariants } from "./button";
+import { Button } from "./button";
+import { buttonVariants } from "./buttonVariants";
 
 const ChevronLeft = ({ className, ...props }: React.ComponentProps<"svg">) => (
   <svg
