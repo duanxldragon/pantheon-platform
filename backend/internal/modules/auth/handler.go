@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"pantheon-platform/backend/internal/shared/middleware"
 	"pantheon-platform/backend/internal/shared/response"
 	"strconv"
 )
@@ -153,11 +154,25 @@ func (h *AuthHandler) GetLoginHistory(c *gin.Context) {
 
 // GetLoginAttempts returns the login-attempt summary for an account.
 func (h *AuthHandler) GetLoginAttempts(c *gin.Context) {
+	currentUsername := c.GetString("username")
+	currentUserID := c.GetString("user_id")
+	if currentUsername == "" {
+		response.Unauthorized(c, "UNAUTHORIZED", "auth.error.unauthorized")
+		return
+	}
+
 	username := c.Query("username")
 	tenantCode := c.Query("tenant_code")
 
 	if username == "" {
-		response.BadRequest(c, "INVALID_REQUEST", "Username is required")
+		username = currentUsername
+	}
+	canViewOthers := middleware.GlobalAuthService != nil &&
+		currentUserID != "" &&
+		middleware.GlobalAuthService.CheckPermission(c.Request.Context(), currentUserID, "/api/v1/auth/attempts", "GET")
+
+	if username != currentUsername && !canViewOthers {
+		response.Forbidden(c, "FORBIDDEN", "Can only query current account login attempts")
 		return
 	}
 
@@ -235,9 +250,27 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 
 // UnlockAccount clears the lock state for an account.
 func (h *AuthHandler) UnlockAccount(c *gin.Context) {
+	currentUsername := c.GetString("username")
+	currentUserID := c.GetString("user_id")
+	if currentUsername == "" {
+		response.Unauthorized(c, "UNAUTHORIZED", "auth.error.unauthorized")
+		return
+	}
+
 	var req UnlockAccountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "INVALID_REQUEST", "auth.error.invalid_request_parameters")
+		return
+	}
+	if req.Username == "" {
+		req.Username = currentUsername
+	}
+	canUnlockOthers := middleware.GlobalAuthService != nil &&
+		currentUserID != "" &&
+		middleware.GlobalAuthService.CheckPermission(c.Request.Context(), currentUserID, "/api/v1/auth/unlock", "POST")
+
+	if req.Username != currentUsername && !canUnlockOthers {
+		response.Forbidden(c, "FORBIDDEN", "Can only unlock current account")
 		return
 	}
 

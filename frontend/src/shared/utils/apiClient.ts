@@ -98,12 +98,13 @@ export class ApiClient {
       }
 
       if (!config.skipCSRF && ['POST', 'PUT', 'DELETE', 'PATCH'].includes((config.method || 'GET').toUpperCase())) {
-        const csrfToken = CSRFTokenManager.getToken() || CSRFTokenManager.generateToken();
-        void csrfToken;
-        config.headers = {
-          ...config.headers,
-          ...CSRFTokenManager.getTokenHeader(),
-        };
+        const csrfToken = await CSRFTokenManager.ensureToken();
+        if (csrfToken) {
+          config.headers = {
+            ...config.headers,
+            ...CSRFTokenManager.getTokenHeader(),
+          };
+        }
       }
 
       const isFormData = typeof FormData !== 'undefined' && config.body instanceof FormData;
@@ -145,6 +146,19 @@ export class ApiClient {
     const errorPayload = await this.readErrorPayload(response);
     const errorCode = errorPayload?.code || '';
     const errorMessage = errorPayload?.message || text('未授权，请重新登录', 'Unauthorized, please sign in again');
+
+    if (errorCode === 'INVALID_CSRF_TOKEN') {
+      const token = await CSRFTokenManager.fetchNewToken();
+      if (token) {
+        return fetch(response.url, {
+          ...config,
+          headers: {
+            ...config.headers,
+            ...CSRFTokenManager.getTokenHeader(),
+          },
+        });
+      }
+    }
 
     if (errorCode === 'SESSION_EXPIRED' || errorCode === 'SESSION_REVOKED') {
       authStore.logout();

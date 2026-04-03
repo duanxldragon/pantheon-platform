@@ -44,7 +44,7 @@ export function convertToCSV(
     }).join(',');
   });
 
-  return [headerRow, ...dataRows].join('\n');
+  return [headerRow, ...dataRows].join('\r\n');
 }
 
 /**
@@ -117,7 +117,7 @@ export function generateCSVTemplate(config: CSVTemplateConfig): string {
     escapeCSVField(h.description ? `(${h.description})` : '')
   ).join(',');
   
-  return [headerRow, exampleRow, descriptionRow].join('\n');
+  return [headerRow, exampleRow, descriptionRow].join('\r\n');
 }
 
 /**
@@ -137,24 +137,63 @@ export function parseCSV(
   csvText: string,
   headers: { key: string; label: string }[]
 ): Record<string, any>[] {
-  const lines = csvText.split('\n').filter(line => line.trim());
-  if (lines.length < 2) return [];
+  const rows = splitCSVRows(csvText).filter((line) => line.trim());
+  if (rows.length < 2) return [];
 
   // 跳过第一行（标题行）
-  const dataLines = lines.slice(1);
+  const dataLines = rows.slice(1);
   
-  return dataLines.map(line => {
+  return dataLines.map((line) => {
     const values = parseCSVLine(line);
     const row: Record<string, any> = {};
     
     headers.forEach((header, index) => {
       if (index < values.length) {
-        row[header.key] = parseValue(values[index]);
+        row[header.key] = parseValue(stripBOM(values[index]));
       }
     });
     
     return row;
   });
+}
+
+function splitCSVRows(csvText: string): string[] {
+  const rows: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < csvText.length; i++) {
+    const char = csvText[i];
+    const nextChar = csvText[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        current += '""';
+        i++;
+        continue;
+      }
+      inQuotes = !inQuotes;
+      current += char;
+      continue;
+    }
+
+    if (!inQuotes && (char === '\n' || char === '\r')) {
+      if (char === '\r' && nextChar === '\n') {
+        i++;
+      }
+      rows.push(current);
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (current) {
+    rows.push(current);
+  }
+
+  return rows;
 }
 
 /**
@@ -240,7 +279,8 @@ export function readCSVFile(
     
     reader.onload = (e) => {
       try {
-        const text = e.target?.result as string;
+        const raw = e.target?.result as ArrayBuffer;
+        const text = decodeCSVText(raw);
         const data = parseCSV(text, headers);
         resolve(data);
       } catch (error) {
@@ -252,8 +292,32 @@ export function readCSVFile(
       reject(new Error('Failed to read file'));
     };
     
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   });
+}
+
+function decodeCSVText(raw: ArrayBuffer): string {
+  const utf8 = new TextDecoder('utf-8').decode(raw);
+  if (!looksMojibake(utf8)) {
+    return stripBOM(utf8);
+  }
+
+  try {
+    return stripBOM(new TextDecoder('gb18030').decode(raw));
+  } catch {
+    return stripBOM(utf8);
+  }
+}
+
+function looksMojibake(text: string): boolean {
+  if (!text) return false;
+  const replacementCount = (text.match(/�/g) || []).length;
+  const suspiciousCount = (text.match(/[Ãâ]/g) || []).length;
+  return replacementCount > 0 || suspiciousCount > Math.max(3, text.length / 200);
+}
+
+function stripBOM(text: string): string {
+  return text.replace(/^\uFEFF/, '');
 }
 
 /**

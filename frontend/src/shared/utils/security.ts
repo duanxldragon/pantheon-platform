@@ -119,7 +119,8 @@ export function unescapeHtml(text: string): string {
 export class CSRFTokenManager {
   private static readonly TOKEN_KEY = 'csrf-token';
   private static readonly TOKEN_HEADER = 'X-CSRF-Token';
-  private static readonly TOKEN_EXPIRY = 24 * 60 * 60 * 1000; // 24小时
+  private static readonly TOKEN_EXPIRY = 55 * 60 * 1000; // 55分钟，和服务端 Cookie TTL 对齐
+  private static fetchPromise: Promise<string | null> | null = null;
 
   /**
    * 生成CSRF Token
@@ -160,6 +161,26 @@ export class CSRFTokenManager {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * 确保存在可用 Token；不存在时向后端申请。
+   */
+  static async ensureToken(): Promise<string | null> {
+    const cached = this.getToken();
+    if (cached) return cached;
+
+    if (!this.fetchPromise) {
+      this.fetchPromise = this.fetchTokenFromServer().finally(() => {
+        this.fetchPromise = null;
+      });
+    }
+
+    return this.fetchPromise;
+  }
+
+  static async fetchNewToken(): Promise<string | null> {
+    return this.fetchTokenFromServer();
   }
 
   /**
@@ -207,6 +228,34 @@ export class CSRFTokenManager {
     return {
       [this.TOKEN_HEADER]: token,
     };
+  }
+
+  private static async fetchTokenFromServer(): Promise<string | null> {
+    try {
+      const response = await fetch('/api/v1/auth/csrf-token', {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const payload = await response.json().catch(() => null) as { data?: { csrf_token?: string } } | null;
+      const token = payload?.data?.csrf_token;
+      if (!token) {
+        return null;
+      }
+
+      const tokenData = {
+        token,
+        expiry: Date.now() + this.TOKEN_EXPIRY,
+      };
+      sessionStorage.setItem(this.TOKEN_KEY, JSON.stringify(tokenData));
+      return token;
+    } catch {
+      return null;
+    }
   }
 
   /**
