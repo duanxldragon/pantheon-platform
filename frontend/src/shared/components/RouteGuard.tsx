@@ -1,4 +1,3 @@
-import React from 'react';
 import type { ReactNode } from 'react';
 
 import { useAuthStore } from '../../modules/auth/store/authStore';
@@ -64,60 +63,4 @@ export function RouteGuard({
   }
 
   return <>{children}</>;
-}
-
-export function withRouteGuard<P extends object>(
-  Component: React.ComponentType<P>,
-  guardOptions: Omit<RouteGuardProps, 'children'>,
-) {
-  return function GuardedComponent(props: P) {
-    return (
-      <RouteGuard {...guardOptions}>
-        <Component {...props} />
-      </RouteGuard>
-    );
-  };
-}
-
-export function usePermissionCheck() {
-  const hasPermission = useAuthStore((state) => state.hasPermission);
-  const hasRole = useAuthStore((state) => state.hasRole);
-  const user = useAuthStore((state) => state.user);
-
-  const checkPermission = (permissions: string | readonly string[]): boolean => {
-    if (!user) return false;
-    return hasPermission(permissions);
-  };
-
-  const checkRole = (roles: string | readonly string[]): boolean => {
-    if (!user) return false;
-    return hasRole(roles);
-  };
-
-  const checkAny = (
-    permissions?: string | readonly string[],
-    roles?: string | readonly string[],
-  ): boolean => {
-    if (!user) return false;
-
-    let hasPermissionCheck = true;
-    let hasRoleCheck = true;
-
-    if (permissions) {
-      hasPermissionCheck = checkPermission(permissions);
-    }
-
-    if (roles) {
-      hasRoleCheck = checkRole(roles);
-    }
-
-    return hasPermissionCheck && hasRoleCheck;
-  };
-
-  return {
-    checkPermission,
-    checkRole,
-    checkAny,
-    user,
-  };
 }

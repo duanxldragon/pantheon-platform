@@ -7,7 +7,7 @@ export interface Language {
 export interface TranslationKey {
   key: string;
   value: string;
-  params?: Record<string, any>;
+  params?: Record<string, unknown>;
 }
 
 export interface Translations {
@@ -19,7 +19,7 @@ export interface LanguageState {
   languages: Language[];
   translations: Record<string, Translations>;
   setLanguage: (languageCode: string) => void;
-  t: (key: string, paramsOrFallback?: Record<string, any> | string, fallback?: string) => string;
+  t: (key: string, paramsOrFallback?: Record<string, unknown> | string, fallback?: string) => string;
   loadTranslations: (languageCode: string) => Promise<void>;
   isRTL: () => boolean;
 }

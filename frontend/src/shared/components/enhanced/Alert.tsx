@@ -5,7 +5,6 @@
 
 import { ReactNode } from 'react';
 import { AlertCircle, CheckCircle2, Info, XCircle, X } from 'lucide-react';
-import { useThemeStore } from '../../../stores/themeStore';
 import { colorTokens } from '../../design/tokens';
 
 interface AlertProps {
@@ -66,7 +65,6 @@ export function Alert({
   action,
   className = '',
 }: AlertProps) {
-  const { theme } = useThemeStore();
   const DefaultIcon = defaultIcons[type];
   const colors = colorConfig[type];
 

@@ -13,9 +13,11 @@ import {
   CSVTemplateConfig,
 } from '../utils/csvExport';
 
+type ImportedCSVRow = Record<string, unknown>;
+
 export interface UseCSVImportExportOptions {
   templateConfig: CSVTemplateConfig;
-  onDataImported?: (data: any[]) => void;
+  onDataImported?: (data: ImportedCSVRow[]) => void;
   requiredFields?: string[];
 }
 
@@ -86,7 +88,7 @@ export function useCSVImportExport({
    * 导出数据到CSV
    */
   const handleExport = async (
-    data: any[],
+    data: object[],
     options?: { filename?: string }
   ): Promise<void> => {
     setIsExporting(true);

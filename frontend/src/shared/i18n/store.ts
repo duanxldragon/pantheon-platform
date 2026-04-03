@@ -21,7 +21,7 @@ function resolveTranslation(
   translations: Record<string, Translations>,
   currentLanguage: string,
   key: string,
-  paramsOrFallback?: Record<string, any> | string,
+  paramsOrFallback?: Record<string, unknown> | string,
   fallback?: string,
 ): string {
   const params = typeof paramsOrFallback === 'string' ? undefined : paramsOrFallback;
@@ -29,10 +29,10 @@ function resolveTranslation(
   const keys = key.split('.');
 
   const findValue = (source?: Translations) => {
-    let value: any = source;
+    let value: unknown = source;
     for (const segment of keys) {
       if (value && typeof value === 'object' && segment in value) {
-        value = value[segment];
+        value = (value as Record<string, unknown>)[segment];
       } else {
         return undefined;
       }
@@ -118,7 +118,7 @@ export const useLanguageStore = create<LanguageState>()(
   )
 );
 
-export const t = (key: string, paramsOrFallback?: Record<string, any> | string, fallback?: string) => {
+export const t = (key: string, paramsOrFallback?: Record<string, unknown> | string, fallback?: string) => {
   return useLanguageStore.getState().t(key, paramsOrFallback, fallback);
 };
 

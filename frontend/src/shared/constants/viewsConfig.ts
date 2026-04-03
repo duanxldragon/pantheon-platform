@@ -1,12 +1,14 @@
 ﻿import type { ComponentType } from 'react';
 
-export type LazyViewLoader = () => Promise<{ default: ComponentType<any> }>;
+import type { AppTranslations } from '../../stores/languageStore';
+
+export type LazyViewLoader = () => Promise<{ default: ComponentType<object> }>;
 
 export interface ViewConfig {
   id: string;
   component: LazyViewLoader;
-  label?: (language: string, t?: any) => string;
-  breadcrumbPath?: (t?: any) => string[];
+  label?: (language: string, t?: AppTranslations) => string;
+  breadcrumbPath?: (t?: AppTranslations) => string[];
   path?: string;
   permissions?: string | readonly string[];
   roles?: string | readonly string[];
@@ -301,17 +303,17 @@ export const inferMenuViewId = (menu?: { id?: string | number; component?: strin
   return menu.path || menu.code;
 };
 
-export const getViewLabel = (viewId: string, language: string, t?: any): string => {
+export const getViewLabel = (viewId: string, language: string, t?: AppTranslations): string => {
   const config = getViewConfig(viewId);
   return config?.label ? config.label(language, t) : viewId;
 };
 
-export const getViewBreadcrumbPath = (viewId: string, t?: any): string[] => {
+export const getViewBreadcrumbPath = (viewId: string, t?: AppTranslations): string[] => {
   const config = getViewConfig(viewId);
   return config?.breadcrumbPath ? config.breadcrumbPath(t) : [];
 };
 
-export const getMenuLabel = (menu: MenuLike | undefined, language: string, t?: any): string => {
+export const getMenuLabel = (menu: MenuLike | undefined, language: string, t?: AppTranslations): string => {
   if (!menu) return '';
 
   if (language === 'zh' && menu.title?.trim()) {

@@ -130,7 +130,7 @@ export function parseDate(dateString: string): Date | null {
 /**
  * 检查日期是否有效
  */
-export function isValidDate(date: any): boolean {
+export function isValidDate(date: unknown): boolean {
   if (!date) return false;
   const d = typeof date === 'string' ? new Date(date) : date;
   return d instanceof Date && !isNaN(d.getTime());
@@ -375,8 +375,8 @@ export function formatCountdown(seconds: number): string {
  */
 export function convertTimezone(
   date: string | Date,
-  fromTimezone: string,
-  toTimezone: string
+  _fromTimezone: string,
+  _toTimezone: string
 ): Date {
   // 这是一个简化版本，实际项目可能需要使用 date-fns-tz 或 moment-timezone
   const d = typeof date === 'string' ? new Date(date) : date;

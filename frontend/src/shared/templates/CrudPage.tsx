@@ -53,7 +53,7 @@ export function CrudPage<T>({
   pagination,
   actions,
   filters,
-  tableActions,
+  tableActions: _tableActions,
   emptyState,
   loading = false,
 }: CrudPageConfig<T>) {

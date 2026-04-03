@@ -12,9 +12,7 @@ import {
   Plus,
   Download,
   Settings,
-  Search,
   Bell,
-  Mail,
 } from 'lucide-react';
 
 // 导入所有组件
@@ -39,12 +37,11 @@ import {
   ThemedSearchBar,
 } from '../components';
 
-import type { Tab, TimelineItem, DropdownItem } from '../components';
+import type { Tab, DropdownItem } from '../components';
 
 export function ComponentShowcase() {
   const [searchValue, setSearchValue] = useState('');
   const [activeTab, setActiveTab] = useState('components');
-  const [progress, setProgress] = useState(65);
   const [selectedStatus, setSelectedStatus] = useState('all');
 
   // Tab配置
@@ -71,30 +68,6 @@ export function ComponentShowcase() {
   ];
 
   // 时间轴数据
-  const timelineItems: TimelineItem[] = [
-    {
-      id: '1',
-      title: '创建项目',
-      description: '系统初始化完成',
-      time: '2024-01-08 10:00',
-      status: 'success',
-    },
-    {
-      id: '2',
-      title: '配置环境',
-      description: '开发环境配置中',
-      time: '2024-01-08 11:30',
-      status: 'processing',
-    },
-    {
-      id: '3',
-      title: '部署上线',
-      description: '等待部署',
-      time: '待定',
-      status: 'pending',
-    },
-  ];
-
   // 下拉菜单数据
   const dropdownItems: DropdownItem[] = [
     { key: 'edit', label: '编辑', icon: <Settings className="w-4 h-4" /> },

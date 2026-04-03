@@ -3,14 +3,14 @@ import { GlobalErrorHandler } from './errorHandler';
 import { systemNotification } from './notification';
 import { CSRFTokenManager } from './security';
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   code: number;
   message: string;
   data: T;
   timestamp: string;
 }
 
-export interface PageResult<T = any> {
+export interface PageResult<T = unknown> {
   items: T[];
   pagination?: {
     page: number;
@@ -32,7 +32,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public code: number,
-    public details?: any
+    public details?: unknown
   ) {
     super(message);
     this.name = 'ApiError';
@@ -66,6 +66,7 @@ export class ApiClient {
   private defaultRetryCount = 1;
   private requestInterceptors: RequestInterceptor[] = [];
   private responseInterceptors: ResponseInterceptor[] = [];
+  private refreshPromise: Promise<string | null> | null = null;
 
   constructor(baseURL: string = '/api') {
     this.baseURL = baseURL;
@@ -155,38 +156,18 @@ export class ApiClient {
 
     if (authStore.refreshToken && !config.skipAuth) {
       try {
-        const refreshResponse = await fetch(`${this.baseURL}/v1/auth/refresh`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ refresh_token: authStore.refreshToken }),
-        });
-
-        if (refreshResponse.ok) {
-          const refreshData = await refreshResponse.json();
-          const newAccessToken = refreshData.data.access_token;
-          const newRefreshToken = refreshData.data.refresh_token;
-
-          authStore.setTokens(newAccessToken, newRefreshToken, refreshData.data.expires_in);
-
-          try {
-            await authStore.refreshTenantContext();
-            if (errorCode === 'AUTH_VERSION_MISMATCH') {
-              systemNotification.info(
-                text('权限已更新', 'Permissions updated'),
-                text('已自动刷新当前登录态与菜单权限', 'The current session and menu permissions were refreshed automatically'),
-              );
-            }
-          } catch (reloadError) {
-            console.error('Authorization reload failed after token refresh:', reloadError);
-          }
-
+        const newAccessToken = await this.refreshSession(errorCode);
+        if (newAccessToken) {
+          const latestAuthState = useAuthStore.getState();
           return fetch(response.url, {
             ...config,
             headers: {
               ...config.headers,
               Authorization: `Bearer ${newAccessToken}`,
+              ...(latestAuthState.user?.tenantId
+                ? { 'X-Tenant-ID': String(latestAuthState.user.tenantId) }
+                : {}),
+              'X-Request-ID': this.generateRequestId(),
             },
           });
         }
@@ -216,6 +197,57 @@ export class ApiClient {
     }
   }
 
+  private async refreshSession(errorCode: string): Promise<string | null> {
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    this.refreshPromise = (async () => {
+      const authStore = useAuthStore.getState();
+      if (!authStore.refreshToken) {
+        return null;
+      }
+
+      const refreshResponse = await fetch(`${this.baseURL}/v1/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh_token: authStore.refreshToken }),
+      });
+
+      if (!refreshResponse.ok) {
+        return null;
+      }
+
+      const refreshData = await refreshResponse.json();
+      const newAccessToken = refreshData.data.access_token;
+      const newRefreshToken = refreshData.data.refresh_token;
+
+      authStore.setTokens(newAccessToken, newRefreshToken, refreshData.data.expires_in);
+
+      try {
+        await authStore.refreshTenantContext();
+        if (errorCode === 'AUTH_VERSION_MISMATCH') {
+          systemNotification.info(
+            text('权限已更新', 'Permissions updated'),
+            text('已自动刷新当前登录态与菜单权限', 'The current session and menu permissions were refreshed automatically'),
+          );
+        }
+      } catch (reloadError) {
+        console.error('Authorization reload failed after token refresh:', reloadError);
+      }
+
+      return newAccessToken;
+    })();
+
+    try {
+      return await this.refreshPromise;
+    } finally {
+      this.refreshPromise = null;
+    }
+  }
+
   addRequestInterceptor(interceptor: RequestInterceptor): void {
     this.requestInterceptors.push(interceptor);
   }
@@ -224,14 +256,30 @@ export class ApiClient {
     this.responseInterceptors.push(interceptor);
   }
 
-  async request<T = any>(url: string, config: RequestConfig = {}): Promise<ApiResponse<T>> {
+  private async applyRequestInterceptors(config: RequestConfig): Promise<RequestConfig> {
+    let nextConfig = { ...config };
+    for (const interceptor of this.requestInterceptors) {
+      nextConfig = await interceptor(nextConfig);
+    }
+    return nextConfig;
+  }
+
+  private async applyResponseInterceptors(
+    response: Response,
+    config: RequestConfig,
+  ): Promise<Response> {
+    let nextResponse = response;
+    for (const interceptor of this.responseInterceptors) {
+      nextResponse = await interceptor(nextResponse, config);
+    }
+    return nextResponse;
+  }
+
+  async request<T = unknown>(url: string, config: RequestConfig = {}): Promise<ApiResponse<T>> {
     const startTime = Date.now();
     const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url}`;
 
-    let requestConfig = { ...config };
-    for (const interceptor of this.requestInterceptors) {
-      requestConfig = await interceptor(requestConfig);
-    }
+    const requestConfig = await this.applyRequestInterceptors(config);
 
     const timeout = requestConfig.timeout || this.defaultTimeout;
     const controller = new AbortController();
@@ -245,9 +293,7 @@ export class ApiClient {
 
       clearTimeout(timeoutId);
 
-      for (const interceptor of this.responseInterceptors) {
-        response = await interceptor(response, requestConfig);
-      }
+      response = await this.applyResponseInterceptors(response, requestConfig);
 
       const data = await this.parseResponse<T>(response);
 
@@ -307,7 +353,7 @@ export class ApiClient {
     }
   }
 
-  async get<T = any>(url: string, params?: Record<string, any>, config?: RequestConfig): Promise<ApiResponse<T>> {
+  async get<T = unknown>(url: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<ApiResponse<T>> {
     const queryString = params ? apiHelpers.buildQueryParams(params) : '';
     return this.request<T>(url + queryString, {
       ...config,
@@ -315,11 +361,11 @@ export class ApiClient {
     });
   }
 
-  async getPage<T = any>(url: string, params?: Record<string, any>, config?: RequestConfig): Promise<ApiResponse<PageResult<T>>> {
+  async getPage<T = unknown>(url: string, params?: Record<string, unknown>, config?: RequestConfig): Promise<ApiResponse<PageResult<T>>> {
     return this.get<PageResult<T>>(url, params, config);
   }
 
-  async post<T = any>(url: string, data?: any, config?: RequestConfig): Promise<ApiResponse<T>> {
+  async post<T = unknown>(url: string, data?: unknown, config?: RequestConfig): Promise<ApiResponse<T>> {
     return this.request<T>(url, {
       ...config,
       method: 'POST',
@@ -327,7 +373,7 @@ export class ApiClient {
     });
   }
 
-  async put<T = any>(url: string, data?: any, config?: RequestConfig): Promise<ApiResponse<T>> {
+  async put<T = unknown>(url: string, data?: unknown, config?: RequestConfig): Promise<ApiResponse<T>> {
     return this.request<T>(url, {
       ...config,
       method: 'PUT',
@@ -335,7 +381,7 @@ export class ApiClient {
     });
   }
 
-  async patch<T = any>(url: string, data?: any, config?: RequestConfig): Promise<ApiResponse<T>> {
+  async patch<T = unknown>(url: string, data?: unknown, config?: RequestConfig): Promise<ApiResponse<T>> {
     return this.request<T>(url, {
       ...config,
       method: 'PATCH',
@@ -343,14 +389,14 @@ export class ApiClient {
     });
   }
 
-  async delete<T = any>(url: string, config?: RequestConfig): Promise<ApiResponse<T>> {
+  async delete<T = unknown>(url: string, config?: RequestConfig): Promise<ApiResponse<T>> {
     return this.request<T>(url, {
       ...config,
       method: 'DELETE',
     });
   }
 
-  async upload<T = any>(
+  async upload<T = unknown>(
     url: string,
     file: File,
     config?: RequestConfig & { onProgress?: (progress: number) => void }
@@ -366,33 +412,56 @@ export class ApiClient {
   }
 
   async download(url: string, filename?: string, config?: RequestConfig): Promise<void> {
-    const response = await fetch(url, {
+    const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url}`;
+    const requestConfig = await this.applyRequestInterceptors({
       ...config,
-      headers: {
-        ...config?.headers,
-        ...(!config?.skipAuth && useAuthStore.getState().accessToken
-          ? { Authorization: `Bearer ${useAuthStore.getState().accessToken}` }
-          : {}),
-      },
+      method: config?.method || 'GET',
     });
+    const timeout = requestConfig.timeout || this.defaultTimeout;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-    if (!response.ok) {
-      throw new ApiError(text('下载失败', 'Download failed'), response.status);
+    try {
+      let response = await fetch(fullUrl, {
+        ...requestConfig,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      response = await this.applyResponseInterceptors(response, requestConfig);
+
+      const blob = await response.blob();
+      const link = document.createElement('a');
+      const objectUrl = URL.createObjectURL(blob);
+      link.href = objectUrl;
+      link.download = filename || 'download';
+      link.click();
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      GlobalErrorHandler.getInstance().handleApiError(error, url);
+
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new ApiError(text('下载超时', 'Download timeout'), 408);
+      }
+
+      if (error instanceof TypeError) {
+        throw new ApiError(text('下载失败，请检查网络连接', 'Download failed, please check your connection'), 0);
+      }
+
+      if (error instanceof ApiError) {
+        throw error;
+      }
+
+      throw new ApiError(text('下载失败', 'Download failed'), 0, error);
     }
-
-    const blob = await response.blob();
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename || 'download';
-    link.click();
-    URL.revokeObjectURL(link.href);
   }
 
-  async batch<T = any>(requests: Array<() => Promise<ApiResponse<T>>>): Promise<Array<ApiResponse<T>>> {
+  async batch<T = unknown>(requests: Array<() => Promise<ApiResponse<T>>>): Promise<Array<ApiResponse<T>>> {
     return Promise.all(requests.map((req) => req()));
   }
 
-  async retry<T = any>(
+  async retry<T = unknown>(
     requestFn: () => Promise<ApiResponse<T>>,
     retryCount: number = this.defaultRetryCount,
     retryDelay: number = 1000
@@ -414,7 +483,7 @@ export class ApiClient {
     throw lastError;
   }
 
-  private serializeBody(data: any): BodyInit | undefined {
+  private serializeBody(data: unknown): BodyInit | undefined {
     if (data === undefined || data === null) {
       return undefined;
     }
@@ -432,7 +501,7 @@ export class ApiClient {
     method: string,
     status: 'success' | 'failed',
     duration: number,
-    error?: any
+    error?: unknown
   ): void {
     if (import.meta.env.DEV) {
       console.log(`[API ${status.toUpperCase()}] ${method} ${url} - ${duration}ms`, error);
@@ -449,18 +518,18 @@ export const http = api;
 
 export class MockApiClient extends ApiClient {
   private mockDelay: number;
-  private mockData: Map<string, any> = new Map();
+  private mockData: Map<string, unknown | ((config: RequestConfig) => unknown)> = new Map();
 
   constructor(baseURL: string = '/api', mockDelay: number = 500) {
     super(baseURL);
     this.mockDelay = mockDelay;
   }
 
-  setMockData(url: string, data: any): void {
+  setMockData(url: string, data: unknown | ((config: RequestConfig) => unknown)): void {
     this.mockData.set(url, data);
   }
 
-  override async request<T = any>(url: string, config: RequestConfig = {}): Promise<ApiResponse<T>> {
+  override async request<T = unknown>(url: string, config: RequestConfig = {}): Promise<ApiResponse<T>> {
     const mockData = this.mockData.get(url);
     if (mockData !== undefined) {
       await new Promise((resolve) => setTimeout(resolve, this.mockDelay));
@@ -486,7 +555,7 @@ export const apiHelpers = {
     return text('未知错误', 'Unknown error');
   },
 
-  buildQueryParams(params: Record<string, any>): string {
+  buildQueryParams(params: Record<string, unknown>): string {
     const filtered = Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '');
     if (filtered.length === 0) {
       return '';
@@ -498,7 +567,7 @@ export const apiHelpers = {
     return response.data;
   },
 
-  isSuccess(response: ApiResponse<any>): boolean {
+  isSuccess(response: ApiResponse<unknown>): boolean {
     return response.code === 200 || response.code === 0;
   },
 };

@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { useAuthStore } from '../../modules/auth/store/authStore';
 import type { Menu } from '../../modules/system/types';
 import { useLanguageStore } from '../../stores/languageStore';
+import type { AppTranslations } from '../../stores/languageStore';
 import type { Tab } from '../../stores/uiStore';
 import { useUIStore } from '../../stores/uiStore';
 import { useSystemStore } from '../../stores/systemStore';
@@ -17,6 +18,13 @@ import {
 } from '../constants/viewsConfig';
 import { systemNotification } from '../utils/notification';
 import { RouteGuard } from './RouteGuard';
+import {
+  ALWAYS_ACCESSIBLE_VIEW_IDS,
+  buildMenuBreadcrumb,
+  canAccessView,
+  findMatchedMenu,
+  isMenuVisible,
+} from './viewManagerUtils';
 
 function PageSkeleton() {
   const t = useLanguageStore((state) => state.t);
@@ -31,86 +39,7 @@ function PageSkeleton() {
   );
 }
 
-const ALWAYS_ACCESSIBLE_VIEW_IDS = new Set(['profile-center', 'account-settings']);
-
-function findMatchedMenu(viewId: string, menus: Menu[]): Menu | undefined {
-  return menus.find(
-    (menu) => String(menu.id) === String(viewId) || inferMenuViewId(menu) === viewId,
-  );
-}
-
-function isMenuVisible(menu: Menu): boolean {
-  return menu.status === 'active' && menu.visible !== false && menu.type !== 'button';
-}
-
-function canAccessView(
-  viewId: string,
-  menus: Menu[],
-  hasPermission: (permission: string | readonly string[]) => boolean,
-  hasRole: (role: string | readonly string[]) => boolean,
-): boolean {
-  if (ALWAYS_ACCESSIBLE_VIEW_IDS.has(viewId)) {
-    return true;
-  }
-
-  const matchedMenu = findMatchedMenu(viewId, menus);
-  if (menus.length > 0) {
-    if (!matchedMenu || !isMenuVisible(matchedMenu)) {
-      return false;
-    }
-
-    const viewConfig =
-      getViewConfig(viewId) ||
-      getViewConfigByComponent(inferMenuComponent(matchedMenu), String(matchedMenu.id));
-    const requiredPermissions =
-      viewConfig?.permissions || (matchedMenu.permissions?.length ? matchedMenu.permissions : undefined);
-    const requiredRoles = viewConfig?.roles;
-
-    if (requiredPermissions && !hasPermission(requiredPermissions)) {
-      return false;
-    }
-    if (requiredRoles && !hasRole(requiredRoles)) {
-      return false;
-    }
-
-    return true;
-  }
-
-  const viewConfig = getViewConfig(viewId);
-  if (!viewConfig) {
-    return viewId === 'system-dashboard';
-  }
-  if (viewConfig.permissions && !hasPermission(viewConfig.permissions)) {
-    return false;
-  }
-  if (viewConfig.roles && !hasRole(viewConfig.roles)) {
-    return false;
-  }
-
-  return true;
-}
-
-function buildMenuBreadcrumb(
-  menuId: string | number,
-  menus: Array<{ id: string | number; name: string; title?: string; path?: string; component?: string; parentId?: string | number | null }>,
-  language: string,
-  t: any,
-): string[] {
-  const trail: string[] = [];
-  let current = menus.find((item) => String(item.id) === String(menuId));
-
-  while (current) {
-    trail.unshift(getMenuLabel(current, language, t));
-    if (current.parentId === undefined || current.parentId === null || current.parentId === '') {
-      break;
-    }
-    current = menus.find((item) => String(item.id) === String(current?.parentId));
-  }
-
-  return trail;
-}
-
-function buildTabItem(viewId: string, menus: Menu[], language: string, t: any): Tab {
+function buildTabItem(viewId: string, menus: Menu[], language: string, t: AppTranslations): Tab {
   const menu = findMatchedMenu(viewId, menus);
   return {
     id: viewId,
@@ -238,44 +167,6 @@ export function ViewManager() {
   return {
     renderView,
     updateAllTabs,
-    getViewLabel: (viewId: string) => getViewLabel(viewId, language, t),
-    getViewBreadcrumbPath: (viewId: string) => getViewBreadcrumbPath(viewId, t),
-  };
-}
-
-export function useViewManager() {
-  const language = useLanguageStore((state) => state.language);
-  const t = useLanguageStore((state) => state.t);
-  const { addTab } = useUIStore();
-  const menus = useSystemStore((state) => state.menus);
-  const hasPermission = useAuthStore((state) => state.hasPermission);
-  const hasRole = useAuthStore((state) => state.hasRole);
-
-  const navigateToView = (viewId: string) => {
-    if (!canAccessView(viewId, menus, hasPermission, hasRole)) {
-      systemNotification.warning(
-        language === 'zh' ? '页面不可访问' : 'View unavailable',
-        language === 'zh'
-          ? '当前菜单或权限已变更，无法继续访问该页面。'
-          : 'The page is no longer accessible because menus or permissions changed.',
-      );
-      return;
-    }
-
-    const menu = findMatchedMenu(viewId, menus);
-    const label = getMenuLabel(menu, language, t) || getViewLabel(viewId, language, t);
-    const breadcrumbPath = menu ? buildMenuBreadcrumb(menu.id, menus, language, t) : getViewBreadcrumbPath(viewId, t);
-
-    addTab({
-      id: viewId,
-      label,
-      closable: true,
-      path: breadcrumbPath,
-    });
-  };
-
-  return {
-    navigateToView,
     getViewLabel: (viewId: string) => getViewLabel(viewId, language, t),
     getViewBreadcrumbPath: (viewId: string) => getViewBreadcrumbPath(viewId, t),
   };

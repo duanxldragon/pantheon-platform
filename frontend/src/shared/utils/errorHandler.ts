@@ -4,6 +4,52 @@ import { ApiError } from './apiClient';
 
 const ERROR_LOG_ENDPOINT = import.meta.env.VITE_ERROR_LOG_ENDPOINT?.trim() || '';
 
+type SentryClient = {
+  captureException: (error: Error, context?: { extra?: Record<string, unknown> }) => void;
+};
+
+type WindowWithSentry = Window & {
+  Sentry?: SentryClient;
+};
+
+type ApiErrorResponseData = {
+  message?: string;
+};
+
+type ApiErrorCandidate = {
+  response?: {
+    data?: ApiErrorResponseData;
+  };
+  message?: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function getWindowSentry(): SentryClient | undefined {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+
+  return (window as WindowWithSentry).Sentry;
+}
+
+function isApiErrorCandidate(error: unknown): error is ApiErrorCandidate {
+  return isRecord(error);
+}
+
+async function getErrorLogAuthHeader(): Promise<Record<string, string>> {
+  try {
+    const { useAuthStore } = await import('../../modules/auth/store/authStore');
+    const accessToken = useAuthStore.getState().accessToken;
+    return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+  } catch (error) {
+    console.error('Failed to resolve auth header for error logging:', error);
+    return {};
+  }
+}
+
 // Sentry集成（需要在项目中先安装@sentry/browser）
 // To enable Sentry:
 // 1. Install @sentry/browser: npm install @sentry/browser
@@ -48,10 +94,12 @@ export function initSentry(dsn: string, enabled: boolean = false): void {
 export const sendErrorToAnalysis = (error: Error): void => {
   const apiError = error instanceof ApiError ? error : new ApiError(error.message, 0);
   try {
+    const sentry = getWindowSentry();
+
     // 如果Sentry已初始化，发送到Sentry
-    if (typeof window !== 'undefined' && (window as any).Sentry) {
+    if (sentry) {
       console.error('[Sentry] Sending error:', apiError);
-      (window as any).Sentry.captureException(apiError, {
+      sentry.captureException(apiError, {
         extra: {
           code: apiError.code,
           details: apiError.details,
@@ -79,13 +127,12 @@ const sendToErrorLogApi = async (error: ApiError): Promise<void> => {
   }
 
   try {
+    const authHeader = await getErrorLogAuthHeader();
     const response = await fetch(ERROR_LOG_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(localStorage.getItem('accessToken')
-          ? { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
-          : {}),
+        ...authHeader,
       },
       body: JSON.stringify({
         error: error.message,
@@ -159,7 +206,7 @@ export class GlobalErrorHandler {
   /**
    * 处理API错误
    */
-  handleApiError(error: any, context?: string): void {
+  handleApiError(error: unknown, context?: string): void {
     const apiError = this.normalizeApiError(error);
     this.handle(apiError, context || 'API Request');
   }
@@ -176,14 +223,24 @@ export class GlobalErrorHandler {
   /**
    * 标准化API错误
    */
-  private normalizeApiError(error: any): Error {
-    if (error?.response?.data) {
+  private normalizeApiError(error: unknown): Error {
+    if (error instanceof Error) {
+      if (error.message.includes('Network Error')) {
+        return new Error('网络连接失败，请检查网络设置');
+      }
+      if (error.message.includes('timeout')) {
+        return new Error('请求超时，请稍后重试');
+      }
+      return error;
+    }
+
+    if (isApiErrorCandidate(error) && error.response?.data) {
       // 后端API错误
       const data = error.response.data;
       return new Error(data.message || '服务器返回错误');
     }
 
-    if (error?.message) {
+    if (isApiErrorCandidate(error) && typeof error.message === 'string') {
       // 其他HTTP错误
       if (error.message.includes('Network Error')) {
         return new Error('网络连接失败，请检查网络设置');
@@ -242,7 +299,7 @@ export function useGlobalErrorHandler() {
     errorHandler.handle(error, context);
   }, [errorHandler]);
 
-  const handleApiError = useCallback((error: any, context?: string) => {
+  const handleApiError = useCallback((error: unknown, context?: string) => {
     errorHandler.handleApiError(error, context);
   }, [errorHandler]);
 
@@ -262,18 +319,18 @@ export function useGlobalErrorHandler() {
 /**
  * 装饰器：为异步函数添加错误处理
  */
-export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
-  fn: T,
+export function withErrorHandling<TArgs extends unknown[], TResult>(
+  fn: (...args: TArgs) => Promise<TResult>,
   context?: string
-): T {
-  return (async (...args: Parameters<T>) => {
+): (...args: TArgs) => Promise<TResult> {
+  return async (...args: TArgs) => {
     try {
       return await fn(...args);
     } catch (error) {
       GlobalErrorHandler.getInstance().handleApiError(error, context);
       throw error;
     }
-  }) as T;
+  };
 }
 
 /**
@@ -303,20 +360,10 @@ GlobalErrorHandler.getInstance().register('console', (error, context) => {
   console.error(`[${context}] Error:`, error);
 });
 
-  GlobalErrorHandler.getInstance().register('analytics', (error, context) => {
-    sendErrorToAnalysis(error);
-  });
+GlobalErrorHandler.getInstance().register('analytics', (error) => {
+  sendErrorToAnalysis(error);
+});
 
-  GlobalErrorHandler.getInstance().register('logging', (error, context) => {
-    sendErrorToAnalysis(error);
-  });
-
-GlobalErrorHandler.getInstance().register('logging', (error, context) => {
-  // TODO: 发送错误到日志服务
-  // logger.error({
-  //   message: error.message,
-  //   stack: error.stack,
-  //   context,
-  //   timestamp: new Date().toISOString(),
-  // });
+GlobalErrorHandler.getInstance().register('logging', (error) => {
+  sendErrorToAnalysis(error);
 });

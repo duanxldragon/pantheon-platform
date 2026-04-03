@@ -17,14 +17,14 @@ import { Badge } from '../../../components/ui/badge';
 import { AlertTriangle, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { ScrollArea } from '../../../components/ui/scroll-area';
 
-export interface BatchOperationDialogProps {
+export interface BatchOperationDialogProps<T extends { name?: string; title?: string; label?: string } = { name?: string; title?: string; label?: string }> {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
   title: string;
   description?: string;
-  items: any[];
-  renderItem?: (item: any) => React.ReactNode;
+  items: T[];
+  renderItem?: (item: T) => React.ReactNode;
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'warning' | 'info';
@@ -56,7 +56,7 @@ const variantConfig = {
   },
 };
 
-export function BatchOperationDialog({
+export function BatchOperationDialog<T extends { name?: string; title?: string; label?: string }>({
   open,
   onOpenChange,
   onConfirm,
@@ -69,7 +69,7 @@ export function BatchOperationDialog({
   variant = 'warning',
   loading = false,
   maxHeight = '300px',
-}: BatchOperationDialogProps) {
+}: BatchOperationDialogProps<T>) {
   const config = variantConfig[variant];
   const Icon = config.icon;
 

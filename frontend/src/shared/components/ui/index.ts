@@ -15,6 +15,7 @@ export * from './ActionButtons';
 export * from './ConfirmDialog';
 export * from './BatchOperationDialog';
 export * from './ExportDialog';
+export * from './ManagementSurface';
 
 // New generic dialog components
 export { ActionDialog } from './ActionDialog';

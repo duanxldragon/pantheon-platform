@@ -9,6 +9,11 @@ import type { ID } from '../../modules/system/types';
  * 风险等级
  */
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+type AuditValueType = 'string' | 'number' | 'boolean' | 'object' | 'array';
+type AuditMetadata = Record<string, unknown>;
+type AuditRecord = Record<string, unknown>;
+type AuditLogInput = Omit<AuditLog, 'id' | 'timestamp' | 'riskLevel' | 'abnormalFlags' | 'securityScore'>;
+type AuditSecurityInput = Pick<AuditLogInput, 'status' | 'changes'> & { abnormalFlags?: string[] };
 
 /**
  * 数据变更详情
@@ -16,9 +21,9 @@ export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 export interface DataChange {
   field: string;
   fieldLabel: string;
-  oldValue: any;
-  newValue: any;
-  valueType: 'string' | 'number' | 'boolean' | 'object' | 'array';
+  oldValue: unknown;
+  newValue: unknown;
+  valueType: AuditValueType;
 }
 
 /**
@@ -71,7 +76,7 @@ export interface AuditLog {
   duration?: number; // 操作耗时（毫秒）
   
   // 元数据
-  metadata: Record<string, any>;
+  metadata: AuditMetadata;
   
   // 关联信息
   relatedLogs?: ID[];
@@ -122,14 +127,15 @@ export class AuditService {
   /**
    * 记录操作日志
    */
-  static log(params: Omit<AuditLog, 'id' | 'timestamp' | 'riskLevel' | 'abnormalFlags' | 'securityScore'>): void {
+  static log(params: AuditLogInput): void {
+    const abnormalFlags = this.detectAbnormalities(params);
     const log: AuditLog = {
       ...params,
       id: this.generateLogId(),
       timestamp: new Date().toISOString(),
       riskLevel: this.assessRiskLevel(params),
-      abnormalFlags: this.detectAbnormalities(params),
-      securityScore: this.calculateSecurityScore(params),
+      abnormalFlags,
+      securityScore: this.calculateSecurityScore({ ...params, abnormalFlags }),
     };
     
     // 存储日志
@@ -161,7 +167,7 @@ export class AuditService {
     resource: string,
     resourceId?: ID,
     changes?: DataChange[],
-    metadata?: Record<string, any>
+    metadata?: AuditMetadata
   ): void {
     const deviceInfo = this.getDeviceInfo();
     
@@ -210,7 +216,7 @@ export class AuditService {
     const failedCount = batchResults.filter(r => r.status === 'failed').length;
     
     // 记录主日志
-    const mainLog: Omit<AuditLog, 'id' | 'timestamp' | 'riskLevel' | 'abnormalFlags' | 'securityScore'> = {
+    const mainLog: AuditLogInput = {
       userId,
       username,
       realName,
@@ -247,8 +253,8 @@ export class AuditService {
    * 数据变更对比
    */
   static compareData(
-    oldData: Record<string, any>,
-    newData: Record<string, any>,
+    oldData: AuditRecord,
+    newData: AuditRecord,
     fieldLabels?: Record<string, string>
   ): DataChange[] {
     const changes: DataChange[] = [];
@@ -292,7 +298,7 @@ export class AuditService {
   /**
    * 评估风险等级
    */
-  private static assessRiskLevel(params: any): RiskLevel {
+  private static assessRiskLevel(params: Pick<AuditLogInput, 'action' | 'batchOperation' | 'changes' | 'status'>): RiskLevel {
     let score = 0;
     
     // 根据操作类型评分
@@ -330,7 +336,7 @@ export class AuditService {
   /**
    * 检测异常
    */
-  private static detectAbnormalities(params: any): string[] {
+  private static detectAbnormalities(params: Pick<AuditLogInput, 'action' | 'batchOperation' | 'status'>): string[] {
     const flags: string[] = [];
     
     // 检测批量操作异常
@@ -363,7 +369,7 @@ export class AuditService {
   /**
    * 计算安全评分
    */
-  private static calculateSecurityScore(params: any): number {
+  private static calculateSecurityScore(params: AuditSecurityInput): number {
     let score = 100;
     
     // 失败操作扣分
@@ -641,7 +647,7 @@ export class AuditService {
   /**
    * 格式化值
    */
-  private static formatValue(value: any): string {
+  private static formatValue(value: unknown): string {
     if (value === null || value === undefined) {
       return '-';
     }
@@ -654,12 +660,15 @@ export class AuditService {
   /**
    * 获取值类型
    */
-  private static getValueType(value: any): 'string' | 'number' | 'boolean' | 'object' | 'array' {
+  private static getValueType(value: unknown): AuditValueType {
     if (Array.isArray(value)) return 'array';
     if (value === null || value === undefined) return 'string';
     const type = typeof value;
     if (type === 'object') return 'object';
-    return type as any;
+    if (type === 'number' || type === 'boolean') {
+      return type;
+    }
+    return 'string';
   }
 
   /**

@@ -2,7 +2,8 @@
  * Shared exports
  */
 
-export { ViewManager, useViewManager } from './components/ViewManager';
+export { ViewManager } from './components/ViewManager';
+export { useViewManager } from './components/useViewManager';
 export { ThemedButton } from './components/ui/ThemedButton';
 export { ThemedCard } from './components/ui/ThemedCard';
 export { ThemedSearchBar } from './components/ui/ThemedSearchBar';

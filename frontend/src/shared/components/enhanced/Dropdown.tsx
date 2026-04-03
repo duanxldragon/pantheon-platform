@@ -86,7 +86,7 @@ export function Dropdown({
             borderColor: theme.colors.border,
           }}
         >
-          {items.map((item, index) => (
+          {items.map((item) => (
             <div key={item.key}>
               {item.divider ? (
                 <div

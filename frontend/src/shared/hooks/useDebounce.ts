@@ -3,7 +3,7 @@
  * @description 用于优化搜索、滚动等高频触发的操作
  */
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 /**
  * 防抖Hook
@@ -49,7 +49,7 @@ export function useDebounce<T>(value: T, delay: number = 500): T {
  * 
  * <Input onChange={(e) => handleSearch(e.target.value)} />
  */
-export function useDebounceCallback<T extends (...args: any[]) => any>(
+export function useDebounceCallback<T extends (...args: unknown[]) => unknown>(
   func: T,
   delay: number = 500
 ): (...args: Parameters<T>) => void {
@@ -134,7 +134,7 @@ export function useThrottle<T>(value: T, interval: number = 500): T {
  * 
  * window.addEventListener('scroll', handleScroll);
  */
-export function useThrottleCallback<T extends (...args: any[]) => any>(
+export function useThrottleCallback<T extends (...args: unknown[]) => unknown>(
   func: T,
   interval: number = 500
 ): (...args: Parameters<T>) => void {
@@ -336,7 +336,7 @@ export function useInputDebounce<T = string>(
  *   console.log('Clicked!');
  * }, 1000, true); // 第一次立即执行，后续点击需等待1秒
  */
-export function useDebounceImmediate<T extends (...args: any[]) => any>(
+export function useDebounceImmediate<T extends (...args: unknown[]) => unknown>(
   func: T,
   delay: number = 500,
   immediate: boolean = false

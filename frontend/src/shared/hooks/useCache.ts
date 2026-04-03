@@ -18,8 +18,8 @@ interface CacheItem<T> {
  * 缓存管理器
  */
 class CacheManager {
-  private cache: Map<string, CacheItem<any>> = new Map();
-  private pendingRequests: Map<string, Promise<any>> = new Map();
+  private cache: Map<string, CacheItem<unknown>> = new Map();
+  private pendingRequests: Map<string, Promise<unknown>> = new Map();
 
   /**
    * 获取缓存
@@ -38,7 +38,7 @@ class CacheManager {
       return null;
     }
 
-    return item.data;
+    return item.data as T;
   }
 
   /**
@@ -94,7 +94,7 @@ class CacheManager {
     // 检查是否有相同的请求正在进行
     const pending = this.pendingRequests.get(key);
     if (pending) {
-      return pending;
+      return pending as Promise<T>;
     }
 
     // 发起新请求
@@ -145,12 +145,25 @@ export function useCache<T>(
   const [data, setData] = useState<T | null>(() => cacheManager.get<T>(key));
   const [loading, setLoading] = useState<boolean>(!data);
   const [error, setError] = useState<Error | null>(null);
+  const mountedRef = useRef(true);
+  const requestIdRef = useRef(0);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      requestIdRef.current += 1;
+    };
+  }, []);
 
   // 获取数据
   const fetchData = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     try {
-      setLoading(true);
-      setError(null);
+      if (mountedRef.current) {
+        setLoading(true);
+        setError(null);
+      }
 
       let result: T;
       if (dedupe) {
@@ -159,12 +172,21 @@ export function useCache<T>(
         result = await fetcher();
       }
 
+      if (!mountedRef.current || requestId !== requestIdRef.current) {
+        return;
+      }
+
       setData(result);
       cacheManager.set(key, result, cacheTime);
     } catch (err) {
+      if (!mountedRef.current || requestId !== requestIdRef.current) {
+        return;
+      }
       setError(err as Error);
     } finally {
-      setLoading(false);
+      if (mountedRef.current && requestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [key, fetcher, cacheTime, dedupe]);
 
@@ -190,7 +212,7 @@ export function useCache<T>(
       setData(cachedData);
       setLoading(false);
     } else {
-      fetchData();
+      void fetchData();
     }
   }, [key, fetchData]);
 
@@ -258,16 +280,29 @@ export function useSWR<T>(
   const [loading, setLoading] = useState<boolean>(!data);
   const [error, setError] = useState<Error | null>(null);
   const [isValidating, setIsValidating] = useState<boolean>(false);
+  const mountedRef = useRef(true);
+  const requestIdRef = useRef(0);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      requestIdRef.current += 1;
+    };
+  }, []);
 
   // 获取数据
   const fetchData = useCallback(
     async (silent: boolean = false) => {
+      const requestId = ++requestIdRef.current;
       try {
-        if (!silent) {
+        if (!silent && mountedRef.current) {
           setLoading(true);
         }
-        setIsValidating(true);
-        setError(null);
+        if (mountedRef.current) {
+          setIsValidating(true);
+          setError(null);
+        }
 
         let result: T;
         if (dedupe) {
@@ -276,13 +311,22 @@ export function useSWR<T>(
           result = await fetcher();
         }
 
+        if (!mountedRef.current || requestId !== requestIdRef.current) {
+          return;
+        }
+
         setData(result);
         cacheManager.set(key, result, cacheTime);
       } catch (err) {
+        if (!mountedRef.current || requestId !== requestIdRef.current) {
+          return;
+        }
         setError(err as Error);
       } finally {
-        setLoading(false);
-        setIsValidating(false);
+        if (mountedRef.current && requestId === requestIdRef.current) {
+          setLoading(false);
+          setIsValidating(false);
+        }
       }
     },
     [key, fetcher, cacheTime, dedupe]
@@ -304,9 +348,9 @@ export function useSWR<T>(
       setData(cachedData);
       setLoading(false);
       // 后台重新验证
-      fetchData(true);
+      void fetchData(true);
     } else {
-      fetchData();
+      void fetchData();
     }
   }, [key, fetchData]);
 
@@ -408,16 +452,33 @@ export function useInfiniteCache<T>(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(true);
+  const mountedRef = useRef(true);
+  const requestIdRef = useRef(0);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      requestIdRef.current += 1;
+    };
+  }, []);
 
   const loadMore = useCallback(async () => {
     if (loading || !hasMore) return;
+    const requestId = ++requestIdRef.current;
 
     try {
-      setLoading(true);
-      setError(null);
+      if (mountedRef.current) {
+        setLoading(true);
+        setError(null);
+      }
 
       const result = await fetcher(page);
-      
+
+      if (!mountedRef.current || requestId !== requestIdRef.current) {
+        return;
+      }
+
       setData(prev => [...prev, ...result.data]);
       setHasMore(result.hasMore);
       setPage(prev => prev + 1);
@@ -425,13 +486,19 @@ export function useInfiniteCache<T>(
       // 缓存当前页数据
       cacheManager.set(`${key}:page:${page}`, result, 2 * 60 * 1000);
     } catch (err) {
+      if (!mountedRef.current || requestId !== requestIdRef.current) {
+        return;
+      }
       setError(err as Error);
     } finally {
-      setLoading(false);
+      if (mountedRef.current && requestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [key, fetcher, page, loading, hasMore]);
 
   const reset = useCallback(() => {
+    requestIdRef.current += 1;
     setData([]);
     setPage(initialPage);
     setHasMore(true);

@@ -4,7 +4,7 @@ import { DataTable, Column } from '../../components/common/DataTable';
 import { Plus } from 'lucide-react';
 import { useLanguageStore } from '../../stores/languageStore';
 
-interface ListPageTemplateProps<T> {
+interface ListPageTemplateProps<T extends object> {
   title: string;
   description?: string;
   searchPlaceholder?: string;
@@ -22,7 +22,7 @@ interface ListPageTemplateProps<T> {
  * List page template
  * Includes: title, search bar, data table, add button
  */
-export function ListPageTemplate<T>({
+export function ListPageTemplate<T extends object>({
   title,
   description,
   searchPlaceholder,

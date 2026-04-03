@@ -11,7 +11,6 @@ import { Label } from '../../../components/ui/label';
 import { RadioGroup, RadioGroupItem } from '../../../components/ui/radio-group';
 import { useLanguageStore } from '../../../stores/languageStore';
 import { toast } from 'sonner';
-import { getDialogClassName } from '../../constants/dialogSizes';
 
 interface DataImportExportDialogProps {
   open: boolean;
@@ -301,7 +300,7 @@ export function DataImportExportDialog({
           <div className="space-y-6 py-4">
              <div className="space-y-3">
               <Label>{t.systemManage.importExport.exportFormat}</Label>
-              <RadioGroup value={exportFormat} onValueChange={(v) => setExportFormat(v as any)} className="grid grid-cols-2 gap-4">
+              <RadioGroup value={exportFormat} onValueChange={(v) => setExportFormat(v as 'xlsx' | 'csv')} className="grid grid-cols-2 gap-4">
                 <div>
                   <RadioGroupItem value="xlsx" id="xlsx" className="peer sr-only" />
                   <Label
@@ -327,7 +326,7 @@ export function DataImportExportDialog({
 
             <div className="space-y-3">
               <Label>{t.actions.filter}</Label>
-              <RadioGroup value={exportScope} onValueChange={(v) => setExportScope(v as any)}>
+              <RadioGroup value={exportScope} onValueChange={(v) => setExportScope(v as 'all' | 'selected')}>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="all" id="all" />
                   <Label htmlFor="all">{t.systemManage.importExport.exportAll}</Label>

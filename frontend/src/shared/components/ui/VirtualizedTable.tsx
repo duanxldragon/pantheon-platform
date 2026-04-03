@@ -3,7 +3,7 @@
  * @description 用于大数据量表格的性能优化，只渲染可见区域的行
  */
 
-import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useRef, useState, useMemo, useCallback } from 'react';
 import {
   Table,
   TableBody,
@@ -18,11 +18,11 @@ import { useLanguageStore } from '../../../stores/languageStore';
 /**
  * 列定义
  */
-export interface VirtualTableColumn<T = any> {
+export interface VirtualTableColumn<T extends Record<string, unknown> = Record<string, unknown>> {
   key: string;
   title: string;
   width?: number | string;
-  render?: (value: any, record: T, index: number) => React.ReactNode;
+  render?: (value: unknown, record: T, index: number) => React.ReactNode;
   align?: 'left' | 'center' | 'right';
   fixed?: 'left' | 'right';
 }
@@ -30,7 +30,7 @@ export interface VirtualTableColumn<T = any> {
 /**
  * 组件属性
  */
-export interface VirtualizedTableProps<T = any> {
+export interface VirtualizedTableProps<T extends Record<string, unknown> = Record<string, unknown>> {
   data: T[];
   columns: VirtualTableColumn<T>[];
   rowHeight?: number;
@@ -46,7 +46,7 @@ export interface VirtualizedTableProps<T = any> {
 /**
  * 虚拟滚动表格组件
  */
-export function VirtualizedTable<T = any>({
+export function VirtualizedTable<T extends Record<string, unknown> = Record<string, unknown>>({
   data,
   columns,
   rowHeight = 48,
@@ -62,6 +62,21 @@ export function VirtualizedTable<T = any>({
   const [scrollTop, setScrollTop] = useState(0);
   const t = useLanguageStore((state) => state.t);
   const resolvedEmptyText = emptyText ?? t.common.noData;
+  const renderCellValue = useCallback((value: unknown): React.ReactNode => {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    if (typeof value === 'string' || typeof value === 'number') {
+      return value;
+    }
+    if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    }
+    if (Array.isArray(value)) {
+      return value.join(', ');
+    }
+    return JSON.stringify(value);
+  }, []);
 
   // 计算总高度
   const totalHeight = data.length * rowHeight;
@@ -97,7 +112,8 @@ export function VirtualizedTable<T = any>({
       if (getRowKey) {
         return getRowKey(record, index);
       }
-      return (record as any).id || index;
+      const candidateKey = record.id;
+      return typeof candidateKey === 'string' || typeof candidateKey === 'number' ? candidateKey : index;
     },
     [getRowKey]
   );
@@ -234,10 +250,10 @@ export function VirtualizedTable<T = any>({
                       style={{ height: rowHeight }}
                     >
                       {columns.map((col) => {
-                        const value = (record as any)[col.key];
+                        const value = record[col.key];
                         const content = col.render
                           ? col.render(value, record, absoluteIndex)
-                          : value;
+                          : renderCellValue(value);
 
                         return (
                           <TableCell
@@ -264,7 +280,7 @@ export function VirtualizedTable<T = any>({
  * React.memo优化的表格行组件
  */
 export const VirtualTableRow = React.memo(
-  function VirtualTableRow<T>({
+  function VirtualTableRow<T extends Record<string, unknown>>({
     record,
     index,
     columns,
@@ -286,8 +302,10 @@ export const VirtualTableRow = React.memo(
         style={{ height: rowHeight }}
       >
         {columns.map((col) => {
-          const value = (record as any)[col.key];
-          const content = col.render ? col.render(value, record, index) : value;
+          const value = record[col.key];
+          const content = col.render
+            ? col.render(value, record, index)
+            : renderVirtualTableCellValue(value);
 
           return (
             <TableCell key={col.key} className={col.align ? `text-${col.align}` : ''}>
@@ -308,48 +326,18 @@ export const VirtualTableRow = React.memo(
   }
 );
 
-/**
- * 使用虚拟滚动的Hook
- */
-export function useVirtualScroll<T>({
-  data,
-  rowHeight = 48,
-  containerHeight = 600,
-  overscan = 5,
-}: {
-  data: T[];
-  rowHeight?: number;
-  containerHeight?: number;
-  overscan?: number;
-}) {
-  const [scrollTop, setScrollTop] = useState(0);
-
-  const visibleRange = useMemo(() => {
-    const visibleStart = Math.floor(scrollTop / rowHeight);
-    const visibleEnd = Math.ceil((scrollTop + containerHeight) / rowHeight);
-
-    const start = Math.max(0, visibleStart - overscan);
-    const end = Math.min(data.length, visibleEnd + overscan);
-
-    return { start, end };
-  }, [scrollTop, rowHeight, containerHeight, data.length, overscan]);
-
-  const visibleData = useMemo(() => {
-    return data.slice(visibleRange.start, visibleRange.end);
-  }, [data, visibleRange]);
-
-  const totalHeight = data.length * rowHeight;
-  const offsetY = visibleRange.start * rowHeight;
-
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    setScrollTop(e.currentTarget.scrollTop);
-  }, []);
-
-  return {
-    visibleData,
-    visibleRange,
-    totalHeight,
-    offsetY,
-    handleScroll,
-  };
+function renderVirtualTableCellValue(value: unknown): React.ReactNode {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  if (typeof value === 'string' || typeof value === 'number') {
+    return value;
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false';
+  }
+  if (Array.isArray(value)) {
+    return value.join(', ');
+  }
+  return JSON.stringify(value);
 }

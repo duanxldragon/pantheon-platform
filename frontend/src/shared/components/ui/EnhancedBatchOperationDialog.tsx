@@ -39,7 +39,7 @@ type BatchStep = 'preview' | 'confirm' | 'processing' | 'result';
 export interface BatchItem {
   id: ID;
   displayName: string;
-  data: any;
+  data: Record<string, unknown>;
   selected?: boolean;
   status?: 'pending' | 'processing' | 'success' | 'failed';
   error?: string;

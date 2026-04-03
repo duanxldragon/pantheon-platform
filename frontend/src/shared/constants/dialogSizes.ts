@@ -44,7 +44,7 @@ export function getDialogStyle(size: DialogSize = 'lg') {
   } as const;
 }
 
-export function getDialogClassName(size: DialogSize = 'lg', additionalClasses?: string): string {
+export function getDialogClassName(_size: DialogSize = 'lg', additionalClasses?: string): string {
   const baseClasses = [
     DIALOG_COMMON_STYLES.maxHeight,
     DIALOG_COMMON_STYLES.overflow,

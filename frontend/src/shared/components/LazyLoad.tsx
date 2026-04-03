@@ -1,4 +1,4 @@
-import React, { ComponentType, Suspense, lazy } from 'react';
+import React, { ComponentType, Suspense } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 
 import { Alert, AlertDescription } from '../../components/ui/alert';
@@ -93,25 +93,6 @@ export function LazyLoad({ children, fallback }: LazyLoadProps) {
       {children}
     </Suspense>
   );
-}
-
-export function createLazyComponent<T extends ComponentType<any>>(
-  importFunc: () => Promise<{ default: T }>,
-  fallback?: React.ReactNode,
-) {
-  const LazyComponent = lazy(importFunc);
-
-  return function LazyWrapper(props: React.ComponentProps<T>) {
-    return (
-      <Suspense fallback={fallback || <LoadingFallback />}>
-        <LazyComponent {...props} />
-      </Suspense>
-    );
-  };
-}
-
-export function preloadComponent(importFunc: () => Promise<any>) {
-  importFunc();
 }
 
 interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
@@ -223,20 +204,20 @@ export function DelayedLoad({ children, delay = 200, fallback }: DelayedLoadProp
   return <>{children}</>;
 }
 
-interface ConditionalLazyLoadProps<T extends ComponentType<any>> {
+interface ConditionalLazyLoadProps<TProps extends object> {
   condition: boolean;
-  importFunc: () => Promise<{ default: T }>;
+  importFunc: () => Promise<{ default: ComponentType<TProps> }>;
   fallback?: React.ReactNode;
-  props?: React.ComponentProps<T>;
+  props?: TProps;
 }
 
-export function ConditionalLazyLoad<T extends ComponentType<any>>({
+export function ConditionalLazyLoad<TProps extends object>({
   condition,
   importFunc,
   fallback,
   props,
-}: ConditionalLazyLoadProps<T>) {
-  const [Component, setComponent] = React.useState<T | null>(null);
+}: ConditionalLazyLoadProps<TProps>) {
+  const [Component, setComponent] = React.useState<ComponentType<TProps> | null>(null);
 
   React.useEffect(() => {
     if (condition) {
@@ -254,40 +235,5 @@ export function ConditionalLazyLoad<T extends ComponentType<any>>({
     return <>{fallback || <LoadingFallback />}</>;
   }
 
-  return <Component {...(props as any)} />;
-}
-
-export function createLazyRoute(
-  importFunc: () => Promise<{ default: ComponentType<any> }>,
-  fallback?: React.ReactNode,
-) {
-  const LazyComponent = lazy(importFunc);
-
-  return (
-    <Suspense fallback={fallback || <LoadingFallback message="加载页面中..." />}>
-      <LazyComponent />
-    </Suspense>
-  );
-}
-
-export function useLazyModule<T>(
-  importFunc: () => Promise<T>,
-): [T | null, boolean, Error | null] {
-  const [module, setModule] = React.useState<T | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<Error | null>(null);
-
-  React.useEffect(() => {
-    importFunc()
-      .then((mod) => {
-        setModule(mod);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err);
-        setLoading(false);
-      });
-  }, [importFunc]);
-
-  return [module, loading, error];
+  return <Component {...(props ?? ({} as TProps))} />;
 }

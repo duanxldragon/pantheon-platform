@@ -4,7 +4,7 @@
  */
 
 export type ValidationRule = {
-  validate: (value: any) => boolean;
+  validate: (value: unknown) => boolean;
   message: string;
 };
 
@@ -30,7 +30,7 @@ export class Validator {
   /**
    * 执行验证
    */
-  validate(value: any): ValidationResult {
+  validate(value: unknown): ValidationResult {
     const errors: string[] = [];
 
     for (const rule of this.rules) {
@@ -54,7 +54,7 @@ export const ValidationRules = {
    * 必填验证
    */
   required: (message = '此字段为必填项'): ValidationRule => ({
-    validate: (value: any) => {
+    validate: (value: unknown) => {
       if (typeof value === 'string') {
         return value.trim().length > 0;
       }
@@ -130,7 +130,7 @@ export const ValidationRules = {
    * 数字验证
    */
   number: (message = '请输入有效的数字'): ValidationRule => ({
-    validate: (value: any) => {
+    validate: (value: unknown) => {
       if (value === null || value === undefined || value === '') return true;
       return !isNaN(Number(value));
     },
@@ -141,7 +141,7 @@ export const ValidationRules = {
    * 整数验证
    */
   integer: (message = '请输入整数'): ValidationRule => ({
-    validate: (value: any) => {
+    validate: (value: unknown) => {
       if (value === null || value === undefined || value === '') return true;
       return Number.isInteger(Number(value));
     },
@@ -152,7 +152,7 @@ export const ValidationRules = {
    * 最小值验证
    */
   min: (min: number, message?: string): ValidationRule => ({
-    validate: (value: any) => {
+    validate: (value: unknown) => {
       if (value === null || value === undefined || value === '') return true;
       return Number(value) >= min;
     },
@@ -163,7 +163,7 @@ export const ValidationRules = {
    * 最大值验证
    */
   max: (max: number, message?: string): ValidationRule => ({
-    validate: (value: any) => {
+    validate: (value: unknown) => {
       if (value === null || value === undefined || value === '') return true;
       return Number(value) <= max;
     },
@@ -185,7 +185,7 @@ export const ValidationRules = {
    * 自定义验证
    */
   custom: (
-    validator: (value: any) => boolean,
+    validator: (value: unknown) => boolean,
     message: string
   ): ValidationRule => ({
     validate: validator,
@@ -266,7 +266,7 @@ export const ValidationRules = {
     max?: number,
     message?: string
   ): ValidationRule => ({
-    validate: (value: any[]) => {
+    validate: (value: unknown) => {
       if (!Array.isArray(value)) return false;
       if (min !== undefined && value.length < min) return false;
       if (max !== undefined && value.length > max) return false;
@@ -339,7 +339,7 @@ export function createValidator(): Validator {
  * ]);
  * ```
  */
-export function validate(value: any, rules: ValidationRule[]): ValidationResult {
+export function validate(value: unknown, rules: ValidationRule[]): ValidationResult {
   const validator = new Validator();
   rules.forEach(rule => validator.addRule(rule));
   return validator.validate(value);
@@ -350,7 +350,7 @@ export function validate(value: any, rules: ValidationRule[]): ValidationResult 
  */
 export interface FormField {
   name: string;
-  value: any;
+  value: unknown;
   rules: ValidationRule[];
 }
 
@@ -405,7 +405,7 @@ export function validateForm(fields: FormField[]): FormValidationResult {
  * 异步验证规则类型
  */
 export type AsyncValidationRule = {
-  validate: (value: any) => Promise<boolean>;
+  validate: (value: unknown) => Promise<boolean>;
   message: string;
 };
 
@@ -427,7 +427,7 @@ export type AsyncValidationRule = {
  * ```
  */
 export async function validateAsync(
-  value: any,
+  value: unknown,
   rules: AsyncValidationRule[]
 ): Promise<ValidationResult> {
   const errors: string[] = [];
@@ -470,7 +470,7 @@ export const DatabaseValidationRules = {
    * 端口验证
    */
   port: (message = '请输入有效的端口号(1-65535)'): ValidationRule => ({
-    validate: (value: any) => {
+    validate: (value: unknown) => {
       if (!value) return false;
       const port = Number(value);
       return Number.isInteger(port) && port >= 1 && port <= 65535;
@@ -537,7 +537,7 @@ export const DatabaseValidationRules = {
 /**
  * 验证数据库连接配置
  */
-export function validateDatabaseConfig(config: Record<string, any>): ValidationResult {
+export function validateDatabaseConfig(config: Record<string, unknown>): ValidationResult {
   const errors: string[] = [];
 
   // 验证数据库类型
@@ -555,7 +555,8 @@ export function validateDatabaseConfig(config: Record<string, any>): ValidationR
     if (!config.host) {
       errors.push('请输入主机地址');
     }
-    if (!config.port || config.port < 1 || config.port > 65535) {
+    const port = Number(config.port);
+    if (!config.port || Number.isNaN(port) || port < 1 || port > 65535) {
       errors.push('请输入有效的端口号');
     }
     if (!config.database) {

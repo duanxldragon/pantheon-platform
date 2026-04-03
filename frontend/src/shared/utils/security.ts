@@ -3,6 +3,112 @@
  * @description 提供XSS防护、CSRF防护等安全功能
  */
 
+let securityInitialized = false;
+let csrfRefreshIntervalId: ReturnType<typeof setInterval> | null = null;
+const ALLOWED_HTML_TAGS = new Set(['b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li', 'span']);
+const ALLOWED_HTML_ATTRS = new Set(['href', 'title', 'class', 'target', 'rel']);
+
+function sanitizeLinkHref(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.startsWith('//')) {
+    return null;
+  }
+
+  if (trimmed.startsWith('#') || trimmed.startsWith('/')) {
+    return trimmed;
+  }
+
+  try {
+    const parsed = new URL(trimmed, window.location.origin);
+    if (['http:', 'https:', 'mailto:', 'tel:'].includes(parsed.protocol)) {
+      return parsed.toString();
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function sanitizeHtmlAttributes(element: Element): string {
+  const tagName = element.tagName.toLowerCase();
+  const attrs: string[] = [];
+
+  Array.from(element.attributes).forEach((attr) => {
+    const name = attr.name.toLowerCase();
+    if (!ALLOWED_HTML_ATTRS.has(name) || name.startsWith('on')) {
+      return;
+    }
+
+    const rawValue = attr.value.trim();
+    if (!rawValue) {
+      return;
+    }
+
+    if (name === 'href') {
+      const safeHref = sanitizeLinkHref(rawValue);
+      if (safeHref) {
+        attrs.push(` href="${escapeHtml(safeHref)}"`);
+      }
+      return;
+    }
+
+    if (name === 'target') {
+      if (tagName === 'a' && ['_blank', '_self'].includes(rawValue)) {
+        attrs.push(` target="${escapeHtml(rawValue)}"`);
+      }
+      return;
+    }
+
+    if (name === 'rel') {
+      if (tagName === 'a') {
+        attrs.push(` rel="${escapeHtml(rawValue)}"`);
+      }
+      return;
+    }
+
+    attrs.push(` ${name}="${escapeHtml(rawValue)}"`);
+  });
+
+  const hasTargetBlank = attrs.some((attr) => attr.includes(' target="_blank"'));
+  const hasRel = attrs.some((attr) => attr.startsWith(' rel='));
+  if (tagName === 'a' && hasTargetBlank && !hasRel) {
+    attrs.push(' rel="noopener noreferrer"');
+  }
+
+  return attrs.join('');
+}
+
+function sanitizeHtmlNode(node: ChildNode): string {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return escapeHtml(node.textContent || '');
+  }
+
+  if (node.nodeType !== Node.ELEMENT_NODE) {
+    return '';
+  }
+
+  const element = node as Element;
+  const tagName = element.tagName.toLowerCase();
+  const childContent = Array.from(element.childNodes)
+    .map((child) => sanitizeHtmlNode(child))
+    .join('');
+
+  if (!ALLOWED_HTML_TAGS.has(tagName)) {
+    return childContent;
+  }
+
+  if (tagName === 'br') {
+    return '<br />';
+  }
+
+  return `<${tagName}${sanitizeHtmlAttributes(element)}>${childContent}</${tagName}>`;
+}
+
 /**
  * XSS防护 - 输入清理
  */
@@ -24,24 +130,15 @@ export const sanitizeInput = {
    */
   html: (input: string): string => {
     if (!input) return '';
-    
-    // 允许的安全标签
-    const allowedTags = ['b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li', 'span'];
-    const allowedAttrs = ['href', 'title', 'class'];
-    
-    // 简单的HTML清理（生产环境建议使用DOMPurify）
-    let cleaned = input;
-    
-    // 移除脚本标签
-    cleaned = cleaned.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-    
-    // 移除事件处理器
-    cleaned = cleaned.replace(/on\w+\s*=\s*["'][^"']*["']/gi, '');
-    
-    // 移除javascript协议
-    cleaned = cleaned.replace(/href\s*=\s*["']javascript:[^"']*["']/gi, '');
-    
-    return cleaned;
+
+    if (typeof DOMParser === 'undefined' || typeof window === 'undefined') {
+      return escapeHtml(input);
+    }
+
+    const doc = new DOMParser().parseFromString(input, 'text/html');
+    return Array.from(doc.body.childNodes)
+      .map((node) => sanitizeHtmlNode(node))
+      .join('');
   },
 
   /**
@@ -385,7 +482,7 @@ export const maskSensitiveData = {
     if (!ip) return ip;
     const parts = ip.split('.');
     if (parts.length !== 4) return ip;
-    return `${parts[0]}.${parts[1]}.***.***.`;
+    return `${parts[0]}.${parts[1]}.***.***`;
   },
 };
 
@@ -393,6 +490,12 @@ export const maskSensitiveData = {
  * 初始化安全功能
  */
 export function initializeSecurity(): void {
+  if (securityInitialized) {
+    return;
+  }
+
+  securityInitialized = true;
+
   // 应用CSP
   // CSPConfig.apply(); // 如果需要的话取消注释
   
@@ -405,15 +508,17 @@ export function initializeSecurity(): void {
   }
   
   // 定期刷新Token
-  setInterval(() => {
-    CSRFTokenManager.refreshToken();
-  }, 30 * 60 * 1000); // 每30分钟刷新一次
+  if (!csrfRefreshIntervalId) {
+    csrfRefreshIntervalId = setInterval(() => {
+      CSRFTokenManager.refreshToken();
+    }, 30 * 60 * 1000);
+  }
 }
 
 /**
  * 安全的JSON解析
  */
-export function safeJsonParse<T = any>(json: string, defaultValue: T | null = null): T | null {
+export function safeJsonParse<T = unknown>(json: string, defaultValue: T | null = null): T | null {
   try {
     return JSON.parse(json);
   } catch (error) {

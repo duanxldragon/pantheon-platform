@@ -100,7 +100,7 @@ const SHARED_EN_EXTENSIONS: Translations = {
 };
 
 function mergeTranslations(base: Translations, extension: Translations): Translations {
-  const result: Record<string, any> = { ...base };
+  const result: Record<string, string | Translations> = { ...base };
 
   for (const [key, value] of Object.entries(extension)) {
     const current = result[key];

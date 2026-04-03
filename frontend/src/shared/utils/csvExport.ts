@@ -21,15 +21,18 @@ export interface CSVTemplateConfig {
     description?: string;
   }[];
   /** 示例数据行（可选） */
-  exampleData?: Record<string, any>[];
+  exampleData?: Record<string, unknown>[];
 }
+
+type CSVHeader = { key: string; label: string };
+type CSVRow = Record<string, unknown>;
 
 /**
  * 将数据转换为CSV字符串
  */
-export function convertToCSV(
-  data: Record<string, any>[],
-  headers: { key: string; label: string }[]
+export function convertToCSV<T extends object>(
+  data: T[],
+  headers: CSVHeader[]
 ): string {
   if (data.length === 0) return '';
 
@@ -38,8 +41,9 @@ export function convertToCSV(
   
   // CSV Data Rows
   const dataRows = data.map(row => {
+    const rowData = row as Record<string, unknown>;
     return headers.map(h => {
-      const value = row[h.key];
+      const value = rowData[h.key];
       return escapeCSVField(formatValue(value));
     }).join(',');
   });
@@ -50,7 +54,7 @@ export function convertToCSV(
 /**
  * 转义CSV字段（处理逗号、引号、换行符）
  */
-function escapeCSVField(field: any): string {
+function escapeCSVField(field: unknown): string {
   if (field === null || field === undefined) return '';
   
   const str = String(field);
@@ -66,7 +70,7 @@ function escapeCSVField(field: any): string {
 /**
  * 格式化值
  */
-function formatValue(value: any): string {
+function formatValue(value: unknown): string {
   if (value === null || value === undefined) return '';
   if (Array.isArray(value)) return value.join('; ');
   if (typeof value === 'object') return JSON.stringify(value);
@@ -135,8 +139,8 @@ export function downloadCSVTemplate(config: CSVTemplateConfig): void {
  */
 export function parseCSV(
   csvText: string,
-  headers: { key: string; label: string }[]
-): Record<string, any>[] {
+  headers: CSVHeader[]
+): CSVRow[] {
   const lines = csvText.split('\n').filter(line => line.trim());
   if (lines.length < 2) return [];
 
@@ -145,7 +149,7 @@ export function parseCSV(
   
   return dataLines.map(line => {
     const values = parseCSVLine(line);
-    const row: Record<string, any> = {};
+    const row: CSVRow = {};
     
     headers.forEach((header, index) => {
       if (index < values.length) {
@@ -196,7 +200,7 @@ function parseCSVLine(line: string): string[] {
 /**
  * 解析值
  */
-function parseValue(value: string): any {
+function parseValue(value: string): string | number | boolean | null {
   if (!value || value.trim() === '') return null;
   
   const trimmed = value.trim();
@@ -218,8 +222,8 @@ function parseValue(value: string): any {
  * 导出数据到CSV
  */
 export function exportDataToCSV(
-  data: Record<string, any>[],
-  headers: { key: string; label: string }[],
+  data: object[],
+  headers: CSVHeader[],
   filename: string
 ): void {
   const csv = convertToCSV(data, headers);
@@ -233,8 +237,8 @@ export function exportDataToCSV(
  */
 export function readCSVFile(
   file: File,
-  headers: { key: string; label: string }[]
-): Promise<Record<string, any>[]> {
+  headers: CSVHeader[]
+): Promise<CSVRow[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     
@@ -260,7 +264,7 @@ export function readCSVFile(
  * 验证CSV数据
  */
 export function validateCSVData(
-  data: Record<string, any>[],
+  data: CSVRow[],
   requiredFields: string[]
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];

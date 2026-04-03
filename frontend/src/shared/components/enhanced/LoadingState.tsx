@@ -3,7 +3,6 @@
  * 支持多种加载样式：spinner、skeleton、pulse
  */
 
-import { ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 
 interface LoadingStateProps {

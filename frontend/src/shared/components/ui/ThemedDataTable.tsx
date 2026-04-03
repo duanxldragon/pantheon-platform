@@ -30,17 +30,33 @@ interface ThemedDataTableProps<T> {
   pageSize?: number;
 }
 
-export function ThemedDataTable<T extends Record<string, any>>({
+export function ThemedDataTable<T extends Record<string, unknown>>({
   columns,
   data,
   rowKey = 'id',
   emptyMessage = '暂无数据',
-  searchable = false,
+  searchable: _searchable = false,
   pagination = false,
   pageSize = 10,
 }: ThemedDataTableProps<T>) {
   const { theme } = useThemeStore();
   const [currentPage, setCurrentPage] = useState(1);
+
+  const renderCellValue = (value: unknown): ReactNode => {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    if (typeof value === 'string' || typeof value === 'number') {
+      return value;
+    }
+    if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    }
+    if (Array.isArray(value)) {
+      return value.join(', ');
+    }
+    return JSON.stringify(value);
+  };
 
   // 标准化列定义
   const normalizedColumns = columns.map((col) => ({
@@ -55,7 +71,8 @@ export function ThemedDataTable<T extends Record<string, any>>({
     if (typeof rowKey === 'function') {
       return rowKey(item);
     }
-    return item[rowKey] || index;
+    const candidate = item[rowKey];
+    return typeof candidate === 'string' || typeof candidate === 'number' ? candidate : index;
   };
 
   // 分页逻辑
@@ -109,7 +126,7 @@ export function ThemedDataTable<T extends Record<string, any>>({
                     >
                       {column.render
                         ? column.render(item)
-                        : item[column.key as keyof T]}
+                        : renderCellValue(item[column.key as keyof T])}
                     </TableCell>
                   ))}
                 </TableRow>
