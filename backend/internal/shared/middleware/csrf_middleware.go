@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"net/http"
 
@@ -47,8 +48,11 @@ func (m *CSRFMiddleware) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Skip CSRF validation for GET, HEAD, OPTIONS
 		if c.Request.Method == http.MethodGet || c.Request.Method == http.MethodHead || c.Request.Method == http.MethodOptions {
-			// Still set token for read requests
-			token := m.GenerateToken()
+			// Reuse token if present to avoid rotating on every GET request.
+			token, err := c.Cookie(m.config.CookieName)
+			if err != nil || token == "" {
+				token = m.GenerateToken()
+			}
 			c.Set("csrf_token", token)
 			c.SetSameSite(m.getSameSiteMode())
 			c.SetCookie(
@@ -68,7 +72,7 @@ func (m *CSRFMiddleware) Middleware() gin.HandlerFunc {
 		tokenInHeader := c.GetHeader(m.config.HeaderName)
 		tokenInCookie, err := c.Cookie(m.config.CookieName)
 
-		if err != nil || tokenInHeader == "" || tokenInCookie == "" || tokenInHeader != tokenInCookie {
+		if err != nil || tokenInHeader == "" || tokenInCookie == "" || !constantTimeEquals(tokenInHeader, tokenInCookie) {
 			response.Unauthorized(c, "INVALID_CSRF_TOKEN", "CSRF token validation failed")
 			c.Abort()
 			return
@@ -97,7 +101,7 @@ func (m *CSRFMiddleware) ValidateCSRF(c *gin.Context) bool {
 		return false
 	}
 
-	return tokenInHeader == tokenInCookie
+	return constantTimeEquals(tokenInHeader, tokenInCookie)
 }
 
 // GetCSRFToken gets CSRF token from context
@@ -106,6 +110,13 @@ func (m *CSRFMiddleware) GetCSRFToken(c *gin.Context) string {
 		return token.(string)
 	}
 	return ""
+}
+
+func constantTimeEquals(left, right string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(left), []byte(right)) == 1
 }
 
 // GetCSRFTokenHandler returns a handler that provides CSRF token

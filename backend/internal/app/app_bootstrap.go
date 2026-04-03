@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -205,10 +206,17 @@ func Start() {
 	engine.Use(middleware.OperationLog(sysContainer.GetLogService()))
 
 	// Security middlewares
+	csrfConfig := middleware.DefaultCSRFConfig()
+	if strings.EqualFold(cfg.Environment, "production") {
+		csrfConfig.SecureCookie = true
+	}
+	csrfMiddleware := middleware.NewCSRFMiddleware(csrfConfig)
 	securityHeadersMiddleware := middleware.NewSecurityHeadersMiddleware(middleware.DefaultSecurityHeadersConfig())
 
 	// Register CSRF and security headers middleware globally
+	engine.Use(csrfMiddleware.Middleware())
 	engine.Use(securityHeadersMiddleware.Middleware())
+	engine.GET("/api/v1/auth/csrf-token", csrfMiddleware.GetCSRFTokenHandler())
 
 	engine.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -220,8 +228,14 @@ func Start() {
 
 	authMiddleware := middleware.Auth(redisClient)
 	tenantMiddleware := middleware.Tenant(dbManager, cfg, tenantSvc)
+	var publicAuthLimiter gin.HandlerFunc
+	if redisClient != nil {
+		publicAuthLimiter = middleware.NewRedisRateLimiter(redisClient, "auth-public", 120, time.Minute).Limit()
+	} else {
+		publicAuthLimiter = middleware.NewRateLimiter(120, time.Minute).Limit()
+	}
 
-	authRouter.RegisterRoutes(engine, authMiddleware)
+	authRouter.RegisterRoutes(engine, authMiddleware, publicAuthLimiter)
 	tenantRouter.RegisterRoutes(engine, authMiddleware)
 
 	api := engine.Group("/api/v1")
@@ -362,6 +376,37 @@ func bootstrapDefaultData(db *gorm.DB, authzSvc *authzService.AuthorizationServi
 		{resource: "/api/v1/*", action: "*"},
 		{resource: "/api/v1/tenants/*", action: "*"},
 	}
+	authOpsPolicies := []struct {
+		resource string
+		action   string
+	}{
+		{resource: "/api/v1/auth/attempts", action: "GET"},
+		{resource: "/api/v1/auth/unlock", action: "POST"},
+	}
+	defaultPermissions := []permission.Permission{
+		{
+			Name:        "Auth Attempts View",
+			Code:        "auth:attempts:view",
+			Description: "View login attempt summary for accounts",
+			Type:        "api",
+			Resource:    "/api/v1/auth/attempts",
+			Action:      "GET",
+			Status:      "active",
+			TenantID:    defaultTenantID,
+			IsSystem:    true,
+		},
+		{
+			Name:        "Auth Unlock Manage",
+			Code:        "auth:unlock:manage",
+			Description: "Unlock locked user accounts",
+			Type:        "api",
+			Resource:    "/api/v1/auth/unlock",
+			Action:      "POST",
+			Status:      "active",
+			TenantID:    defaultTenantID,
+			IsSystem:    true,
+		},
+	}
 
 	ctx := context.Background()
 
@@ -400,6 +445,29 @@ func bootstrapDefaultData(db *gorm.DB, authzSvc *authzService.AuthorizationServi
 		_ = db.WithContext(ctx).Model(&role.Role{}).
 			Where("id = ?", r.ID).
 			Update("data_scope", r.DataScope).Error
+	}
+
+	// Ensure security admin template role for auth account operations.
+	var securityAdminRole role.Role
+	if err := db.WithContext(ctx).Where("code = ?", "security_admin").First(&securityAdminRole).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			securityAdminRole = role.Role{
+				ID:        uuid.New(),
+				Name:      "Security Admin",
+				Code:      "security_admin",
+				Status:    "active",
+				Type:      "system",
+				DataScope: "all",
+				TenantID:  defaultTenantID,
+				IsSystem:  true,
+			}
+			_ = db.WithContext(ctx).Create(&securityAdminRole).Error
+		}
+	} else if strings.TrimSpace(securityAdminRole.DataScope) == "" {
+		securityAdminRole.DataScope = "all"
+		_ = db.WithContext(ctx).Model(&role.Role{}).
+			Where("id = ?", securityAdminRole.ID).
+			Update("data_scope", securityAdminRole.DataScope).Error
 	}
 
 	// Ensure default admin user and DB role binding
@@ -443,8 +511,35 @@ func bootstrapDefaultData(db *gorm.DB, authzSvc *authzService.AuthorizationServi
 		return
 	}
 
+	for _, seed := range defaultPermissions {
+		perm := seed
+		var existing permission.Permission
+		err := db.WithContext(ctx).Where("code = ?", perm.Code).First(&existing).Error
+		if err == gorm.ErrRecordNotFound {
+			perm.ID = uuid.New()
+			_ = db.WithContext(ctx).Create(&perm).Error
+		} else if err == nil {
+			updates := map[string]interface{}{
+				"name":        perm.Name,
+				"description": perm.Description,
+				"type":        perm.Type,
+				"resource":    perm.Resource,
+				"action":      perm.Action,
+				"status":      "active",
+				"tenant_id":   defaultTenantID,
+				"is_system":   true,
+			}
+			_ = db.WithContext(ctx).Model(&permission.Permission{}).Where("id = ?", existing.ID).Updates(updates).Error
+		}
+	}
+
 	for _, policy := range defaultRolePolicies {
 		_ = authzSvc.AddPermissionForRole(ctx, r.ID.String(), policy.resource, policy.action)
+	}
+	if securityAdminRole.ID != uuid.Nil {
+		for _, policy := range authOpsPolicies {
+			_ = authzSvc.AddPermissionForRole(ctx, securityAdminRole.ID.String(), policy.resource, policy.action)
+		}
 	}
 	if cfg.DefaultAdmin.Enabled && admin.ID != uuid.Nil {
 		_ = authzSvc.SetRolesForUser(ctx, admin.ID.String(), []string{r.ID.String()})

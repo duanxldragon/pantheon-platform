@@ -485,25 +485,44 @@ func (s *AuthorizationService) GetDepartmentTree(ctx context.Context, deptID str
 		return nil, fmt.Errorf("tenant db not found in context")
 	}
 
-	deptIDs := make([]string, 0, 4)
-	s.getDepartmentChildrenRecursive(tenantDB, deptID, &deptIDs)
-	deptIDs = append(deptIDs, deptID)
-	return deptIDs, nil
-}
-
-func (s *AuthorizationService) getDepartmentChildrenRecursive(db *gorm.DB, parentID string, deptIDs *[]string) {
 	var departments []DepartmentInfo
-	if err := db.Table("system_dept").
+	if err := tenantDB.Table("system_dept").
 		Select("id, parent_id").
-		Where("parent_id = ? AND status = ?", parentID, "active").
+		Where("status = ?", "active").
 		Find(&departments).Error; err != nil {
-		return
+		return nil, err
 	}
 
+	children := make(map[string][]string, len(departments))
 	for _, department := range departments {
-		*deptIDs = append(*deptIDs, department.ID)
-		s.getDepartmentChildrenRecursive(db, department.ID, deptIDs)
+		if department.ParentID == nil {
+			continue
+		}
+		parentID := strings.TrimSpace(*department.ParentID)
+		if parentID == "" {
+			continue
+		}
+		children[parentID] = append(children[parentID], department.ID)
 	}
+
+	queue := []string{deptID}
+	visited := map[string]struct{}{deptID: {}}
+	result := make([]string, 0, 8)
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		result = append(result, current)
+		for _, childID := range children[current] {
+			if _, ok := visited[childID]; ok {
+				continue
+			}
+			visited[childID] = struct{}{}
+			queue = append(queue, childID)
+		}
+	}
+
+	return result, nil
 }
 
 func (s *AuthorizationService) GetDataScopeFilter(ctx context.Context, userID, resource string) (map[string]interface{}, error) {

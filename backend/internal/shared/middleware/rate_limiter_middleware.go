@@ -1,10 +1,12 @@
 package middleware
 
 import (
+	"fmt"
 	"strconv"
 	"sync"
 	"time"
 
+	"pantheon-platform/backend/internal/shared/cache"
 	"pantheon-platform/backend/internal/shared/response"
 
 	"github.com/gin-gonic/gin"
@@ -18,12 +20,33 @@ type RateLimiter struct {
 	window   time.Duration
 }
 
+// RedisRateLimiter stores request windows in redis for multi-instance consistency.
+type RedisRateLimiter struct {
+	redisClient *cache.RedisClient
+	scope       string
+	limit       int
+	window      time.Duration
+}
+
 // NewRateLimiter creates a new in-memory rate limiter.
 func NewRateLimiter(limit int, window time.Duration) *RateLimiter {
 	return &RateLimiter{
 		requests: make(map[string][]time.Time),
 		limit:    limit,
 		window:   window,
+	}
+}
+
+// NewRedisRateLimiter creates a redis-backed rate limiter.
+func NewRedisRateLimiter(redisClient *cache.RedisClient, scope string, limit int, window time.Duration) *RedisRateLimiter {
+	if scope == "" {
+		scope = "default"
+	}
+	return &RedisRateLimiter{
+		redisClient: redisClient,
+		scope:       scope,
+		limit:       limit,
+		window:      window,
 	}
 }
 
@@ -41,6 +64,41 @@ func (rl *RateLimiter) Limit() gin.HandlerFunc {
 		c.Header("X-RateLimit-Limit", strconv.Itoa(rl.limit))
 		c.Header("X-RateLimit-Remaining", strconv.Itoa(remaining))
 		c.Header("X-RateLimit-Reset", resetAt.Format(time.RFC3339))
+
+		c.Next()
+	}
+}
+
+// Limit applies rate limiting by client IP using redis counters.
+func (rl *RedisRateLimiter) Limit() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if rl == nil || rl.redisClient == nil {
+			c.Next()
+			return
+		}
+
+		key := fmt.Sprintf("rate_limit:%s:%s", rl.scope, c.ClientIP())
+		current, err := rl.redisClient.Incr(c.Request.Context(), key)
+		if err != nil {
+			c.Next()
+			return
+		}
+		if current == 1 {
+			_ = rl.redisClient.Expire(c.Request.Context(), key, rl.window)
+		}
+
+		remaining := rl.limit - int(current)
+		if remaining < 0 {
+			remaining = 0
+		}
+		c.Header("X-RateLimit-Limit", strconv.Itoa(rl.limit))
+		c.Header("X-RateLimit-Remaining", strconv.Itoa(remaining))
+
+		if int(current) > rl.limit {
+			response.TooManyRequests(c, "RATE_LIMIT_EXCEEDED", "Request rate limit exceeded")
+			c.Abort()
+			return
+		}
 
 		c.Next()
 	}

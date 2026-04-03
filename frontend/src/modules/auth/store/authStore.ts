@@ -731,7 +731,6 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: state.isAuthenticated,
           user: state.user,
           accessToken: state.accessToken,
-          refreshToken: state.refreshToken,
           tokenExpiry: state.tokenExpiry,
           loginAttempts: state.loginAttempts,
           isLocked: state.isLocked,
@@ -751,4 +750,3 @@ export const useAuthStore = create<AuthState>()(
     { name: 'AuthStore' },
   ),
 );
-

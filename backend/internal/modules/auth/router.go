@@ -13,17 +13,18 @@ func NewAuthRouter(handler *AuthHandler) *AuthRouter {
 }
 
 // RegisterRoutes registers auth routes.
-func (r *AuthRouter) RegisterRoutes(router *gin.Engine, authMiddleware gin.HandlerFunc) {
+func (r *AuthRouter) RegisterRoutes(router *gin.Engine, authMiddleware gin.HandlerFunc, publicMiddlewares ...gin.HandlerFunc) {
 	api := router.Group("/api/v1")
 
 	auth := api.Group("/auth")
+	if len(publicMiddlewares) > 0 {
+		auth.Use(publicMiddlewares...)
+	}
 	{
 		auth.GET("/config", r.handler.GetPublicConfig)
 		auth.POST("/login", r.handler.Login)
 		auth.POST("/2fa/login", r.handler.VerifyLogin2FA)
 		auth.POST("/refresh", r.handler.RefreshToken)
-		auth.POST("/unlock", r.handler.UnlockAccount)
-		auth.GET("/attempts", r.handler.GetLoginAttempts)
 		auth.POST("/validate-password", r.handler.ValidatePassword)
 	}
 
@@ -32,7 +33,9 @@ func (r *AuthRouter) RegisterRoutes(router *gin.Engine, authMiddleware gin.Handl
 	{
 		protectedAuth.GET("/current", r.handler.GetCurrentUser)
 		protectedAuth.GET("/login-history", r.handler.GetLoginHistory)
+		protectedAuth.GET("/attempts", r.handler.GetLoginAttempts)
 		protectedAuth.POST("/logout", r.handler.Logout)
+		protectedAuth.POST("/unlock", r.handler.UnlockAccount)
 	}
 
 	twoFactor := protectedAuth.Group("/2fa")
