@@ -11,6 +11,7 @@ import {
   Tag,
   XCircle,
 } from 'lucide-react';
+import { useCallback } from 'react';
 import { format } from 'date-fns';
 import { enUS, zhCN } from 'date-fns/locale';
 
@@ -20,6 +21,7 @@ import type { Column } from '../../../../../shared/components/ui/EnhancedDataTab
 import { EnhancedDataTable } from '../../../../../shared/components/ui/EnhancedDataTable';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import { getAuditResourceBadgeClass, isRefreshStrategy, isRevokeStrategy, parseAuditDetail } from '../utils/auditMeta';
+import { getUnifiedLogManagementCopy } from '../unifiedLogManagementCopy';
 
 export type UnifiedLogItem =
   | {
@@ -84,18 +86,18 @@ export const LogTable: React.FC<LogTableProps> = ({
   onViewDetail,
   pagination,
 }) => {
-  const { t, language } = useLanguageStore();
+  const { language } = useLanguageStore();
   const dateLocale = language === 'zh' ? zhCN : enUS;
-  const loginFeedbackLabel = language === 'zh' ? '登录反馈' : 'Login Feedback';
-  const targetColumnLabel = language === 'zh' ? '操作对象' : 'Target';
-  const logoutLabel = language === 'zh' ? '退出时间' : 'Logout';
+  const moduleCopy = getUnifiedLogManagementCopy(language);
+  const copy = moduleCopy.table;
+  const detailCopy = moduleCopy.detail;
 
-  const getStatusBadge = (status: 'success' | 'failure') => {
+  const getStatusBadge = useCallback((status: 'success' | 'failure') => {
     if (status === 'success') {
       return (
         <Badge className="gap-1 border border-emerald-100 bg-emerald-50 font-medium text-emerald-600 hover:bg-emerald-50">
           <CheckCircle2 className="w-3 h-3" />
-          {t.modules.deploy.status.success}
+          {copy.statusSuccess}
         </Badge>
       );
     }
@@ -103,16 +105,16 @@ export const LogTable: React.FC<LogTableProps> = ({
     return (
       <Badge className="gap-1 border border-rose-100 bg-rose-50 font-medium text-rose-600 hover:bg-rose-50">
         <XCircle className="w-3 h-3" />
-        {t.modules.deploy.status.failed}
+        {copy.statusFailed}
       </Badge>
     );
-  };
+  }, [copy.statusFailed, copy.statusSuccess]);
 
   const columns = useMemo(() => {
     const base: Column<UnifiedLogItem>[] = [
       {
         key: 'user',
-        label: t.systemManagement.logs.columns.user,
+        label: copy.userColumnLabel,
         width: '220px',
         render: (log) => (
           <div className="flex items-center gap-3">
@@ -126,7 +128,7 @@ export const LogTable: React.FC<LogTableProps> = ({
             <div className="flex min-w-0 flex-col">
               <span className="truncate font-bold leading-tight text-slate-900">{log.username}</span>
               <span className="text-[11px] text-slate-400">
-                {log.kind === 'operation' ? t.systemManagement.logs.tabOperation : t.systemManagement.logs.tabLogin}
+                {log.kind === 'operation' ? copy.operationTypeLabel : copy.loginTypeLabel}
               </span>
             </div>
           </div>
@@ -134,7 +136,7 @@ export const LogTable: React.FC<LogTableProps> = ({
       },
       {
         key: 'timestamp',
-        label: t.systemManagement.logs.columns.time,
+        label: copy.timeColumnLabel,
         width: '180px',
         render: (log) => {
           const timestamp = log.kind === 'operation' ? log.createdAt : log.loginAt;
@@ -154,7 +156,7 @@ export const LogTable: React.FC<LogTableProps> = ({
       },
       {
         key: 'ip',
-        label: t.systemManagement.logs.columns.ip,
+        label: copy.ipColumnLabel,
         width: '180px',
         render: (log) => (
           <div className="flex flex-col gap-1">
@@ -170,7 +172,7 @@ export const LogTable: React.FC<LogTableProps> = ({
       },
       {
         key: 'status',
-        label: t.systemManagement.logs.columns.status,
+        label: copy.statusColumnLabel,
         width: '110px',
         align: 'center',
         render: (log) => getStatusBadge(log.status),
@@ -182,7 +184,7 @@ export const LogTable: React.FC<LogTableProps> = ({
         ? [
             {
               key: 'device',
-              label: t.systemManagement.logs.deviceBrowser,
+              label: copy.deviceBrowserColumnLabel,
               width: '220px',
               render: (log) => {
                 if (log.kind !== 'login') {
@@ -204,7 +206,7 @@ export const LogTable: React.FC<LogTableProps> = ({
             },
             {
               key: 'feedback',
-              label: loginFeedbackLabel,
+              label: copy.loginFeedbackLabel,
               width: '280px',
               render: (log) => {
                 if (log.kind !== 'login') {
@@ -214,12 +216,13 @@ export const LogTable: React.FC<LogTableProps> = ({
                 return (
                   <div className="flex min-w-0 flex-col gap-1">
                     <span className="truncate text-sm font-medium text-slate-700">
-                      {log.message || (log.status === 'success' ? t.modules.deploy.status.success : t.modules.deploy.status.failed)}
+                      {log.message || (log.status === 'success' ? copy.statusSuccess : copy.statusFailed)}
                     </span>
                     <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
                       <span className="inline-flex items-center gap-1 rounded-full border border-slate-200/80 bg-slate-50/90 px-2 py-0.5 shadow-sm shadow-slate-200/30">
                         <Clock className="h-3 w-3" />
-                        {logoutLabel}: {log.logoutAt ? format(new Date(log.logoutAt), 'HH:mm:ss', { locale: dateLocale }) : '-'}
+                        {copy.logoutLabel}:{' '}
+                        {log.logoutAt ? format(new Date(log.logoutAt), 'HH:mm:ss', { locale: dateLocale }) : '-'}
                       </span>
                     </div>
                   </div>
@@ -230,7 +233,7 @@ export const LogTable: React.FC<LogTableProps> = ({
         : [
             {
               key: 'operation',
-              label: t.systemManagement.logs.columns.operation,
+              label: copy.operationColumnLabel,
               width: '380px',
               render: (log) => {
                 if (log.kind !== 'operation') {
@@ -275,7 +278,7 @@ export const LogTable: React.FC<LogTableProps> = ({
                       {log.errorMsg ? (
                         <span className="inline-flex items-center gap-1 text-[10px] text-rose-600">
                           <AlertCircle className="w-3 h-3" />
-                          {t.systemManagement.logs.columns.error}
+                          {copy.errorLabel}
                         </span>
                       ) : null}
                     </div>
@@ -283,22 +286,22 @@ export const LogTable: React.FC<LogTableProps> = ({
                       <div className="flex flex-wrap items-center gap-2">
                         {affectedUsers ? (
                           <Badge variant="outline" className="rounded-full border-blue-100 bg-blue-50 text-blue-700 shadow-sm shadow-blue-100/40">
-                            {t.systemManagement.logs.impact.users.replace('{count}', affectedUsers)}
+                            {detailCopy.impact.users(affectedUsers)}
                           </Badge>
                         ) : null}
                         {affectedRoles ? (
                           <Badge variant="outline" className="rounded-full border-purple-100 bg-purple-50 text-purple-700 shadow-sm shadow-purple-100/40">
-                            {t.systemManagement.logs.impact.roles.replace('{count}', affectedRoles)}
+                            {detailCopy.impact.roles(affectedRoles)}
                           </Badge>
                         ) : null}
                         {isRefreshStrategy(refreshStrategy) ? (
                           <Badge variant="outline" className="rounded-full border-emerald-100 bg-emerald-50 text-emerald-700 shadow-sm shadow-emerald-100/40">
-                            {t.systemManagement.logs.impact.authRefresh}
+                            {detailCopy.impact.authRefresh}
                           </Badge>
                         ) : null}
                         {isRevokeStrategy(sessionStrategy) ? (
                           <Badge variant="outline" className="rounded-full border-amber-100 bg-amber-50 text-amber-700 shadow-sm shadow-amber-100/40">
-                            {t.systemManagement.logs.impact.sessionRevoke}
+                            {detailCopy.impact.sessionRevoke}
                           </Badge>
                         ) : null}
                       </div>
@@ -309,7 +312,7 @@ export const LogTable: React.FC<LogTableProps> = ({
             },
             {
               key: 'target',
-              label: targetColumnLabel,
+              label: copy.targetColumnLabel,
               width: '240px',
               render: (log) => {
                 if (log.kind !== 'operation') {
@@ -336,7 +339,7 @@ export const LogTable: React.FC<LogTableProps> = ({
 
     const actions: Column<UnifiedLogItem> = {
       key: 'actions',
-      label: t.common.actions,
+      label: copy.actionColumnLabel,
       width: '100px',
       align: 'right',
       render: (log) => (
@@ -344,7 +347,7 @@ export const LogTable: React.FC<LogTableProps> = ({
           actions={[
             {
               icon: <Eye className="w-4 h-4 text-blue-500" />,
-              label: t.systemManagement.logs.actions.detail,
+              label: copy.detailActionLabel,
               onClick: () => onViewDetail(log),
             },
           ]}
@@ -353,7 +356,29 @@ export const LogTable: React.FC<LogTableProps> = ({
     };
 
     return [...base, ...typeCols, actions];
-  }, [activeTab, dateLocale, language, onViewDetail, t]);
+  }, [
+    activeTab,
+    copy.actionColumnLabel,
+    copy.detailActionLabel,
+    copy.deviceBrowserColumnLabel,
+    copy.errorLabel,
+    copy.ipColumnLabel,
+    copy.loginFeedbackLabel,
+    copy.loginTypeLabel,
+    copy.logoutLabel,
+    copy.operationColumnLabel,
+    copy.operationTypeLabel,
+    copy.statusColumnLabel,
+    copy.statusFailed,
+    copy.statusSuccess,
+    copy.targetColumnLabel,
+    copy.timeColumnLabel,
+    copy.userColumnLabel,
+    dateLocale,
+    detailCopy.impact,
+    getStatusBadge,
+    onViewDetail,
+  ]);
 
   return (
     <EnhancedDataTable

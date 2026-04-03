@@ -5,6 +5,7 @@ import { Badge } from '../../../../../components/ui/badge';
 import { Button } from '../../../../../components/ui/button';
 import { Input } from '../../../../../components/ui/input';
 import { useLanguageStore } from '../../../../../stores/languageStore';
+import { getDataDictionaryCopy } from '../dataDictionaryCopy';
 
 export interface DictTypeItem {
   id: string;
@@ -24,7 +25,8 @@ interface DictTypeSidebarProps {
 }
 
 export const DictTypeSidebar: React.FC<DictTypeSidebarProps> = ({ types, selectedCode, onSelect, onAddType, canAddType = true }) => {
-  const { t } = useLanguageStore();
+  const { language } = useLanguageStore();
+  const copy = getDataDictionaryCopy(language).sidebar;
   const [search, setSearch] = useState('');
 
   const filteredTypes = useMemo(() => {
@@ -38,7 +40,7 @@ export const DictTypeSidebar: React.FC<DictTypeSidebarProps> = ({ types, selecte
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
           <BookOpen className="h-4 w-4 text-primary" />
-          {t.systemManagement.dictionary.typeTitle}
+          {copy.typeTitle}
         </h3>
         {canAddType ? (
           <Button
@@ -55,7 +57,7 @@ export const DictTypeSidebar: React.FC<DictTypeSidebarProps> = ({ types, selecte
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <Input
-          placeholder={t.systemManagement.dictionary.typeSearchPlaceholder}
+          placeholder={copy.typeSearchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="h-11 rounded-2xl border-slate-200/80 bg-white/90 pl-10 text-sm shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10"
@@ -97,7 +99,7 @@ export const DictTypeSidebar: React.FC<DictTypeSidebarProps> = ({ types, selecte
         })}
 
         {filteredTypes.length === 0 ? (
-          <div className="py-10 text-center text-xs italic text-slate-400">{t.systemManagement.dictionary.typeEmptyHint}</div>
+          <div className="py-10 text-center text-xs italic text-slate-400">{copy.typeEmptyHint}</div>
         ) : null}
       </div>
     </div>

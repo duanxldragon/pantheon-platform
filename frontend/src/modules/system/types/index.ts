@@ -315,8 +315,8 @@ export interface AffectedPermission {
   permissionCode: string;
   permissionName: string;
   changeType: 'add' | 'remove' | 'modify';
-  before?: any;
-  after?: any;
+  before?: unknown;
+  after?: unknown;
 }
 
 export interface RiskWarning {
@@ -350,8 +350,8 @@ export interface PermissionChange {
   permissionCode: string;
   permissionName: string;
   action: 'add' | 'remove' | 'modify';
-  before?: any;
-  after?: any;
+  before?: unknown;
+  after?: unknown;
 }
 
 export interface PermissionApproval {

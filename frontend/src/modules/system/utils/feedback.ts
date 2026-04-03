@@ -21,7 +21,9 @@ export function createEntityFeedback(zh: boolean, options: EntityFeedbackOptions
     importFailed: zh ? `${options.zh}导入失败，请重试` : `Failed to import ${entityEn}`,
     exportSuccess: zh ? `${options.zh}导出成功` : `${options.en} exported successfully`,
     exportFailed: zh ? `${options.zh}导出失败，请重试` : `Failed to export ${entityEn}`,
-    statusUpdateFailed: zh ? `${options.zh}状态更新失败，请重试` : `Failed to update ${entityEn} status`,
+    statusUpdateFailed: zh
+      ? `${options.zh}状态更新失败，请重试`
+      : `Failed to update ${entityEn} status`,
     batchStatusUpdateFailed: zh
       ? `${options.zh}批量状态更新失败，请重试`
       : `Failed to batch update ${entityEn} status`,

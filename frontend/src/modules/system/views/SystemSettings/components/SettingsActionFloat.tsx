@@ -1,13 +1,18 @@
 import React from 'react';
 import { Button } from '../../../../../components/ui/button';
 import { Save, RotateCcw, AlertCircle } from 'lucide-react';
-import { useLanguageStore } from '../../../../../stores/languageStore';
 
 interface SettingsActionFloatProps {
   isVisible: boolean;
   onSave: () => void;
   onReset: () => void;
   modifiedCount: number;
+  copy: {
+    pendingSync: string;
+    pendingSyncCount: string;
+    resetChanges: string;
+    syncNow: string;
+  };
 }
 
 export const SettingsActionFloat: React.FC<SettingsActionFloatProps> = ({
@@ -15,9 +20,8 @@ export const SettingsActionFloat: React.FC<SettingsActionFloatProps> = ({
   onSave,
   onReset,
   modifiedCount,
+  copy,
 }) => {
-  const { t } = useLanguageStore();
-
   if (!isVisible) return null;
 
   return (
@@ -28,15 +32,15 @@ export const SettingsActionFloat: React.FC<SettingsActionFloatProps> = ({
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-50 shadow-inner shadow-amber-100/70">
               <AlertCircle className="h-5 w-5 text-amber-500" />
             </div>
-            <span className="absolute -top-1 -right-1 flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500" />
+            <span className="absolute -right-1 -top-1 flex h-3 w-3">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-amber-500" />
             </span>
           </div>
           <div>
-            <p className="text-sm font-semibold leading-none">{t.systemManagement.settingsPage.pendingSync}</p>
+            <p className="text-sm font-semibold leading-none">{copy.pendingSync}</p>
             <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
-              {modifiedCount} {t.systemManagement.settingsPage.pendingSyncCount}
+              {modifiedCount} {copy.pendingSyncCount}
             </p>
           </div>
         </div>
@@ -47,15 +51,15 @@ export const SettingsActionFloat: React.FC<SettingsActionFloatProps> = ({
             onClick={onReset}
             className="h-11 rounded-2xl px-5 font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900"
           >
-            <RotateCcw className="w-4 h-4 mr-2" />
-            {t.systemManagement.settingsPage.resetChanges}
+            <RotateCcw className="mr-2 h-4 w-4" />
+            {copy.resetChanges}
           </Button>
           <Button
             onClick={onSave}
             className="h-11 rounded-2xl px-8 font-semibold shadow-lg shadow-primary/25 transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-xl active:scale-95"
           >
-            <Save className="w-4 h-4 mr-2" />
-            {t.systemManagement.settingsPage.syncNow}
+            <Save className="mr-2 h-4 w-4" />
+            {copy.syncNow}
           </Button>
         </div>
       </div>

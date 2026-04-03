@@ -14,6 +14,7 @@ import { Textarea } from '../../../../../components/ui/textarea';
 import { FormField } from '../../../../../shared/components/ui/FormField';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import type { Department, PositionFormData } from '../../../types';
+import { getPositionManagementCopy } from '../positionManagementCopy';
 
 interface PositionFormProps {
   data?: Partial<PositionFormData>;
@@ -37,7 +38,7 @@ const defaultFormData: Partial<PositionFormData> = {
 
 export function PositionForm({ data = {}, departments, onChange }: PositionFormProps) {
   const { language } = useLanguageStore();
-  const zh = language === 'zh';
+  const copy = getPositionManagementCopy(language).form;
   const [formData, setFormData] = useState<Partial<PositionFormData>>({
     ...defaultFormData,
     ...data,
@@ -58,46 +59,6 @@ export function PositionForm({ data = {}, departments, onChange }: PositionFormP
     onChange(nextData);
   };
 
-  const categoryOptions = useMemo(
-    () =>
-      zh
-        ? [
-            { value: '技术岗', label: '技术岗' },
-            { value: '产品岗', label: '产品岗' },
-            { value: '运营岗', label: '运营岗' },
-            { value: '管理岗', label: '管理岗' },
-            { value: '其他', label: '其他' },
-          ]
-        : [
-            { value: '技术岗', label: 'Technical' },
-            { value: '产品岗', label: 'Product' },
-            { value: '运营岗', label: 'Operations' },
-            { value: '管理岗', label: 'Management' },
-            { value: '其他', label: 'Other' },
-          ],
-    [zh],
-  );
-
-  const levelOptions = useMemo(
-    () =>
-      zh
-        ? [
-            { value: 1, label: 'P1 - 初级' },
-            { value: 2, label: 'P2 - 中级' },
-            { value: 3, label: 'P3 - 高级' },
-            { value: 4, label: 'P4 - 资深' },
-            { value: 5, label: 'P5 - 专家' },
-          ]
-        : [
-            { value: 1, label: 'P1 - Junior' },
-            { value: 2, label: 'P2 - Mid' },
-            { value: 3, label: 'P3 - Senior' },
-            { value: 4, label: 'P4 - Staff' },
-            { value: 5, label: 'P5 - Principal' },
-          ],
-    [zh],
-  );
-
   const selectedDepartment = useMemo(
     () =>
       formData.departmentId != null
@@ -105,62 +66,6 @@ export function PositionForm({ data = {}, departments, onChange }: PositionFormP
         : undefined,
     [departments, formData.departmentId],
   );
-
-  const copy = zh
-    ? {
-        name: '岗位名称',
-        code: '岗位编码',
-        department: '所属部门',
-        departmentDescription: '岗位必须归属到一个有效部门。',
-        category: '岗位类别',
-        level: '岗位级别',
-        sort: '排序',
-        status: '状态',
-        responsibilities: '岗位职责',
-        requirements: '任职要求',
-        description: '岗位说明',
-        namePlaceholder: '请输入岗位名称',
-        codePlaceholder: '请输入岗位编码',
-        departmentPlaceholder: '请选择所属部门',
-        categoryPlaceholder: '请选择岗位类别',
-        levelPlaceholder: '请选择岗位级别',
-        sortPlaceholder: '数字越小越靠前',
-        responsibilitiesPlaceholder: '请输入岗位职责',
-        requirementsPlaceholder: '请输入任职要求',
-        descriptionPlaceholder: '请输入岗位说明',
-        active: '启用',
-        inactive: '禁用',
-        relationTitle: '归属关系提示',
-        relationDescription: '岗位保存前会校验所属部门是否存在且处于启用状态。',
-        currentDepartmentPrefix: '当前部门：',
-      }
-    : {
-        name: 'Position Name',
-        code: 'Position Code',
-        department: 'Department',
-        departmentDescription: 'A position must belong to a valid department.',
-        category: 'Category',
-        level: 'Level',
-        sort: 'Sort',
-        status: 'Status',
-        responsibilities: 'Responsibilities',
-        requirements: 'Requirements',
-        description: 'Description',
-        namePlaceholder: 'Enter position name',
-        codePlaceholder: 'Enter position code',
-        departmentPlaceholder: 'Select department',
-        categoryPlaceholder: 'Select category',
-        levelPlaceholder: 'Select level',
-        sortPlaceholder: 'Smaller numbers appear first',
-        responsibilitiesPlaceholder: 'Enter responsibilities',
-        requirementsPlaceholder: 'Enter requirements',
-        descriptionPlaceholder: 'Enter position description',
-        active: 'Active',
-        inactive: 'Inactive',
-        relationTitle: 'Assignment Hint',
-        relationDescription: 'Before saving, the system validates that the selected department exists and is active.',
-        currentDepartmentPrefix: 'Current department: ',
-      };
 
   return (
     <div className="space-y-6">
@@ -207,7 +112,7 @@ export function PositionForm({ data = {}, departments, onChange }: PositionFormP
               <SelectValue placeholder={copy.categoryPlaceholder} />
             </SelectTrigger>
             <SelectContent>
-              {categoryOptions.map((option) => (
+              {copy.categories.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
@@ -225,7 +130,7 @@ export function PositionForm({ data = {}, departments, onChange }: PositionFormP
               <SelectValue placeholder={copy.levelPlaceholder} />
             </SelectTrigger>
             <SelectContent>
-              {levelOptions.map((option) => (
+              {copy.levels.map((option) => (
                 <SelectItem key={option.value} value={String(option.value)}>
                   {option.label}
                 </SelectItem>

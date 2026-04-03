@@ -13,6 +13,7 @@ import {
   getPermissionModuleWeight,
   normalizePermissionModule,
 } from '../moduleLocalization';
+import { getPermissionManagementCopy } from '../permissionManagementCopy';
 
 interface PermissionGroupViewProps {
   permissions: Permission[];
@@ -26,38 +27,7 @@ export function PermissionGroupView({
   onDelete,
 }: PermissionGroupViewProps) {
   const { language } = useLanguageStore();
-  const zh = language === 'zh';
-  const copy = zh
-    ? {
-        empty: '暂无权限数据',
-        countSuffix: '项权限',
-        noDescription: '暂无说明',
-        relatedMenu: '关联菜单 ID：',
-        edit: '编辑',
-        delete: '删除',
-        uncategorized: '未分类',
-        typeMeta: {
-          menu: '菜单权限',
-          operation: '操作权限',
-          data: '数据权限',
-          field: '字段权限',
-        },
-      }
-    : {
-        empty: 'No permissions available',
-        countSuffix: 'permissions',
-        noDescription: 'No description',
-        relatedMenu: 'Related Menu ID: ',
-        edit: 'Edit',
-        delete: 'Delete',
-        uncategorized: 'Uncategorized',
-        typeMeta: {
-          menu: 'Menu Permission',
-          operation: 'Operation Permission',
-          data: 'Data Permission',
-          field: 'Field Permission',
-        },
-      };
+  const copy = getPermissionManagementCopy(language).group;
 
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
 

@@ -23,13 +23,16 @@ import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
 import { QueryAccessBoundary } from '../../../../shared/components/QueryAccessBoundary';
+import { ManagementActionBar } from '../../../../shared/components/ui';
 import { getMenuLabel, getViewBreadcrumbPath, getViewLabel, inferMenuViewId } from '../../../../shared/constants/viewsConfig';
 import { useLanguageStore } from '../../../../stores/languageStore';
 import { useSystemStore } from '../../../../stores/systemStore';
 import { useUIStore } from '../../../../stores/uiStore';
 import { useAuthStore } from '../../../auth/store/authStore';
 import type { Menu as SystemMenu } from '../../types';
+import type { Translations } from '../../../../stores/languageStore';
 import { systemPermissions } from '../../constants/permissions';
+import { getSystemDashboardCopy } from './systemDashboardCopy';
 
 const EMPTY_SYSTEM_STATE = {
   users: [],
@@ -45,7 +48,7 @@ function buildMenuBreadcrumb(
   menuId: string | number,
   menus: SystemMenu[],
   language: string,
-  t: any,
+  t: Translations,
 ): string[] {
   const trail: string[] = [];
   let current = menus.find((item) => String(item.id) === String(menuId));
@@ -81,7 +84,7 @@ export function SystemDashboard() {
   } = systemState;
   const navigateMenus = menus;
   const canQueryDashboard = hasPermission(systemPermissions.dashboard.query);
-  const dashboardCopy = t.systemManagement.dashboard;
+  const dashboardCopy = getSystemDashboardCopy(language);
   const isAuthRelated = (value: string) => /login|auth|token|session|signin|logout/i.test(value);
   const isHighRiskRelated = (value: string) => /delete|remove|revoke|grant|assign|permission|role|tenant|disable|lock/i.test(value);
   const isConfigRelated = (value: string) => /setting|config|menu|dict|dictionary|monitor|parameter/i.test(value);
@@ -104,7 +107,7 @@ export function SystemDashboard() {
     return (
       <QueryAccessBoundary
         viewId="system-dashboard"
-        title={t.menu.systemOverview || (language === 'zh' ? '系统概览' : 'System Overview')}
+        title={dashboardCopy.pageTitle}
         queryPermission={systemPermissions.dashboard.query}
       />
     );
@@ -171,42 +174,42 @@ export function SystemDashboard() {
   const quickActions = [
     {
       id: 'system-users',
-      title: t.menu.systemUsers,
+      title: dashboardCopy.moduleTitles.systemUsers,
       description: dashboardCopy.featureDescriptions.users,
       icon: Users,
       permissions: systemPermissions.user.query,
     },
     {
       id: 'system-roles',
-      title: t.menu.systemRoles,
+      title: dashboardCopy.moduleTitles.systemRoles,
       description: dashboardCopy.featureDescriptions.roles,
       icon: Shield,
       permissions: systemPermissions.role.query,
     },
     {
       id: 'system-menus',
-      title: t.menu.systemMenus,
+      title: dashboardCopy.moduleTitles.systemMenus,
       description: dashboardCopy.featureDescriptions.menus,
       icon: Menu,
       permissions: systemPermissions.menu.query,
     },
     {
       id: 'system-permissions',
-      title: t.menu.systemPermissions,
+      title: dashboardCopy.moduleTitles.systemPermissions,
       description: dashboardCopy.featureDescriptions.permissions,
       icon: BookKey,
       permissions: systemPermissions.permission.query,
     },
     {
       id: 'system-logs',
-      title: t.menu.systemLogs,
+      title: dashboardCopy.moduleTitles.systemLogs,
       description: dashboardCopy.featureDescriptions.logs,
       icon: Activity,
       permissions: systemPermissions.logs.query,
     },
     {
       id: 'system-settings',
-      title: t.menu.systemSettings,
+      title: dashboardCopy.moduleTitles.systemSettings,
       description: dashboardCopy.featureDescriptions.settings,
       icon: Settings,
       permissions: systemPermissions.settings.query,
@@ -365,77 +368,77 @@ export function SystemDashboard() {
   const featureCards = [
     {
       id: 'tenant-management',
-      title: t.menu.tenantManagement,
+      title: dashboardCopy.moduleTitles.tenantManagement,
       description: dashboardCopy.featureDescriptions.tenant,
       icon: Building2,
       permissions: ['/api/v1/tenants/*:*', '/api/v1/tenant/*:*'] as const,
     },
     {
       id: 'system-users',
-      title: t.menu.systemUsers,
+      title: dashboardCopy.moduleTitles.systemUsers,
       description: dashboardCopy.featureDescriptions.users,
       icon: Users,
       permissions: systemPermissions.user.query,
     },
     {
       id: 'system-departments',
-      title: t.menu.systemDepartments,
+      title: dashboardCopy.moduleTitles.systemDepartments,
       description: dashboardCopy.featureDescriptions.departments,
       icon: Building2,
       permissions: systemPermissions.department.query,
     },
     {
       id: 'system-positions',
-      title: t.menu.systemPositions,
+      title: dashboardCopy.moduleTitles.systemPositions,
       description: dashboardCopy.featureDescriptions.positions,
       icon: Briefcase,
       permissions: systemPermissions.position.query,
     },
     {
       id: 'system-roles',
-      title: t.menu.systemRoles,
+      title: dashboardCopy.moduleTitles.systemRoles,
       description: dashboardCopy.featureDescriptions.roles,
       icon: Shield,
       permissions: systemPermissions.role.query,
     },
     {
       id: 'system-menus',
-      title: t.menu.systemMenus,
+      title: dashboardCopy.moduleTitles.systemMenus,
       description: dashboardCopy.featureDescriptions.menus,
       icon: Menu,
       permissions: systemPermissions.menu.query,
     },
     {
       id: 'system-permissions',
-      title: t.menu.systemPermissions,
+      title: dashboardCopy.moduleTitles.systemPermissions,
       description: dashboardCopy.featureDescriptions.permissions,
       icon: BookKey,
       permissions: systemPermissions.permission.query,
     },
     {
       id: 'system-dictionary',
-      title: t.menu.systemDictionary,
+      title: dashboardCopy.moduleTitles.systemDictionary,
       description: dashboardCopy.featureDescriptions.dictionary,
       icon: Database,
       permissions: systemPermissions.dictionary.query,
     },
     {
       id: 'system-logs',
-      title: t.menu.systemLogs,
+      title: dashboardCopy.moduleTitles.systemLogs,
       description: dashboardCopy.featureDescriptions.logs,
       icon: Activity,
       permissions: systemPermissions.logs.query,
     },
     {
       id: 'system-settings',
-      title: t.menu.systemSettings,
+      title: dashboardCopy.moduleTitles.systemSettings,
       description: dashboardCopy.featureDescriptions.settings,
       icon: Settings,
       permissions: systemPermissions.settings.query,
     },
     {
       id: 'system-monitor',
-      title: t.menu.systemMonitor,
+      title: dashboardCopy.moduleTitles.systemMonitor,
       description: dashboardCopy.featureDescriptions.monitor,
       icon: Monitor,
       permissions: systemPermissions.monitor.query,
@@ -487,10 +490,10 @@ export function SystemDashboard() {
 
   return (
     <PageLayout
-      title={t.menu.systemOverview}
+      title={dashboardCopy.pageTitle}
       description={dashboardCopy.overviewDescription}
       actions={
-        <div className="flex flex-wrap items-center gap-2 rounded-[26px] border border-slate-200/70 bg-white/72 p-3 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
+        <ManagementActionBar>
           {hasPermission(systemPermissions.user.query) && (
             <Button
               variant="outline"
@@ -520,7 +523,7 @@ export function SystemDashboard() {
               {dashboardCopy.primaryActions.settings}
             </Button>
           )}
-        </div>
+        </ManagementActionBar>
       }
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -564,8 +567,8 @@ export function SystemDashboard() {
               {tag}
             </Badge>
           ))}
-          <Badge className="rounded-full bg-emerald-100 text-emerald-700 shadow-sm shadow-emerald-100/40">{positions.length.toLocaleString(locale)} {t.menu.systemPositions}</Badge>
-          <Badge className="rounded-full bg-blue-100 text-blue-700 shadow-sm shadow-blue-100/40">{departments.length.toLocaleString(locale)} {t.menu.systemDepartments}</Badge>
+          <Badge className="rounded-full bg-emerald-100 text-emerald-700 shadow-sm shadow-emerald-100/40">{positions.length.toLocaleString(locale)} {dashboardCopy.moduleTitles.systemPositions}</Badge>
+          <Badge className="rounded-full bg-blue-100 text-blue-700 shadow-sm shadow-blue-100/40">{departments.length.toLocaleString(locale)} {dashboardCopy.moduleTitles.systemDepartments}</Badge>
         </CardContent>
       </Card>
 

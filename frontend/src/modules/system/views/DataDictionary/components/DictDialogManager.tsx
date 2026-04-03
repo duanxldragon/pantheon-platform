@@ -7,6 +7,7 @@ import { useLanguageStore } from '../../../../../stores/languageStore';
 import { DeleteConfirmDialog } from '../../../../../shared/components/ui/DeleteConfirmDialog';
 import { FormDialog } from '../../../../../shared/components/ui/FormDialog';
 import { FormField } from '../../../../../shared/components/ui/FormField';
+import { getDataDictionaryCopy } from '../dataDictionaryCopy';
 
 import type { DictItem } from './DictDataTable';
 
@@ -57,27 +58,28 @@ export const DictDialogManager: React.FC<DictDialogManagerProps> = ({
   onDeleteType,
   loading,
 }) => {
-  const { t } = useLanguageStore();
+  const { language } = useLanguageStore();
+  const copy = getDataDictionaryCopy(language).dialog;
 
   return (
     <>
       <FormDialog
-        title={dialogs.add ? t.systemManagement.dictionary.dialogs.addItemTitle : t.systemManagement.dictionary.dialogs.editItemTitle}
+        title={dialogs.add ? copy.addItemTitle : copy.editItemTitle}
         open={dialogs.add || dialogs.edit}
         onOpenChange={(open) => setDialogOpen(dialogs.add ? 'add' : 'edit', open)}
         onSubmit={onSubmitItem}
-        submitText={t.common.save}
-        cancelText={t.common.cancel}
-        submittingText={t.common.loading}
+        submitText={copy.save}
+        cancelText={copy.cancel}
+        submittingText={copy.loading}
         loading={!!loading}
         width="sm:max-w-[720px]"
       >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <FormField label={t.systemManagement.dictionary.fields.type} required>
+            <FormField label={copy.fields.type} required>
               <Input value={selectedTypeCode} disabled className="bg-slate-50" />
             </FormField>
-            <FormField label={t.systemManagement.dictionary.fields.sort} required>
+            <FormField label={copy.fields.sort} required>
               <Input
                 type="number"
                 value={itemForm.sort ?? 0}
@@ -87,42 +89,42 @@ export const DictDialogManager: React.FC<DictDialogManagerProps> = ({
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <FormField label={t.systemManagement.dictionary.fields.label} required>
+            <FormField label={copy.fields.label} required>
               <Input
                 value={itemForm.dictLabel ?? ''}
                 onChange={(event) => setItemForm({ ...itemForm, dictLabel: event.target.value })}
-                placeholder={t.systemManagement.dictionary.placeholders.label}
+                placeholder={copy.placeholders.label}
               />
             </FormField>
-            <FormField label={t.systemManagement.dictionary.fields.value} required>
+            <FormField label={copy.fields.value} required>
               <Input
                 value={itemForm.dictValue ?? ''}
                 onChange={(event) => setItemForm({ ...itemForm, dictValue: event.target.value })}
-                placeholder={t.systemManagement.dictionary.placeholders.value}
+                placeholder={copy.placeholders.value}
               />
             </FormField>
           </div>
 
-          <FormField label={t.systemManagement.dictionary.fields.status}>
+          <FormField label={copy.fields.status}>
             <Select
               value={itemForm.status ?? 'active'}
               onValueChange={(val) => setItemForm({ ...itemForm, status: val })}
             >
               <SelectTrigger>
-                <SelectValue placeholder={t.systemManagement.dictionary.fields.status} />
+                <SelectValue placeholder={copy.fields.status} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="active">{t.status.enabled}</SelectItem>
-                <SelectItem value="inactive">{t.status.disabled}</SelectItem>
+                <SelectItem value="active">{copy.statusEnabled}</SelectItem>
+                <SelectItem value="inactive">{copy.statusDisabled}</SelectItem>
               </SelectContent>
             </Select>
           </FormField>
 
-          <FormField label={t.systemManagement.dictionary.fields.remark}>
+          <FormField label={copy.fields.remark}>
             <Textarea
               value={itemForm.remark ?? ''}
               onChange={(event) => setItemForm({ ...itemForm, remark: event.target.value })}
-              placeholder={t.systemManagement.dictionary.placeholders.remark}
+              placeholder={copy.placeholders.remark}
               className="resize-none"
             />
           </FormField>
@@ -133,71 +135,71 @@ export const DictDialogManager: React.FC<DictDialogManagerProps> = ({
         open={dialogs.delete}
         onOpenChange={(open) => setDialogOpen('delete', open)}
         onConfirm={onDeleteItem}
-        title={t.actions.delete}
+        title={copy.deleteTitle}
         itemName={selectedItem?.dictLabel}
         loading={!!loading}
-        cancelText={t.common.cancel}
-        confirmText={t.common.delete}
-        confirmingText={t.common.loading}
+        cancelText={copy.cancel}
+        confirmText={copy.delete}
+        confirmingText={copy.loading}
       />
 
       <FormDialog
-        title={dialogs.addType ? t.systemManagement.dictionary.dialogs.addTypeTitle : t.systemManagement.dictionary.dialogs.editTypeTitle}
+        title={dialogs.addType ? copy.addTypeTitle : copy.editTypeTitle}
         open={dialogs.addType || dialogs.editType}
         onOpenChange={(open) => setDialogOpen(dialogs.addType ? 'addType' : 'editType', open)}
         onSubmit={onSubmitType}
-        submitText={t.common.save}
-        cancelText={t.common.cancel}
-        submittingText={t.common.loading}
+        submitText={copy.save}
+        cancelText={copy.cancel}
+        submittingText={copy.loading}
         loading={!!loading}
         width="sm:max-w-[720px]"
       >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <FormField label={t.systemManagement.dictionary.fields.typeName} required>
+            <FormField label={copy.fields.typeName} required>
               <Input
                 value={selectedTypeForm.name}
                 onChange={(e) => setSelectedTypeForm({ ...selectedTypeForm, name: e.target.value })}
-                placeholder={t.systemManagement.dictionary.placeholders.typeName}
+                placeholder={copy.placeholders.typeName}
               />
             </FormField>
-            <FormField label={t.systemManagement.dictionary.fields.typeCode} required>
+            <FormField label={copy.fields.typeCode} required>
               <Input
                 value={selectedTypeForm.code}
                 onChange={(e) => setSelectedTypeForm({ ...selectedTypeForm, code: e.target.value })}
-                placeholder={t.systemManagement.dictionary.placeholders.typeCode}
+                placeholder={copy.placeholders.typeCode}
                 disabled={dialogs.editType}
               />
             </FormField>
           </div>
 
-          <FormField label={t.systemManagement.dictionary.fields.status}>
+          <FormField label={copy.fields.status}>
             <Select
               value={selectedTypeForm.status}
               onValueChange={(val) => setSelectedTypeForm({ ...selectedTypeForm, status: val as DictTypeForm['status'] })}
             >
               <SelectTrigger>
-                <SelectValue placeholder={t.systemManagement.dictionary.fields.status} />
+                <SelectValue placeholder={copy.fields.status} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="active">{t.status.enabled}</SelectItem>
-                <SelectItem value="inactive">{t.status.disabled}</SelectItem>
+                <SelectItem value="active">{copy.statusEnabled}</SelectItem>
+                <SelectItem value="inactive">{copy.statusDisabled}</SelectItem>
               </SelectContent>
             </Select>
           </FormField>
 
-          <FormField label={t.systemManagement.dictionary.fields.remark}>
+          <FormField label={copy.fields.remark}>
             <Textarea
               value={selectedTypeForm.description ?? ''}
               onChange={(e) => setSelectedTypeForm({ ...selectedTypeForm, description: e.target.value })}
-              placeholder={t.systemManagement.dictionary.placeholders.typeDesc}
+              placeholder={copy.placeholders.typeDesc}
               className="resize-none"
             />
           </FormField>
 
           {!dialogs.addType ? (
             <div className="text-xs text-slate-400">
-              {t.systemManagement.dictionary.currentType}: {selectedTypeName || '-'} ({selectedTypeCode || '-'})
+              {copy.currentType}: {selectedTypeName || '-'} ({selectedTypeCode || '-'})
             </div>
           ) : null}
         </div>
@@ -207,12 +209,12 @@ export const DictDialogManager: React.FC<DictDialogManagerProps> = ({
         open={dialogs.deleteType}
         onOpenChange={(open) => setDialogOpen('deleteType', open)}
         onConfirm={onDeleteType}
-        title={t.actions.delete}
+        title={copy.deleteTitle}
         itemName={selectedTypeName || selectedTypeCode}
         loading={!!loading}
-        cancelText={t.common.cancel}
-        confirmText={t.common.delete}
-        confirmingText={t.common.loading}
+        cancelText={copy.cancel}
+        confirmText={copy.delete}
+        confirmingText={copy.loading}
       />
     </>
   );

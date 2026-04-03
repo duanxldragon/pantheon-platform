@@ -30,6 +30,7 @@ import { useLanguageStore } from '../../../../../stores/languageStore';
 import { useAuthStore } from '../../../../auth/store/authStore';
 import { systemPermissions } from '../../../constants/permissions';
 import { User } from '../../../types';
+import { getUserManagementCopy } from '../userManagementCopy';
 
 interface UserTableProps {
   data: User[];
@@ -52,13 +53,14 @@ export const UserTable: React.FC<UserTableProps> = ({
   onStatusChange,
   pagination
 }) => {
-  const { t } = useLanguageStore();
+  const { language } = useLanguageStore();
   const hasPermission = useAuthStore((state) => state.hasPermission);
+  const copy = getUserManagementCopy(language).table;
 
   const columns: Column<User>[] = [
     {
       key: 'username',
-      label: t.user.username,
+      label: copy.username,
       width: '240px',
       render: (user) => (
         <div className="flex items-center gap-3">
@@ -86,7 +88,7 @@ export const UserTable: React.FC<UserTableProps> = ({
     },
     {
       key: 'contact',
-      label: t.common.info,
+      label: copy.info,
       width: '220px',
       render: (user) => (
         <div className="flex flex-col gap-1">
@@ -103,7 +105,7 @@ export const UserTable: React.FC<UserTableProps> = ({
     },
     {
       key: 'organization',
-      label: t.user.department,
+      label: copy.department,
       width: '180px',
       render: (user) => (
         <div className="flex flex-col gap-0.5">
@@ -119,7 +121,7 @@ export const UserTable: React.FC<UserTableProps> = ({
     },
     {
       key: 'role',
-      label: t.user.role,
+      label: copy.role,
       width: '200px',
       render: (user) => (
         <div className="flex gap-1 flex-wrap">
@@ -137,7 +139,7 @@ export const UserTable: React.FC<UserTableProps> = ({
     },
     {
       key: 'status',
-      label: t.user.status,
+      label: copy.status,
       width: '112px',
       align: 'center',
       render: (user) => {
@@ -154,7 +156,7 @@ export const UserTable: React.FC<UserTableProps> = ({
     },
     {
       key: 'actions',
-      label: t.common.actions,
+      label: copy.actions,
       width: '220px',
       align: 'right',
       render: (user) => {
@@ -168,19 +170,19 @@ export const UserTable: React.FC<UserTableProps> = ({
               actions={[
                 {
                   icon: <Eye className="w-4 h-4 text-blue-500" />,
-                  label: t.common.view,
+                  label: copy.view,
                   onClick: () => onAction('detail', user),
                   permission: systemPermissions.user.query,
                 },
                 {
                   icon: <Edit className="w-4 h-4 text-amber-500" />,
-                  label: t.common.edit,
+                  label: copy.edit,
                   onClick: () => onAction('edit', user),
                   permission: systemPermissions.user.update,
                 },
                 {
                   icon: <Trash2 className="w-4 h-4 text-red-500" />,
-                  label: t.common.delete,
+                  label: copy.delete,
                   onClick: () => onAction('delete', user),
                   permission: systemPermissions.user.delete,
                   danger: true,
@@ -198,20 +200,20 @@ export const UserTable: React.FC<UserTableProps> = ({
                   {canUpdateUser ? (
                     <DropdownMenuItem onClick={() => onAction('assign-role', user)}>
                       <Shield className="w-4 h-4 mr-2 text-primary" />
-                      {t.systemManagement.users.actions.assignRoles}
+                      {copy.assignRoles}
                     </DropdownMenuItem>
                   ) : null}
                   {canUpdateUser ? (
                     <DropdownMenuItem onClick={() => onAction('reset-password', user)}>
                       <Key className="w-4 h-4 mr-2 text-amber-500" />
-                      {t.systemManagement.users.actions.resetPassword}
+                      {copy.resetPassword}
                     </DropdownMenuItem>
                   ) : null}
                   {canUpdateUser && canDeleteUser ? <DropdownMenuSeparator /> : null}
                   {canDeleteUser ? (
                     <DropdownMenuItem className="text-rose-600 focus:text-rose-700" onClick={() => onAction('delete', user)}>
                       <Trash2 className="w-4 h-4 mr-2" />
-                      {t.common.delete}
+                      {copy.delete}
                     </DropdownMenuItem>
                   ) : null}
                 </DropdownMenuContent>

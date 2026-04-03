@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useCallback } from 'react';
 
 import { Search, UserMinus, UserPlus, Users } from 'lucide-react';
 
@@ -21,6 +22,7 @@ import { getDialogClassName, getDialogStyle } from '../../../../../shared/consta
 import { ConfirmDialog } from '../../../../../shared/components/ui/ConfirmDialog';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import type { Department, ID, User } from '../../../types';
+import { getDepartmentManagementCopy } from '../departmentManagementCopy';
 
 interface DepartmentMembersDialogProps {
   open: boolean;
@@ -36,6 +38,14 @@ function asID(value: ID | null | undefined): string {
   return String(value ?? '');
 }
 
+function getUserDisplayName(user: User): string {
+  return user.realName || user.username || '-';
+}
+
+function getUserInitial(user: User): string {
+  return getUserDisplayName(user).slice(0, 1).toUpperCase();
+}
+
 export function DepartmentMembersDialog({
   open,
   onOpenChange,
@@ -46,50 +56,7 @@ export function DepartmentMembersDialog({
   onRemoveMember,
 }: DepartmentMembersDialogProps) {
   const { language } = useLanguageStore();
-  const zh = language === 'zh';
-  const copy = zh
-    ? {
-        title: '部门成员管理',
-        description: '管理部门成员，支持添加成员、移出成员，并触发相关权限刷新。',
-        currentTab: '当前成员',
-        addTab: '添加成员',
-        searchPlaceholder: '搜索用户名、姓名或邮箱',
-        emptyCurrent: '当前部门暂无成员',
-        emptyAvailable: '暂无可添加的用户',
-        selectedLabel: '已选',
-        selectAll: '全选当前列表',
-        addAction: '添加到部门',
-        confirmAddTitle: '确认添加成员',
-        confirmRemoveTitle: '确认移出成员',
-        confirmAddText: '确认添加',
-        confirmRemoveText: '确认移出',
-        cancelText: '取消',
-        addDescription: (departmentName: string, count: number) =>
-          `本次将为部门“${departmentName}”添加 ${count} 名成员，并触发相关用户的权限刷新。`,
-        removeDescription: (departmentName: string, username: string) =>
-          `本次将从部门“${departmentName}”移出成员“${username}”，并触发该用户的权限刷新。`,
-      }
-    : {
-        title: 'Department Members',
-        description: 'Manage department members, including add/remove actions and permission refresh.',
-        currentTab: 'Current Members',
-        addTab: 'Add Members',
-        searchPlaceholder: 'Search by username, name, or email',
-        emptyCurrent: 'No members in this department',
-        emptyAvailable: 'No available users to add',
-        selectedLabel: 'Selected',
-        selectAll: 'Select Current List',
-        addAction: 'Add to Department',
-        confirmAddTitle: 'Confirm Add Members',
-        confirmRemoveTitle: 'Confirm Remove Member',
-        confirmAddText: 'Confirm Add',
-        confirmRemoveText: 'Confirm Remove',
-        cancelText: 'Cancel',
-        addDescription: (departmentName: string, count: number) =>
-          `This will add ${count} members to "${departmentName}" and refresh related user permissions.`,
-        removeDescription: (departmentName: string, username: string) =>
-          `This will remove "${username}" from "${departmentName}" and refresh that user's permissions.`,
-      };
+  const copy = getDepartmentManagementCopy(language).members;
   const fieldClassName =
     'h-11 rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10';
 
@@ -117,22 +84,29 @@ export function DepartmentMembersDialog({
     [allUsers, currentMembers],
   );
 
-  const filterUsers = (users: User[]) => {
+  const filterUsers = useCallback((users: User[]) => {
     if (!searchQuery.trim()) {
       return users;
     }
 
     const keyword = searchQuery.trim().toLowerCase();
-    return users.filter(
-      (user) =>
-        user.realName.toLowerCase().includes(keyword) ||
-        user.username.toLowerCase().includes(keyword) ||
-        (user.email || '').toLowerCase().includes(keyword),
-    );
-  };
+    return users.filter((user) => {
+      const realName = (user.realName || '').toLowerCase();
+      const username = (user.username || '').toLowerCase();
+      const email = (user.email || '').toLowerCase();
 
-  const filteredCurrentMembers = useMemo(() => filterUsers(currentMembers), [currentMembers, searchQuery]);
-  const filteredAvailableUsers = useMemo(() => filterUsers(availableUsers), [availableUsers, searchQuery]);
+      return realName.includes(keyword) || username.includes(keyword) || email.includes(keyword);
+    });
+  }, [searchQuery]);
+
+  const filteredCurrentMembers = useMemo(
+    () => filterUsers(currentMembers),
+    [currentMembers, filterUsers],
+  );
+  const filteredAvailableUsers = useMemo(
+    () => filterUsers(availableUsers),
+    [availableUsers, filterUsers],
+  );
   const displayedUsers = activeTab === 'current' ? filteredCurrentMembers : filteredAvailableUsers;
 
   const toggleUser = (userId: string) => {
@@ -215,7 +189,7 @@ export function DepartmentMembersDialog({
     onOpenChange(nextOpen);
   };
 
-  const pendingUsername = pendingRemoveUser?.realName || pendingRemoveUser?.username || '';
+  const pendingUsername = pendingRemoveUser ? getUserDisplayName(pendingRemoveUser) : '';
   const confirmDescription =
     confirmMode === 'add'
       ? copy.addDescription(department.name, selectedUserIds.size)
@@ -264,42 +238,45 @@ export function DepartmentMembersDialog({
             <ScrollArea className="h-[400px]">
               <div className="space-y-2">
                 {filteredCurrentMembers.length > 0 ? (
-                  filteredCurrentMembers.map((user) => (
-                    <Card
-                      key={asID(user.id)}
-                      className="rounded-[24px] border border-slate-200/70 bg-white/92 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <AvatarBadge color="blue">{user.realName.slice(0, 1)}</AvatarBadge>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-slate-900">{user.realName}</p>
-                              <Badge variant="outline" className="bg-slate-50 text-xs">
-                                {user.username}
-                              </Badge>
-                            </div>
-                            <div className="mt-1 flex items-center gap-2">
-                              <p className="text-sm text-slate-500">{user.email}</p>
-                              {user.roleNames?.[0] ? (
-                                <Badge className="bg-purple-100 text-xs text-purple-700">
-                                  {user.roleNames[0]}
+                  filteredCurrentMembers.map((user) => {
+                    const displayName = getUserDisplayName(user);
+                    return (
+                      <Card
+                        key={asID(user.id)}
+                        className="rounded-[24px] border border-slate-200/70 bg-white/92 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <AvatarBadge color="blue">{getUserInitial(user)}</AvatarBadge>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="text-slate-900">{displayName}</p>
+                                <Badge variant="outline" className="bg-slate-50 text-xs">
+                                  {user.username}
                                 </Badge>
-                              ) : null}
+                              </div>
+                              <div className="mt-1 flex items-center gap-2">
+                                <p className="text-sm text-slate-500">{user.email}</p>
+                                {user.roleNames?.[0] ? (
+                                  <Badge className="bg-purple-100 text-xs text-purple-700">
+                                    {user.roleNames[0]}
+                                  </Badge>
+                                ) : null}
+                              </div>
                             </div>
                           </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-10 w-10 rounded-2xl hover:bg-rose-50"
+                            onClick={() => openRemoveConfirm(user)}
+                          >
+                            <UserMinus className="h-4 w-4 text-rose-500" />
+                          </Button>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-10 w-10 rounded-2xl hover:bg-rose-50"
-                          onClick={() => openRemoveConfirm(user)}
-                        >
-                          <UserMinus className="h-4 w-4 text-rose-500" />
-                        </Button>
-                      </div>
-                    </Card>
-                  ))
+                      </Card>
+                    );
+                  })
                 ) : (
                   <EmptyState icon={<Users className="mb-3 h-12 w-12 text-slate-300" />} text={copy.emptyCurrent} />
                 )}
@@ -312,6 +289,8 @@ export function DepartmentMembersDialog({
                   {filteredAvailableUsers.length > 0 ? (
                     filteredAvailableUsers.map((user) => {
                       const userId = asID(user.id);
+                      const displayName = getUserDisplayName(user);
+
                       return (
                         <Card
                           key={userId}
@@ -329,10 +308,10 @@ export function DepartmentMembersDialog({
                                 onCheckedChange={() => toggleUser(userId)}
                                 onClick={(event) => event.stopPropagation()}
                               />
-                              <AvatarBadge color="green">{user.realName.slice(0, 1)}</AvatarBadge>
+                              <AvatarBadge color="green">{getUserInitial(user)}</AvatarBadge>
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <p className="text-slate-900">{user.realName}</p>
+                                  <p className="text-slate-900">{displayName}</p>
                                   <Badge variant="outline" className="bg-slate-50 text-xs">
                                     {user.username}
                                   </Badge>
@@ -357,7 +336,7 @@ export function DepartmentMembersDialog({
 
               <DialogFooter className="border-t border-slate-100/90 bg-slate-50/80 px-4 py-4 sm:justify-between">
                 <div className="text-xs text-slate-500">
-                  {copy.selectedLabel} {selectedUserIds.size} / {filteredAvailableUsers.length}
+                  {copy.selectedSummary(selectedUserIds.size, filteredAvailableUsers.length)}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button

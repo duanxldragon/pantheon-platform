@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { CheckCircle2, Download, RefreshCw, Users, XCircle } from 'lucide-react';
+import { useCallback } from 'react';
 import { toast } from 'sonner';
 
 import { PageLayout } from '../../../../components/layouts/PageLayout';
@@ -8,6 +9,7 @@ import { Badge } from '../../../../components/ui/badge';
 import { Button } from '../../../../components/ui/button';
 import { Card } from '../../../../components/ui/card';
 import { QueryAccessBoundary } from '../../../../shared/components/QueryAccessBoundary';
+import { ManagementActionBar } from '../../../../shared/components/ui';
 import { useActionPermissionDialogGuard } from '../../../../shared/hooks/useActionPermissionDialogGuard';
 import { useLanguageStore } from '../../../../stores/languageStore';
 import { useAuthStore } from '../../../auth/store/authStore';
@@ -15,6 +17,7 @@ import { api } from '../../api';
 import type { MonitorOverview } from '../../api/monitorApi';
 import { systemPermissions } from '../../constants/permissions';
 import { createEntityFeedback } from '../../utils/feedback';
+import { getSystemMonitorCopy } from './systemMonitorCopy';
 
 function formatDuration(sec: number): string {
   const secondsTotal = Math.max(0, Math.floor(sec));
@@ -45,7 +48,9 @@ function formatBytes(bytes: number): string {
 }
 
 function downloadJson(name: string, data: unknown) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: 'application/json;charset=utf-8',
+  });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -57,17 +62,11 @@ function downloadJson(name: string, data: unknown) {
 }
 
 export function SystemMonitor() {
-  const { t, language } = useLanguageStore();
-  const i18n = t.systemManagement.monitor;
+  const { language } = useLanguageStore();
   const zh = language === 'zh';
-  const copy = {
-    exportSnapshot: zh ? '导出监控快照' : 'Export Snapshot',
-    master: zh ? '主库' : 'Master',
-    redisAndUsers: i18n.redisOnlineTitle || (zh ? 'Redis 与在线用户' : 'Redis & Online Users'),
-    onlineUsers: i18n.onlineUsers || (zh ? '在线用户' : 'Online Users'),
-  };
-  const monitorOverviewMessages = createEntityFeedback(zh, { zh: '监控概览', en: 'Monitor overview' });
-  const monitorSnapshotMessages = createEntityFeedback(zh, { zh: '监控快照', en: 'Monitor snapshot' });
+  const copy = getSystemMonitorCopy(language);
+  const monitorOverviewMessages = createEntityFeedback(zh, copy.entity.overview);
+  const monitorSnapshotMessages = createEntityFeedback(zh, copy.entity.snapshot);
   const hasPermission = useAuthStore((state) => state.hasPermission);
   const canQueryMonitor = hasPermission(systemPermissions.monitor.query);
   const canExportMonitor = hasPermission(systemPermissions.monitor.export);
@@ -79,13 +78,13 @@ export function SystemMonitor() {
   const panelCardClass =
     'h-full rounded-[28px] border border-slate-200/70 bg-white/88 p-5 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.28)] backdrop-blur-sm';
   const { ensureActionPermission } = useActionPermissionDialogGuard({
-    pageTitle: i18n.pageTitle,
+    pageTitle: copy.page.title,
     dialogs: {},
     guardedDialogs: {},
     closeDialogs: () => undefined,
   });
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!canQueryMonitor) {
       setOverview(null);
       setLoading(false);
@@ -101,7 +100,7 @@ export function SystemMonitor() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [canQueryMonitor, monitorOverviewMessages.loadFailed]);
 
   useEffect(() => {
     if (!canQueryMonitor) {
@@ -109,15 +108,15 @@ export function SystemMonitor() {
       return;
     }
     void load();
-  }, [canQueryMonitor]);
+  }, [canQueryMonitor, load]);
 
   return (
     <PageLayout
-      title={i18n.pageTitle}
-      description={i18n.pageDescription}
+      title={copy.page.title}
+      description={copy.page.description}
       actions={
         canQueryMonitor ? (
-          <div className="flex flex-wrap items-center gap-2 rounded-[26px] border border-slate-200/70 bg-white/72 p-3 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
+          <ManagementActionBar>
             <Button
               variant="outline"
               onClick={() => void load()}
@@ -125,13 +124,13 @@ export function SystemMonitor() {
               disabled={loading}
             >
               <RefreshCw className="h-4 w-4 text-primary" />
-              {i18n.refresh}
+              {copy.page.refresh}
             </Button>
             {canExportMonitor ? (
               <Button
                 variant="outline"
                 onClick={() => {
-                  if (!ensureActionPermission(canExportMonitor, copy.exportSnapshot)) return;
+                  if (!ensureActionPermission(canExportMonitor, copy.page.exportSnapshot)) return;
                   if (!overview) return;
                   downloadJson(`monitor-snapshot-${new Date().toISOString()}.json`, overview);
                   toast.success(monitorSnapshotMessages.exportSuccess);
@@ -140,24 +139,24 @@ export function SystemMonitor() {
                 disabled={!overview}
               >
                 <Download className="h-4 w-4" />
-                {i18n.exportSnapshot}
+                {copy.page.exportSnapshot}
               </Button>
             ) : null}
-          </div>
+          </ManagementActionBar>
         ) : undefined
       }
     >
       {!canQueryMonitor ? (
         <QueryAccessBoundary
           viewId="system-monitor"
-          title={i18n.pageTitle}
+          title={copy.page.title}
           queryPermission={systemPermissions.monitor.query}
         />
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card className={summaryCardClass}>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{i18n.uptime}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{copy.summary.uptime}</div>
               <div className="mt-3 text-2xl font-semibold text-slate-900">
                 {overview ? formatDuration(overview.uptime_sec) : '-'}
               </div>
@@ -166,15 +165,15 @@ export function SystemMonitor() {
               ) : null}
             </Card>
             <Card className={summaryCardClass}>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{i18n.goroutines}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{copy.summary.goroutines}</div>
               <div className="mt-3 text-2xl font-semibold text-slate-900">{overview?.goroutines ?? '-'}</div>
             </Card>
             <Card className={summaryCardClass}>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{i18n.goVersion}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{copy.summary.goVersion}</div>
               <div className="mt-3 break-all text-sm font-semibold text-slate-900">{overview?.go_version ?? '-'}</div>
             </Card>
             <Card className={summaryCardClass}>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{i18n.numCPU}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{copy.summary.numCPU}</div>
               <div className="mt-3 text-2xl font-semibold text-slate-900">{overview?.num_cpu ?? '-'}</div>
             </Card>
           </div>
@@ -182,22 +181,22 @@ export function SystemMonitor() {
           <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
             <Card className={`${panelCardClass} lg:col-span-1`}>
               <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold text-slate-900">{i18n.coreResourcesTitle}</div>
+                <div className="text-sm font-semibold text-slate-900">{copy.panels.coreResourcesTitle}</div>
                 <Badge variant="outline" className="rounded-full border-slate-200 bg-white/90 px-3 py-1">
-                  {overview?.tenant_id ? `tenant: ${overview.tenant_id}` : copy.master}
+                  {overview?.tenant_id ? `tenant: ${overview.tenant_id}` : copy.panels.master}
                 </Badge>
               </div>
               <div className="mt-4 space-y-3 text-sm">
                 <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/85 px-4 py-3">
-                  <span className="text-slate-500">{i18n.memoryAlloc}</span>
+                  <span className="text-slate-500">{copy.panels.memoryAlloc}</span>
                   <span className="font-semibold text-slate-900">{overview ? formatBytes(overview.memory.alloc) : '-'}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/85 px-4 py-3">
-                  <span className="text-slate-500">{i18n.heapAlloc}</span>
+                  <span className="text-slate-500">{copy.panels.heapAlloc}</span>
                   <span className="font-semibold text-slate-900">{overview ? formatBytes(overview.memory.heap_alloc) : '-'}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/85 px-4 py-3">
-                  <span className="text-slate-500">{i18n.memorySys}</span>
+                  <span className="text-slate-500">{copy.panels.memorySys}</span>
                   <span className="font-semibold text-slate-900">{overview ? formatBytes(overview.memory.sys) : '-'}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/85 px-4 py-3">
@@ -209,11 +208,11 @@ export function SystemMonitor() {
 
             <Card className={`${panelCardClass} lg:col-span-2`}>
               <div className="mb-4 flex items-center justify-between">
-                <div className="text-sm font-semibold text-slate-900">{i18n.serviceHealthTitle}</div>
+                <div className="text-sm font-semibold text-slate-900">{copy.panels.serviceHealthTitle}</div>
                 {overview?.services?.every((service) => service.ok) ? (
-                  <Badge className="rounded-full bg-emerald-100 text-emerald-700">{i18n.allServicesRunning}</Badge>
+                  <Badge className="rounded-full bg-emerald-100 text-emerald-700">{copy.panels.allServicesRunning}</Badge>
                 ) : (
-                  <Badge className="rounded-full bg-rose-100 text-rose-700">{t.status.warning}</Badge>
+                  <Badge className="rounded-full bg-rose-100 text-rose-700">{copy.panels.warning}</Badge>
                 )}
               </div>
 
@@ -232,7 +231,7 @@ export function SystemMonitor() {
                         )}
                         <span className="font-medium text-slate-900">{service.name}</span>
                         <Badge variant="outline" className="rounded-full bg-slate-50">
-                          {service.ok ? t.status.healthy : t.status.error}
+                          {service.ok ? copy.panels.healthy : copy.panels.error}
                         </Badge>
                       </div>
                       {service.error ? <div className="mt-1 break-all text-xs text-rose-700">{service.error}</div> : null}
@@ -242,14 +241,14 @@ export function SystemMonitor() {
                 ))}
 
                 {!overview?.services?.length ? (
-                  <div className="py-10 text-center text-sm text-slate-500">{t.common.noData}</div>
+                  <div className="py-10 text-center text-sm text-slate-500">{copy.panels.noData}</div>
                 ) : null}
               </div>
             </Card>
 
             <Card className={panelCardClass}>
               <div className="mb-4 flex items-center justify-between">
-                <div className="text-sm font-semibold text-slate-900">{copy.redisAndUsers}</div>
+                <div className="text-sm font-semibold text-slate-900">{copy.panels.redisAndUsers}</div>
               </div>
               <div className="space-y-4">
                 {overview?.redis ? (
@@ -262,7 +261,7 @@ export function SystemMonitor() {
                       )}
                       <span className="font-medium text-slate-900">Redis</span>
                       <Badge variant="outline" className="rounded-full bg-slate-50">
-                        {overview.redis.ok ? t.status.healthy : t.status.error}
+                        {overview.redis.ok ? copy.panels.healthy : copy.panels.error}
                       </Badge>
                     </div>
                     <div className="rounded-full bg-slate-50 px-3 py-1 text-xs text-slate-500">{overview.redis.latency_ms} ms</div>
@@ -272,7 +271,7 @@ export function SystemMonitor() {
                 <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white/92 p-4">
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-blue-600" />
-                    <span className="font-medium text-slate-900">{copy.onlineUsers}</span>
+                    <span className="font-medium text-slate-900">{copy.panels.onlineUsers}</span>
                   </div>
                   <Badge className="rounded-full bg-blue-100 text-blue-700">{overview?.online?.count ?? '-'}</Badge>
                 </div>

@@ -1,33 +1,34 @@
-﻿import React from 'react';
+import React from 'react';
 import { Badge } from '../../../../../components/ui/badge';
 import { Switch } from '../../../../../components/ui/switch';
-import { 
-  Briefcase, 
-  Users, 
-  Edit, 
-  Trash2, 
-  Eye, 
+import {
+  Briefcase,
+  Users,
+  Edit,
+  Trash2,
+  Eye,
   MoreHorizontal,
   Building,
   Layers,
-  FileText
+  FileText,
 } from 'lucide-react';
-import { 
-  EnhancedDataTable, 
-  Column 
+import {
+  EnhancedDataTable,
+  Column,
 } from '../../../../../shared/components/ui/EnhancedDataTable';
 import { ActionButtons } from '../../../../../shared/components/ui/ActionButtons';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from '../../../../../components/ui/dropdown-menu';
 import { Button } from '../../../../../components/ui/button';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import { useAuthStore } from '../../../../auth/store/authStore';
 import { systemPermissions } from '../../../constants/permissions';
 import { Position } from '../../../types';
+import { getPositionManagementCopy } from '../positionManagementCopy';
 
 interface PositionTableProps {
   data: Position[];
@@ -48,9 +49,10 @@ export const PositionTable: React.FC<PositionTableProps> = ({
   onSelectionChange,
   onAction,
   onStatusChange,
-  pagination
+  pagination,
 }) => {
-  const { t } = useLanguageStore();
+  const { language } = useLanguageStore();
+  const copy = getPositionManagementCopy(language);
   const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const getLevelColor = (level: number) => {
@@ -62,29 +64,27 @@ export const PositionTable: React.FC<PositionTableProps> = ({
   const columns: Column<Position>[] = [
     {
       key: 'name',
-      label: t.menu.systemPositions,
+      label: copy.table.name,
       width: '240px',
       render: (pos) => (
         <div className="flex items-center gap-3">
-          <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border border-white/80 bg-gradient-to-br transition-all shadow-[0_18px_35px_-24px_rgba(15,23,42,0.5)] ${
-            pos.level === 1 ? 'from-rose-500 to-rose-600' : 'from-indigo-500 to-indigo-600'
-          }`}>
-            <Briefcase className="w-4 h-4 text-white" />
+          <div
+            className={`flex h-11 w-11 items-center justify-center rounded-2xl border border-white/80 bg-gradient-to-br shadow-[0_18px_35px_-24px_rgba(15,23,42,0.5)] transition-all ${
+              pos.level === 1 ? 'from-rose-500 to-rose-600' : 'from-indigo-500 to-indigo-600'
+            }`}
+          >
+            <Briefcase className="h-4 w-4 text-white" />
           </div>
           <div className="flex flex-col">
-            <span className="font-bold leading-tight text-slate-900">
-              {pos.name}
-            </span>
-            <span className="mt-0.5 font-mono text-[10px] text-slate-400">
-              {pos.code}
-            </span>
+            <span className="font-bold leading-tight text-slate-900">{pos.name}</span>
+            <span className="mt-0.5 font-mono text-[10px] text-slate-400">{pos.code}</span>
           </div>
         </div>
       ),
     },
     {
       key: 'department',
-      label: t.user.department,
+      label: copy.table.department,
       width: '180px',
       render: (pos) => (
         <div className="flex items-center gap-1.5 text-sm text-slate-600">
@@ -95,18 +95,18 @@ export const PositionTable: React.FC<PositionTableProps> = ({
     },
     {
       key: 'level',
-      label: t.common.info,
+      label: copy.table.level,
       width: '120px',
       render: (pos) => (
-        <Badge variant="outline" className={`font-medium px-2 py-0.5 rounded-full ${getLevelColor(pos.level)}`}>
-          <Layers className="w-3 h-3 mr-1 opacity-70" />
+        <Badge variant="outline" className={`rounded-full px-2 py-0.5 font-medium ${getLevelColor(pos.level)}`}>
+          <Layers className="mr-1 h-3 w-3 opacity-70" />
           L{pos.level}
         </Badge>
       ),
     },
     {
       key: 'userCount',
-      label: t.menu.systemUsers,
+      label: copy.table.users,
       width: '100px',
       align: 'center',
       render: (pos) => (
@@ -118,24 +118,24 @@ export const PositionTable: React.FC<PositionTableProps> = ({
     },
     {
       key: 'status',
-      label: t.user.status,
+      label: copy.table.status,
       width: '112px',
       align: 'center',
       render: (pos) => (
         <Switch
           checked={pos.status === 'active'}
           onCheckedChange={(checked) => onStatusChange(pos, checked)}
-          className="data-[state=checked]:bg-green-500 scale-90"
+          className="scale-90 data-[state=checked]:bg-green-500"
           disabled={!hasPermission(systemPermissions.position.update)}
         />
       ),
     },
     {
       key: 'description',
-      label: t.modules.deploy.description,
+      label: copy.table.description,
       width: '200px',
       render: (pos) => (
-        <div className="flex items-start gap-1.5 max-w-[180px]">
+        <div className="flex max-w-[180px] items-start gap-1.5">
           <FileText className="mt-1 h-3 w-3 flex-shrink-0 text-slate-300" />
           <span className="line-clamp-2 text-xs italic leading-relaxed text-slate-500">
             {pos.description || '-'}
@@ -145,7 +145,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
     },
     {
       key: 'actions',
-      label: t.common.actions,
+      label: copy.table.actions,
       width: '208px',
       align: 'right',
       render: (pos) => {
@@ -155,21 +155,21 @@ export const PositionTable: React.FC<PositionTableProps> = ({
 
         return (
           <div className="flex items-center justify-end gap-2">
-            <ActionButtons 
+            <ActionButtons
               actions={[
                 {
-                  icon: <Eye className="w-4 h-4 text-blue-500" />,
-                  label: t.common.view,
+                  icon: <Eye className="h-4 w-4 text-blue-500" />,
+                  label: copy.actionLabels.detail,
                   onClick: () => onAction('detail', pos),
                   permission: systemPermissions.position.query,
                 },
                 {
-                  icon: <Edit className="w-4 h-4 text-amber-500" />,
-                  label: t.common.edit,
+                  icon: <Edit className="h-4 w-4 text-amber-500" />,
+                  label: copy.actionLabels.edit,
                   onClick: () => onAction('edit', pos),
                   permission: systemPermissions.position.update,
                 },
-              ]} 
+              ]}
             />
             {hasMoreActions ? (
               <DropdownMenu>
@@ -179,7 +179,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                     size="icon"
                     className="h-10 w-10 rounded-2xl border border-slate-200/70 bg-white/90 text-slate-400 shadow-sm shadow-slate-200/50 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-700"
                   >
-                    <MoreHorizontal className="w-4 h-4 text-slate-400" />
+                    <MoreHorizontal className="h-4 w-4 text-slate-400" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
@@ -188,14 +188,14 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                 >
                   {canUpdatePosition ? (
                     <DropdownMenuItem onClick={() => onAction('edit', pos)}>
-                      <Edit className="w-4 h-4 mr-2 text-amber-500" />
-                      {t.common.edit}
+                      <Edit className="mr-2 h-4 w-4 text-amber-500" />
+                      {copy.actionLabels.edit}
                     </DropdownMenuItem>
                   ) : null}
                   {canDeletePosition ? (
                     <DropdownMenuItem className="text-rose-600 focus:text-rose-700" onClick={() => onAction('delete', pos)}>
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      {t.common.delete}
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {copy.actionLabels.delete}
                     </DropdownMenuItem>
                   ) : null}
                 </DropdownMenuContent>
@@ -220,4 +220,3 @@ export const PositionTable: React.FC<PositionTableProps> = ({
     />
   );
 };
-

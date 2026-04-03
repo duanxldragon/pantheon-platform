@@ -13,6 +13,7 @@ import {
 import { getDialogClassName, getDialogStyle } from '../../../../../shared/constants/dialogSizes';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import type { Role } from '../../../types';
+import { getRoleManagementCopy } from '../roleManagementCopy';
 
 interface RoleDetailDialogProps {
   role: Role;
@@ -21,25 +22,8 @@ interface RoleDetailDialogProps {
 }
 
 export function RoleDetailDialog({ role, open, onOpenChange }: RoleDetailDialogProps) {
-  const { t, language } = useLanguageStore();
-  const zh = language === 'zh';
-  const copy = zh
-    ? {
-        description: '角色说明',
-        linkedUsers: '关联用户数',
-        menuCount: '菜单权限数',
-        roleType: '角色类型',
-        systemRole: '系统角色',
-        customRole: '自定义角色',
-      }
-    : {
-        description: 'Role Description',
-        linkedUsers: 'Linked Users',
-        menuCount: 'Menu Permissions',
-        roleType: 'Role Type',
-        systemRole: 'Built-in Role',
-        customRole: 'Custom Role',
-      };
+  const { language } = useLanguageStore();
+  const copy = getRoleManagementCopy(language).detail;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -60,11 +44,11 @@ export function RoleDetailDialog({ role, open, onOpenChange }: RoleDetailDialogP
               {role.description || '-'}
             </DetailItem>
 
-            <DetailItem icon={<Shield className="h-4 w-4" />} label={t.user.status}>
+            <DetailItem icon={<Shield className="h-4 w-4" />} label={copy.status}>
               {role.status === 'active' ? (
-                <Badge className="bg-green-100 text-green-700">{t.status.enabled}</Badge>
+                <Badge className="bg-green-100 text-green-700">{copy.statusEnabled}</Badge>
               ) : (
-                <Badge className="bg-slate-100 text-slate-700">{t.status.disabled}</Badge>
+                <Badge className="bg-slate-100 text-slate-700">{copy.statusDisabled}</Badge>
               )}
             </DetailItem>
 
@@ -79,17 +63,23 @@ export function RoleDetailDialog({ role, open, onOpenChange }: RoleDetailDialogP
 
           <DetailItem icon={<Settings className="h-4 w-4" />} label={copy.roleType}>
             {role.type === 'system' ? (
-              <Badge variant="outline" className="rounded-full border-orange-200 bg-orange-50 text-orange-700">
+              <Badge
+                variant="outline"
+                className="rounded-full border-orange-200 bg-orange-50 text-orange-700"
+              >
                 {copy.systemRole}
               </Badge>
             ) : (
-              <Badge variant="outline" className="rounded-full border-blue-200 bg-blue-50 text-blue-700">
+              <Badge
+                variant="outline"
+                className="rounded-full border-blue-200 bg-blue-50 text-blue-700"
+              >
                 {copy.customRole}
               </Badge>
             )}
           </DetailItem>
 
-          <DetailItem icon={<Calendar className="h-4 w-4" />} label={t.common.createdAt}>
+          <DetailItem icon={<Calendar className="h-4 w-4" />} label={copy.createdAt}>
             {role.createdAt || '-'}
           </DetailItem>
         </div>

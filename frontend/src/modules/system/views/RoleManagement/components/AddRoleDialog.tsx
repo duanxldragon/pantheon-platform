@@ -12,6 +12,7 @@ import {
 import { getDialogClassName, getDialogStyle } from '../../../../../shared/constants/dialogSizes';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import type { Menu, Role, RoleFormData } from '../../../types';
+import { getRoleManagementCopy } from '../roleManagementCopy';
 import { RoleForm } from './RoleForm';
 
 interface AddRoleDialogProps {
@@ -29,7 +30,8 @@ export function AddRoleDialog({
   menus,
   initialData,
 }: AddRoleDialogProps) {
-  const { t } = useLanguageStore();
+  const { language } = useLanguageStore();
+  const copy = getRoleManagementCopy(language).dialog;
   const [formData, setFormData] = useState<Partial<RoleFormData>>({
     name: '',
     code: '',
@@ -69,10 +71,10 @@ export function AddRoleDialog({
       >
         <DialogHeader className="shrink-0 border-b border-slate-100/90 px-6 py-5 text-left">
           <DialogTitle className="text-xl font-semibold tracking-tight text-slate-950">
-            {isEdit ? t.actions.edit : t.actions.add} {t.user.role}
+            {isEdit ? copy.editTitle : copy.addTitle}
           </DialogTitle>
           <DialogDescription className="mt-1 text-sm leading-6 text-slate-500">
-            {isEdit ? t.common.editDescription : t.common.addDescription}
+            {isEdit ? copy.editDescription : copy.addDescription}
           </DialogDescription>
         </DialogHeader>
 
@@ -82,14 +84,14 @@ export function AddRoleDialog({
 
         <DialogFooter className="shrink-0 border-t border-slate-100/90 bg-slate-50/90 px-6 py-4 sm:justify-between">
           <div className="text-xs text-slate-400">
-            {isEdit ? t.common.editDescription : t.common.addDescription}
+            {isEdit ? copy.editDescription : copy.addDescription}
           </div>
           <div className="flex items-center gap-3">
           <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-2xl border-slate-200 bg-white px-4 hover:bg-slate-50">
-            {t.common.cancel}
+            {copy.cancel}
           </Button>
           <Button onClick={() => onSubmit(formData as RoleFormData)} className="rounded-2xl bg-primary px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-md">
-            {t.common.confirm}
+            {copy.confirm}
           </Button>
           </div>
         </DialogFooter>

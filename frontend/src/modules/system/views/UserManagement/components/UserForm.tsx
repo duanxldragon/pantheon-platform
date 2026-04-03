@@ -14,6 +14,7 @@ import { Textarea } from '../../../../../components/ui/textarea';
 import { FormField } from '../../../../../shared/components/ui/FormField';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import type { ID, UserFormData } from '../../../types';
+import { getUserManagementCopy } from '../userManagementCopy';
 
 interface UserFormProps {
   data?: Partial<UserFormData>;
@@ -44,9 +45,8 @@ export function UserForm({
   onChange,
   isEdit = false,
 }: UserFormProps) {
-  const { t, language } = useLanguageStore();
-  const zh = language === 'zh';
-  const formI18n = t.systemManagement.users.form;
+  const { language } = useLanguageStore();
+  const copy = getUserManagementCopy(language).form;
   const [formData, setFormData] = useState<Partial<UserFormData>>(createDefaultFormData(data));
   const fieldClassName =
     'rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10';
@@ -75,63 +75,63 @@ export function UserForm({
 
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-      <FormField label={t.user.username} required>
+      <FormField label={copy.username} required>
         <Input
           value={formData.username}
           onChange={(event) => updateField('username', event.target.value)}
-          placeholder={formI18n.usernamePlaceholder}
+          placeholder={copy.usernamePlaceholder}
           disabled={isEdit}
           className={fieldClassName}
         />
       </FormField>
 
-      <FormField label={t.user.realName} required>
+      <FormField label={copy.realName} required>
         <Input
           value={formData.realName}
           onChange={(event) => updateField('realName', event.target.value)}
-          placeholder={formI18n.realNamePlaceholder}
+          placeholder={copy.realNamePlaceholder}
           className={fieldClassName}
         />
       </FormField>
 
-      <FormField label={t.user.email} required>
+      <FormField label={copy.email} required>
         <Input
           type="email"
           value={formData.email}
           onChange={(event) => updateField('email', event.target.value)}
-          placeholder={formI18n.emailPlaceholder}
+          placeholder={copy.emailPlaceholder}
           className={fieldClassName}
         />
       </FormField>
 
-      <FormField label={t.user.phone} required>
+      <FormField label={copy.phone} required>
         <Input
           value={formData.phone}
           onChange={(event) => updateField('phone', event.target.value)}
-          placeholder={formI18n.phonePlaceholder}
+          placeholder={copy.phonePlaceholder}
           className={fieldClassName}
         />
       </FormField>
 
       {!isEdit && (
-        <FormField label={t.user.password} required>
+        <FormField label={copy.password} required>
           <Input
             type="password"
             value={formData.password}
             onChange={(event) => updateField('password', event.target.value)}
-            placeholder={formI18n.passwordPlaceholder}
+            placeholder={copy.passwordPlaceholder}
             className={fieldClassName}
           />
         </FormField>
       )}
 
-      <FormField label={t.user.department} required>
+      <FormField label={copy.department} required>
         <Select
           value={formData.departmentId?.toString()}
           onValueChange={(value) => updateField('departmentId', value as ID)}
         >
           <SelectTrigger className={fieldClassName}>
-            <SelectValue placeholder={formI18n.departmentPlaceholder} />
+            <SelectValue placeholder={copy.departmentPlaceholder} />
           </SelectTrigger>
           <SelectContent>
             {departments.map((department) => (
@@ -143,20 +143,12 @@ export function UserForm({
         </Select>
       </FormField>
 
-      <FormField
-        label={t.user.role}
-        required
-        description={
-          zh
-            ? '用户可同时绑定多个角色，保存后会重新计算动态菜单与权限快照。'
-            : 'A user can be assigned multiple roles. Saving recalculates menus and permission snapshots.'
-        }
-      >
+      <FormField label={copy.role} required description={copy.roleBindingDescription}>
         <div className="space-y-4 rounded-[28px] border border-slate-200/70 bg-slate-50/85 p-5 shadow-[0_18px_36px_-32px_rgba(15,23,42,0.3)]">
           <div className="flex items-center justify-between gap-3">
-            <div className="text-sm font-semibold text-slate-800">{t.user.role}</div>
+            <div className="text-sm font-semibold text-slate-800">{copy.role}</div>
             <div className="rounded-full border border-slate-200/80 bg-white/90 px-3 py-1 text-xs font-medium text-slate-500">
-              {selectedRoles.length}
+              {copy.selectedCount}: {selectedRoles.length}
             </div>
           </div>
 
@@ -190,15 +182,13 @@ export function UserForm({
                 </Badge>
               ))
             ) : (
-              <span className="text-xs text-slate-500">
-                {zh ? '请至少选择一个角色。' : 'Select at least one role.'}
-              </span>
+              <span className="text-xs text-slate-500">{copy.selectedRolesEmpty}</span>
             )}
           </div>
         </div>
       </FormField>
 
-      <FormField label={t.user.status} required>
+      <FormField label={copy.status} required>
         <Select
           value={formData.status}
           onValueChange={(value) => updateField('status', value as UserFormData['status'])}
@@ -207,18 +197,18 @@ export function UserForm({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="active">{t.status.enabled}</SelectItem>
-            <SelectItem value="inactive">{t.status.disabled}</SelectItem>
+            <SelectItem value="active">{copy.statusEnabled}</SelectItem>
+            <SelectItem value="inactive">{copy.statusDisabled}</SelectItem>
           </SelectContent>
         </Select>
       </FormField>
 
       <div className="md:col-span-2">
-        <FormField label={t.common.remark}>
+        <FormField label={copy.remark}>
           <Textarea
             value={formData.description}
             onChange={(event) => updateField('description', event.target.value)}
-            placeholder={formI18n.remarkPlaceholder}
+            placeholder={copy.remarkPlaceholder}
             className={`resize-none ${fieldClassName}`}
             rows={3}
           />

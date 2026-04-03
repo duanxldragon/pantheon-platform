@@ -23,6 +23,7 @@ import {
 } from '../../../../../components/ui/dropdown-menu';
 import { Button } from '../../../../../components/ui/button';
 import { useLanguageStore } from '../../../../../stores/languageStore';
+import { getDataDictionaryCopy } from '../dataDictionaryCopy';
 
 export interface DictItem {
   id: string;
@@ -51,12 +52,13 @@ export const DictDataTable: React.FC<DictDataTableProps> = ({
   canUpdate = true,
   canDelete = true,
 }) => {
-  const { t } = useLanguageStore();
+  const { language } = useLanguageStore();
+  const copy = getDataDictionaryCopy(language).table;
 
   const columns: Column<DictItem>[] = [
     {
       key: 'dictLabel',
-      label: t.systemManagement.dictionary.columns.label,
+      label: copy.columns.label,
       width: '200px',
       render: (item) => (
         <div className="flex items-center gap-2.5">
@@ -69,7 +71,7 @@ export const DictDataTable: React.FC<DictDataTableProps> = ({
     },
     {
       key: 'dictValue',
-      label: t.systemManagement.dictionary.columns.value,
+      label: copy.columns.value,
       width: '180px',
       render: (item) => (
         <div className="flex items-center gap-2">
@@ -82,7 +84,7 @@ export const DictDataTable: React.FC<DictDataTableProps> = ({
     },
     {
       key: 'style',
-      label: t.systemManagement.dictionary.columns.style,
+      label: copy.columns.style,
       width: '120px',
       render: (item) => (
         item.cssClass ? (
@@ -96,7 +98,7 @@ export const DictDataTable: React.FC<DictDataTableProps> = ({
     },
     {
       key: 'sort',
-      label: t.systemManagement.dictionary.columns.sort,
+      label: copy.columns.sort,
       width: '100px',
       align: 'center',
       render: (item) => (
@@ -108,7 +110,7 @@ export const DictDataTable: React.FC<DictDataTableProps> = ({
     },
     {
       key: 'status',
-      label: t.user.status,
+      label: copy.columns.status,
       width: '100px',
       align: 'center',
       render: (item) => (
@@ -122,7 +124,7 @@ export const DictDataTable: React.FC<DictDataTableProps> = ({
     },
     {
       key: 'remark',
-      label: t.systemManagement.dictionary.columns.remark,
+      label: copy.columns.remark,
       width: '220px',
       render: (item) => (
         <div className="flex items-start gap-1.5 text-slate-500/75">
@@ -133,7 +135,7 @@ export const DictDataTable: React.FC<DictDataTableProps> = ({
     },
     {
       key: 'actions',
-      label: t.common.actions,
+      label: copy.columns.actions,
       width: '120px',
       align: 'right',
       render: (item) => (
@@ -143,7 +145,7 @@ export const DictDataTable: React.FC<DictDataTableProps> = ({
               actions={[
                 {
                   icon: <Edit className="w-4 h-4 text-amber-500" />,
-                  label: t.common.edit,
+                  label: copy.actions.edit,
                   onClick: () => onAction('edit', item),
                 },
               ]} 
@@ -164,13 +166,13 @@ export const DictDataTable: React.FC<DictDataTableProps> = ({
                 {canUpdate ? (
                   <DropdownMenuItem className="rounded-xl focus:bg-slate-100" onClick={() => onAction('edit', item)}>
                     <Edit className="w-4 h-4 mr-2 text-amber-500" />
-                    {t.systemManagement.dictionary.actions.editItem}
+                    {copy.actions.editItem}
                   </DropdownMenuItem>
                 ) : null}
                 {canDelete ? (
                   <DropdownMenuItem className="rounded-xl text-rose-600 focus:bg-rose-50 focus:text-rose-700" onClick={() => onAction('delete', item)}>
                     <Trash2 className="w-4 h-4 mr-2" />
-                    {t.common.delete}
+                    {copy.actions.delete}
                   </DropdownMenuItem>
                 ) : null}
               </DropdownMenuContent>
@@ -194,7 +196,7 @@ export const DictDataTable: React.FC<DictDataTableProps> = ({
           <div className="p-4 bg-slate-50 rounded-full">
             <Code2 className="w-8 h-8 opacity-20" />
           </div>
-          <p className="text-sm italic">{t.systemManagement.dictionary.emptyHint}</p>
+          <p className="text-sm italic">{copy.emptyHint}</p>
         </div>
       )}
     </div>

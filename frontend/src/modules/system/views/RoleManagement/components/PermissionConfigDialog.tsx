@@ -8,11 +8,12 @@ import { Checkbox } from '../../../../../components/ui/checkbox';
 import { Label } from '../../../../../components/ui/label';
 import { ScrollArea } from '../../../../../components/ui/scroll-area';
 import { Separator } from '../../../../../components/ui/separator';
+import { FormDialog } from '../../../../../shared/components/ui/FormDialog';
 import { getMenuLabel } from '../../../../../shared/constants/viewsConfig';
 import { useLanguageStore } from '../../../../../stores/languageStore';
-import { FormDialog } from '../../../../../shared/components/ui/FormDialog';
 import { roleApi } from '../../../api/roleApi';
 import type { Menu, Role } from '../../../types';
+import { getRoleManagementCopy } from '../roleManagementCopy';
 
 interface PermissionConfigDialogProps {
   open: boolean;
@@ -30,33 +31,7 @@ export function PermissionConfigDialog({
   onSuccess,
 }: PermissionConfigDialogProps) {
   const { language, t } = useLanguageStore();
-  const zh = language === 'zh';
-  const copy = zh
-    ? {
-        saveSuccess: '角色菜单权限已保存',
-        saveFailed: '保存角色菜单权限失败，请重试',
-        title: '配置菜单权限',
-        description: (roleName: string) => `为角色“${roleName}”配置可访问的菜单与按钮。`,
-        cancelText: '取消',
-        submitText: '保存配置',
-        submittingText: '保存中...',
-        selectedPrefix: '已选择',
-        selectedSuffix: '项菜单权限',
-        clear: '清空选择',
-      }
-    : {
-        saveSuccess: 'Role menu permissions saved',
-        saveFailed: 'Failed to save role menu permissions',
-        title: 'Configure Menu Permissions',
-        description: (roleName: string) => `Configure accessible menus and buttons for role "${roleName}".`,
-        cancelText: 'Cancel',
-        submitText: 'Save',
-        submittingText: 'Saving...',
-        selectedPrefix: 'Selected',
-        selectedSuffix: 'menu permissions',
-        clear: 'Clear',
-      };
-
+  const copy = getRoleManagementCopy(language).dialog;
   const [selectedMenuIds, setSelectedMenuIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedMenuIds, setExpandedMenuIds] = useState<Set<string>>(new Set());
@@ -95,11 +70,11 @@ export function PermissionConfigDialog({
     setLoading(true);
     try {
       await roleApi.assignMenus(String(role.id), selectedMenuIds);
-      toast.success(copy.saveSuccess);
+      toast.success(copy.permissionSaveSuccess);
       onSuccess?.();
       onOpenChange(false);
     } catch {
-      toast.error(copy.saveFailed);
+      toast.error(copy.permissionSaveFailed);
     } finally {
       setLoading(false);
     }
@@ -113,28 +88,24 @@ export function PermissionConfigDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={copy.title}
-      description={copy.description(role.name)}
+      title={copy.permissionTitle}
+      description={copy.permissionDescription(role.name)}
       onSubmit={handleSubmit}
       loading={loading}
-      cancelText={copy.cancelText}
-      submitText={copy.submitText}
-      submittingText={copy.submittingText}
+      cancelText={copy.permissionCancel}
+      submitText={copy.permissionSubmit}
+      submittingText={copy.permissionSubmitting}
       width="sm:max-w-[1180px]"
     >
       <div className="space-y-4">
         <div className="flex items-center justify-between rounded-[24px] border border-blue-200/80 bg-gradient-to-r from-blue-50 via-white to-cyan-50 p-4 shadow-[0_18px_36px_-30px_rgba(59,130,246,0.28)]">
-          <div className="text-sm text-slate-700">
-            {copy.selectedPrefix}{' '}
-            <span className="font-semibold text-blue-600">{selectedMenuIds.length}</span>{' '}
-            {copy.selectedSuffix}
-          </div>
+          <div className="text-sm text-slate-700">{copy.permissionSelected(selectedMenuIds.length)}</div>
           <button
             type="button"
             onClick={() => setSelectedMenuIds([])}
             className="rounded-2xl border border-blue-100 bg-white/90 px-3 py-1.5 text-sm text-blue-600 transition-colors hover:bg-white hover:text-blue-700"
           >
-            {copy.clear}
+            {copy.permissionClear}
           </button>
         </div>
 
@@ -221,7 +192,10 @@ function renderMenuTree({
             checked={selected}
             onCheckedChange={() => toggleSelection(menuId)}
           />
-          <Label htmlFor={`permission-menu-${menuId}`} className="flex-1 cursor-pointer text-sm font-medium text-slate-700">
+          <Label
+            htmlFor={`permission-menu-${menuId}`}
+            className="flex-1 cursor-pointer text-sm font-medium text-slate-700"
+          >
             {getMenuLabel(menu, language, t)}
           </Label>
           <span className="rounded-full border border-slate-200/80 bg-white/90 px-3 py-1 text-[11px] text-slate-500">

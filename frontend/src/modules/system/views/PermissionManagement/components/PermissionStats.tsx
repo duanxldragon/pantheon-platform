@@ -3,6 +3,7 @@ import { Activity, Database, Layout, Shield } from 'lucide-react';
 
 import { Card } from '../../../../../components/ui/card';
 import { useLanguageStore } from '../../../../../stores/languageStore';
+import { getPermissionManagementCopy } from '../permissionManagementCopy';
 
 interface PermissionStatsProps {
   stats: {
@@ -14,13 +15,14 @@ interface PermissionStatsProps {
 }
 
 export const PermissionStats: React.FC<PermissionStatsProps> = ({ stats }) => {
-  const { t } = useLanguageStore();
+  const { language } = useLanguageStore();
+  const copy = getPermissionManagementCopy(language).stats;
 
   const items = [
-    { label: t.systemManagement.permissionManagement.total, value: stats.total, icon: Shield, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: t.systemManagement.permissionManagement.operation, value: stats.operation, icon: Activity, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: t.systemManagement.permissionManagement.data, value: stats.data, icon: Database, color: 'text-purple-600', bg: 'bg-purple-50' },
-    { label: t.systemManagement.permissionManagement.menu, value: stats.menu, icon: Layout, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { label: copy.total, value: stats.total, icon: Shield, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: copy.operation, value: stats.operation, icon: Activity, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: copy.data, value: stats.data, icon: Database, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { label: copy.menu, value: stats.menu, icon: Layout, color: 'text-amber-600', bg: 'bg-amber-50' },
   ];
 
   return (

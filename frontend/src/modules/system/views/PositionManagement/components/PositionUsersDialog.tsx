@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useCallback } from 'react';
 
 import { Briefcase, Search, UserMinus, UserPlus } from 'lucide-react';
 
@@ -21,6 +22,7 @@ import { getDialogClassName, getDialogStyle } from '../../../../../shared/consta
 import { ConfirmDialog } from '../../../../../shared/components/ui/ConfirmDialog';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import type { ID, Position, User } from '../../../types';
+import { getPositionManagementCopy } from '../positionManagementCopy';
 
 interface PositionUsersDialogProps {
   open: boolean;
@@ -36,6 +38,14 @@ function asID(value: ID | null | undefined): string {
   return String(value ?? '');
 }
 
+function getUserDisplayName(user: User): string {
+  return user.realName || user.username || '-';
+}
+
+function getUserInitial(user: User): string {
+  return getUserDisplayName(user).slice(0, 1).toUpperCase();
+}
+
 export function PositionUsersDialog({
   open,
   onOpenChange,
@@ -46,53 +56,7 @@ export function PositionUsersDialog({
   onUnassignUser,
 }: PositionUsersDialogProps) {
   const { language } = useLanguageStore();
-  const zh = language === 'zh';
-  const levelLabels = zh
-    ? ['', 'P1-初级', 'P2-中级', 'P3-高级', 'P4-资深', 'P5-专家']
-    : ['', 'P1-Junior', 'P2-Mid', 'P3-Senior', 'P4-Staff', 'P5-Expert'];
-  const copy = zh
-    ? {
-        title: '岗位成员分配',
-        description: '管理岗位成员，支持分配用户、移出用户，并触发相关权限刷新。',
-        currentTab: '当前成员',
-        assignTab: '分配成员',
-        searchPlaceholder: '搜索用户名、姓名或邮箱',
-        emptyCurrent: '当前岗位暂无成员',
-        emptyAvailable: '暂无可分配的用户',
-        selectedLabel: '已选',
-        selectAll: '全选当前列表',
-        assignAction: '分配到岗位',
-        confirmAssignTitle: '确认分配成员',
-        confirmRemoveTitle: '确认移出成员',
-        confirmAssignText: '确认分配',
-        confirmRemoveText: '确认移出',
-        cancelText: '取消',
-        assignDescription: (positionName: string, count: number) =>
-          `本次将为岗位“${positionName}”分配 ${count} 名成员，并触发相关用户的权限刷新。`,
-        removeDescription: (positionName: string, username: string) =>
-          `本次将从岗位“${positionName}”移出成员“${username}”，并触发该用户的权限刷新。`,
-      }
-    : {
-        title: 'Position Assignment',
-        description: 'Manage position users, including assignment, removal, and permission refresh.',
-        currentTab: 'Current Members',
-        assignTab: 'Assign Members',
-        searchPlaceholder: 'Search by username, name, or email',
-        emptyCurrent: 'No users assigned to this position',
-        emptyAvailable: 'No available users to assign',
-        selectedLabel: 'Selected',
-        selectAll: 'Select Current List',
-        assignAction: 'Assign to Position',
-        confirmAssignTitle: 'Confirm Assign Members',
-        confirmRemoveTitle: 'Confirm Remove Member',
-        confirmAssignText: 'Confirm Assign',
-        confirmRemoveText: 'Confirm Remove',
-        cancelText: 'Cancel',
-        assignDescription: (positionName: string, count: number) =>
-          `This will assign ${count} users to "${positionName}" and refresh related user permissions.`,
-        removeDescription: (positionName: string, username: string) =>
-          `This will remove "${username}" from "${positionName}" and refresh that user's permissions.`,
-      };
+  const copy = getPositionManagementCopy(language).users;
   const fieldClassName =
     'h-11 rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10';
 
@@ -120,22 +84,23 @@ export function PositionUsersDialog({
     [allUsers, currentUsers],
   );
 
-  const filterUsers = (users: User[]) => {
+  const filterUsers = useCallback((users: User[]) => {
     if (!searchQuery.trim()) {
       return users;
     }
 
     const keyword = searchQuery.trim().toLowerCase();
-    return users.filter(
-      (user) =>
-        user.realName.toLowerCase().includes(keyword) ||
-        user.username.toLowerCase().includes(keyword) ||
-        (user.email || '').toLowerCase().includes(keyword),
-    );
-  };
+    return users.filter((user) => {
+      const realName = (user.realName || '').toLowerCase();
+      const username = (user.username || '').toLowerCase();
+      const email = (user.email || '').toLowerCase();
 
-  const filteredCurrentUsers = useMemo(() => filterUsers(currentUsers), [currentUsers, searchQuery]);
-  const filteredAvailableUsers = useMemo(() => filterUsers(availableUsers), [availableUsers, searchQuery]);
+      return realName.includes(keyword) || username.includes(keyword) || email.includes(keyword);
+    });
+  }, [searchQuery]);
+
+  const filteredCurrentUsers = useMemo(() => filterUsers(currentUsers), [currentUsers, filterUsers]);
+  const filteredAvailableUsers = useMemo(() => filterUsers(availableUsers), [availableUsers, filterUsers]);
   const displayedUsers = activeTab === 'current' ? filteredCurrentUsers : filteredAvailableUsers;
 
   const toggleUser = (userId: string) => {
@@ -218,7 +183,7 @@ export function PositionUsersDialog({
     onOpenChange(nextOpen);
   };
 
-  const pendingUsername = pendingRemoveUser?.realName || pendingRemoveUser?.username || '';
+  const pendingUsername = pendingRemoveUser ? getUserDisplayName(pendingRemoveUser) : '';
   const confirmDescription =
     confirmMode === 'assign'
       ? copy.assignDescription(position.name, selectedUserIds.size)
@@ -239,7 +204,7 @@ export function PositionUsersDialog({
           <div className="flex flex-wrap items-center gap-2">
             {position.category ? <Badge className="bg-purple-100 text-purple-700">{position.category}</Badge> : null}
             <Badge variant="outline" className="bg-blue-50 text-blue-700">
-              {levelLabels[position.level] || `P${position.level}`}
+              {copy.levelLabels[position.level] || `P${position.level}`}
             </Badge>
             {position.departmentName ? (
               <Badge variant="outline" className="bg-slate-50 text-slate-700">
@@ -308,6 +273,8 @@ export function PositionUsersDialog({
                   {filteredAvailableUsers.length > 0 ? (
                     filteredAvailableUsers.map((user) => {
                       const userId = asID(user.id);
+                      const displayName = getUserDisplayName(user);
+
                       return (
                         <Card
                           key={userId}
@@ -325,10 +292,10 @@ export function PositionUsersDialog({
                                 onCheckedChange={() => toggleUser(userId)}
                                 onClick={(event) => event.stopPropagation()}
                               />
-                              <AvatarBadge>{user.realName.slice(0, 1)}</AvatarBadge>
+                              <AvatarBadge>{getUserInitial(user)}</AvatarBadge>
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <p className="text-slate-900">{user.realName}</p>
+                                  <p className="text-slate-900">{displayName}</p>
                                   <Badge variant="outline" className="bg-slate-50 text-xs">
                                     {user.username}
                                   </Badge>
@@ -353,7 +320,7 @@ export function PositionUsersDialog({
 
               <DialogFooter className="border-t border-slate-100/90 bg-slate-50/80 px-4 py-4 sm:justify-between">
                 <div className="text-xs text-slate-500">
-                  {copy.selectedLabel} {selectedUserIds.size} / {filteredAvailableUsers.length}
+                  {copy.selectedSummary(selectedUserIds.size, filteredAvailableUsers.length)}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -404,14 +371,16 @@ function UserCard({
   badgeText?: string;
   action: ReactNode;
 }) {
+  const displayName = getUserDisplayName(user);
+
   return (
     <Card className="rounded-[24px] border border-slate-200/70 bg-white/92 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <AvatarBadge>{user.realName.slice(0, 1)}</AvatarBadge>
+          <AvatarBadge>{getUserInitial(user)}</AvatarBadge>
           <div>
             <div className="flex items-center gap-2">
-              <p className="text-slate-900">{user.realName}</p>
+              <p className="text-slate-900">{displayName}</p>
               <Badge variant="outline" className="bg-slate-50 text-xs">
                 {user.username}
               </Badge>

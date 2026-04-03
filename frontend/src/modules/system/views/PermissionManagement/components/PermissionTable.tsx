@@ -9,6 +9,7 @@ import { useAuthStore } from '../../../../auth/store/authStore';
 import { systemPermissions } from '../../../constants/permissions';
 import type { Permission } from '../../../types';
 import { getPermissionModuleLabel } from '../moduleLocalization';
+import { getPermissionManagementCopy } from '../permissionManagementCopy';
 
 interface PermissionTableProps {
   data: Permission[];
@@ -31,26 +32,27 @@ export const PermissionTable: React.FC<PermissionTableProps> = ({
   onStatusChange,
   pagination,
 }) => {
-  const { t, language } = useLanguageStore();
+  const { language } = useLanguageStore();
   const hasPermission = useAuthStore((state) => state.hasPermission);
+  const copy = getPermissionManagementCopy(language).table;
 
   const getTypeInfo = (type: string) => {
     switch (type) {
       case 'menu':
         return {
-          label: t.systemManagement.permissionManagement.menu,
+          label: copy.typeMenu,
           color: 'bg-blue-50 text-blue-600 border-blue-100',
           icon: Layout,
         };
       case 'operation':
         return {
-          label: t.systemManagement.permissionManagement.operation,
+          label: copy.typeOperation,
           color: 'bg-emerald-50 text-emerald-600 border-emerald-100',
           icon: Activity,
         };
       case 'data':
         return {
-          label: t.systemManagement.permissionManagement.data,
+          label: copy.typeData,
           color: 'bg-purple-50 text-purple-600 border-purple-100',
           icon: Database,
         };
@@ -62,7 +64,7 @@ export const PermissionTable: React.FC<PermissionTableProps> = ({
   const columns: Column<Permission>[] = [
     {
       key: 'code',
-      label: t.systemManagement.permissionManagement.code,
+      label: copy.code,
       width: '240px',
       render: (permission) => (
         <div className="flex items-center gap-3">
@@ -71,7 +73,7 @@ export const PermissionTable: React.FC<PermissionTableProps> = ({
           </div>
           <code
             className="inline-flex min-h-9 items-center rounded-2xl border border-slate-200/80 bg-slate-50/90 px-3 py-1 font-mono text-[11px] font-semibold text-slate-700 transition-colors select-all cursor-pointer hover:border-slate-300 hover:bg-white"
-            title={t.systemManagement.permissionManagement.clickToCopy}
+            title={copy.clickToCopy}
           >
             {permission.code}
           </code>
@@ -80,13 +82,13 @@ export const PermissionTable: React.FC<PermissionTableProps> = ({
     },
     {
       key: 'name',
-      label: t.systemManagement.permissionManagement.name,
+      label: copy.name,
       width: '180px',
       render: (permission) => <span className="font-bold text-slate-900">{permission.name}</span>,
     },
     {
       key: 'type',
-      label: t.systemManagement.permissionManagement.type,
+      label: copy.type,
       width: '100px',
       render: (permission) => {
         const info = getTypeInfo(permission.type);
@@ -103,7 +105,7 @@ export const PermissionTable: React.FC<PermissionTableProps> = ({
     },
     {
       key: 'module',
-      label: t.systemManagement.permissionManagement.module,
+      label: copy.module,
       width: '140px',
       render: (permission) => (
         <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200/70 bg-slate-50/80 px-3 py-1.5 text-sm font-medium text-slate-600">
@@ -114,7 +116,7 @@ export const PermissionTable: React.FC<PermissionTableProps> = ({
     },
     {
       key: 'status',
-      label: t.user.status,
+      label: copy.status,
       width: '112px',
       align: 'center',
       render: (permission) => (
@@ -128,7 +130,7 @@ export const PermissionTable: React.FC<PermissionTableProps> = ({
     },
     {
       key: 'description',
-      label: t.systemManagement.permissionManagement.description,
+      label: copy.description,
       width: '220px',
       render: (permission) => (
         <span className="line-clamp-2 text-xs leading-6 text-slate-500">{permission.description || '-'}</span>
@@ -136,7 +138,7 @@ export const PermissionTable: React.FC<PermissionTableProps> = ({
     },
     {
       key: 'createdAt',
-      label: t.common.createdAt,
+      label: copy.createdAt,
       width: '160px',
       render: (permission) => (
         <div className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-200/70 bg-slate-50/80 px-3 py-1.5 font-mono text-[11px] text-slate-500">
@@ -147,7 +149,7 @@ export const PermissionTable: React.FC<PermissionTableProps> = ({
     },
     {
       key: 'actions',
-      label: t.common.actions,
+      label: copy.actions,
       width: '168px',
       align: 'right',
       render: (permission) => (
@@ -155,13 +157,13 @@ export const PermissionTable: React.FC<PermissionTableProps> = ({
           actions={[
             {
               icon: <Edit className="w-4 h-4 text-amber-500" />,
-              label: t.common.edit,
+              label: copy.edit,
               onClick: () => onAction('edit', permission),
               permission: systemPermissions.permission.update,
             },
             {
               icon: <Trash2 className="w-4 h-4 text-rose-500" />,
-              label: t.common.delete,
+              label: copy.delete,
               onClick: () => onAction('delete', permission),
               permission: systemPermissions.permission.delete,
               danger: true,

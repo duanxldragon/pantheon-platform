@@ -1,11 +1,12 @@
-﻿import React from 'react';
+import React from 'react';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import { FormDialog } from '../../../../../shared/components/ui/FormDialog';
 import { DeleteConfirmDialog } from '../../../../../shared/components/ui/DeleteConfirmDialog';
-import { DataImportExportDialog } from '../../../../../shared/components/ui/DataImportExportDialog';
+import { DataImportExportDialog, type ExportOptions } from '../../../../../shared/components/ui/DataImportExportDialog';
 import { DepartmentForm } from './DepartmentForm';
 import { DepartmentMembersDialog } from './DepartmentMembersDialog';
 import { Department, User } from '../../../types';
+import { getDepartmentManagementCopy } from '../departmentManagementCopy';
 
 interface DepartmentDialogManagerProps {
   dialogs: {
@@ -26,7 +27,7 @@ interface DepartmentDialogManagerProps {
     onSubmit: () => void;
     onDelete: () => void;
     onImport: (file: File) => void;
-    onExport: (options: any) => void;
+    onExport: (options: ExportOptions) => void;
     onAddMembers: (userIds: string[]) => void | Promise<void>;
     onRemoveMember: (userId: string) => void | Promise<void>;
   };
@@ -44,27 +45,25 @@ export const DepartmentDialogManager: React.FC<DepartmentDialogManagerProps> = (
   handlers,
   deleteDescription,
 }) => {
-  const { t, language } = useLanguageStore();
-  const zh = language === 'zh';
-  const templateHeaders = zh
-    ? ['名称', '编码', '上级部门ID', '负责人', '电话', '邮箱', '排序']
-    : ['Name', 'Code', 'ParentId', 'Leader', 'Phone', 'Email', 'Sort'];
+  const { language } = useLanguageStore();
+  const copy = getDepartmentManagementCopy(language);
+  const resourceName = language === 'zh' ? copy.entity.zh : copy.entity.en;
 
   const getCurrentMembers = () => {
     if (!selectedDepartment) return [];
-    return users.filter(user => String(user.departmentId ?? '') === String(selectedDepartment.id));
+    return users.filter((user) => String(user.departmentId ?? '') === String(selectedDepartment.id));
   };
 
   return (
     <>
       <FormDialog
-        title={t.actions.add + ' ' + t.user.department}
+        title={copy.titles.addDialog}
         open={dialogs.add}
         onOpenChange={(open) => setDialogOpen('add', open)}
         onSubmit={handlers.onSubmit}
       >
-        <DepartmentForm 
-          data={formData} 
+        <DepartmentForm
+          data={formData}
           onChange={setFormData}
           departments={departments}
           users={users}
@@ -72,17 +71,17 @@ export const DepartmentDialogManager: React.FC<DepartmentDialogManagerProps> = (
       </FormDialog>
 
       <FormDialog
-        title={t.actions.edit + ' ' + t.user.department}
+        title={copy.titles.editDialog}
         open={dialogs.edit}
         onOpenChange={(open) => setDialogOpen('edit', open)}
         onSubmit={handlers.onSubmit}
       >
-        <DepartmentForm 
-          data={formData} 
+        <DepartmentForm
+          data={formData}
           onChange={setFormData}
           departments={departments}
           users={users}
-          isEdit 
+          isEdit
         />
       </FormDialog>
 
@@ -102,12 +101,9 @@ export const DepartmentDialogManager: React.FC<DepartmentDialogManagerProps> = (
         open={dialogs.delete}
         onOpenChange={(open) => setDialogOpen('delete', open)}
         onConfirm={handlers.onDelete}
-        title={t.actions.delete}
+        title={copy.actionLabels.delete}
         description={
-          deleteDescription ||
-          (selectedDepartment
-            ? `${t.common.confirm} ${t.actions.delete} ${selectedDepartment.name}?`
-            : '')
+          deleteDescription || copy.dialog.deleteFallback(selectedDepartment?.name)
         }
       />
 
@@ -115,19 +111,18 @@ export const DepartmentDialogManager: React.FC<DepartmentDialogManagerProps> = (
         open={dialogs.import}
         onOpenChange={(open) => setDialogOpen('import', open)}
         mode="import"
-        resourceName={t.user.department}
+        resourceName={resourceName}
         onImport={handlers.onImport}
-        templateHeaders={templateHeaders}
+        templateHeaders={copy.dialog.importHeaders}
       />
 
       <DataImportExportDialog
         open={dialogs.export}
         onOpenChange={(open) => setDialogOpen('export', open)}
         mode="export"
-        resourceName={t.user.department}
+        resourceName={resourceName}
         onExport={handlers.onExport}
       />
     </>
   );
 };
-

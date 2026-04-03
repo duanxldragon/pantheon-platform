@@ -5,6 +5,7 @@ import { Input } from '../../../../../components/ui/input';
 import { FormDialog } from '../../../../../shared/components/ui/FormDialog';
 import { FormField } from '../../../../../shared/components/ui/FormField';
 import { useLanguageStore } from '../../../../../stores/languageStore';
+import { getUserManagementCopy } from '../userManagementCopy';
 
 interface ResetPasswordDialogProps {
   open: boolean;
@@ -22,48 +23,14 @@ export function ResetPasswordDialog({
   onConfirm,
 }: ResetPasswordDialogProps) {
   const { language } = useLanguageStore();
-  const zh = language === 'zh';
+  const copy = getUserManagementCopy(language).resetPassword;
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  const copy = zh
-    ? {
-        emptyPassword: '请输入新密码',
-        passwordTooShort: '密码长度至少为 6 位',
-        mismatch: '两次输入的密码不一致',
-        failed: '密码重置失败，请稍后重试',
-        title: '重置密码',
-        description: realName || username ? `为 ${realName || username} 重置登录密码` : '重置用户登录密码',
-        cancel: '取消',
-        submit: '确认重置',
-        submitting: '重置中...',
-        tip: '建议使用强密码，并在重置后通知用户及时修改。',
-        newPassword: '新密码',
-        confirmPassword: '确认密码',
-        newPasswordPlaceholder: '请输入新密码',
-        confirmPasswordPlaceholder: '请再次输入新密码',
-      }
-    : {
-        emptyPassword: 'Please enter a new password',
-        passwordTooShort: 'Password must be at least 6 characters',
-        mismatch: 'The two passwords do not match',
-        failed: 'Failed to reset password. Please try again later.',
-        title: 'Reset Password',
-        description:
-          realName || username ? `Reset sign-in password for ${realName || username}` : 'Reset user sign-in password',
-        cancel: 'Cancel',
-        submit: 'Confirm Reset',
-        submitting: 'Resetting...',
-        tip: 'Use a strong password and ask the user to change it after reset.',
-        newPassword: 'New Password',
-        confirmPassword: 'Confirm Password',
-        newPasswordPlaceholder: 'Enter new password',
-        confirmPasswordPlaceholder: 'Enter the new password again',
-      };
+  const displayName = realName || username;
 
   const resetState = () => {
     setPassword('');
@@ -115,7 +82,7 @@ export function ResetPasswordDialog({
       open={open}
       onOpenChange={handleClose}
       title={copy.title}
-      description={copy.description}
+      description={copy.description(displayName)}
       onSubmit={handleSubmit}
       loading={loading}
       cancelText={copy.cancel}

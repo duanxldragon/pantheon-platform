@@ -14,6 +14,7 @@ import { getMenuLabel } from '../../../../../shared/constants/viewsConfig';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import type { Menu, PermissionFormData } from '../../../types';
 import { getPermissionModuleOptions, normalizePermissionModule } from '../moduleLocalization';
+import { getPermissionManagementCopy } from '../permissionManagementCopy';
 
 interface PermissionFormProps {
   data?: Partial<PermissionFormData>;
@@ -33,12 +34,12 @@ const defaultFormData: Partial<PermissionFormData> = {
 
 export function PermissionForm({ data = {}, menus = [], onChange, isEdit = false }: PermissionFormProps) {
   const { language, t } = useLanguageStore();
-  const zh = language === 'zh';
   const [formData, setFormData] = useState<Partial<PermissionFormData>>({
     ...defaultFormData,
     ...data,
     module: normalizePermissionModule(data.module),
   });
+  const copy = getPermissionManagementCopy(language).form;
   const fieldClassName =
     'rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10';
 
@@ -57,61 +58,6 @@ export function PermissionForm({ data = {}, menus = [], onChange, isEdit = false
   };
 
   const moduleOptions = useMemo(() => getPermissionModuleOptions(language), [language]);
-  const permissionTypes = useMemo(
-    () => [
-      { value: 'menu', label: zh ? '菜单权限' : 'Menu Permission' },
-      { value: 'operation', label: zh ? '操作权限' : 'Operation Permission' },
-      { value: 'data', label: zh ? '数据权限' : 'Data Permission' },
-      { value: 'field', label: zh ? '字段权限' : 'Field Permission' },
-    ],
-    [zh],
-  );
-
-  const copy = zh
-    ? {
-        code: '权限编码',
-        name: '权限名称',
-        type: '权限类型',
-        module: '所属模块',
-        menu: '关联菜单',
-        description: '权限说明',
-        codePlaceholder: '请输入权限编码，例如 system:user:view',
-        namePlaceholder: '请输入权限名称',
-        typePlaceholder: '请选择权限类型',
-        modulePlaceholder: '请选择所属模块',
-        menuPlaceholder: '请选择关联菜单，可为空',
-        descriptionPlaceholder: '请输入权限说明',
-        none: '无',
-        guideTitle: '权限编码建议',
-        guideItems: [
-          '建议格式：模块:资源:动作，例如 `system:user:view`。',
-          '统一使用小写英文和冒号分隔，方便前后端做稳定校验。',
-          '常见动作包括 `view`、`add`、`edit`、`delete`、`export`。',
-          '一个权限编码只表达一个明确动作，避免混合多个含义。',
-        ],
-      }
-    : {
-        code: 'Permission Code',
-        name: 'Permission Name',
-        type: 'Permission Type',
-        module: 'Module',
-        menu: 'Related Menu',
-        description: 'Description',
-        codePlaceholder: 'Enter permission code, e.g. system:user:view',
-        namePlaceholder: 'Enter permission name',
-        typePlaceholder: 'Select permission type',
-        modulePlaceholder: 'Select module',
-        menuPlaceholder: 'Select related menu, optional',
-        descriptionPlaceholder: 'Enter permission description',
-        none: 'None',
-        guideTitle: 'Permission Code Guide',
-        guideItems: [
-          'Recommended format: module:resource:action, e.g. `system:user:view`.',
-          'Prefer lowercase words separated by colons for stable frontend/backend checks.',
-          'Common actions include `view`, `add`, `edit`, `delete`, and `export`.',
-          'A single permission code should represent one clear action only.',
-        ],
-      };
 
   return (
     <div className="space-y-6">
@@ -141,7 +87,7 @@ export function PermissionForm({ data = {}, menus = [], onChange, isEdit = false
               <SelectValue placeholder={copy.typePlaceholder} />
             </SelectTrigger>
             <SelectContent>
-              {permissionTypes.map((type) => (
+              {copy.typeOptions.map((type) => (
                 <SelectItem key={type.value} value={type.value}>
                   {type.label}
                 </SelectItem>

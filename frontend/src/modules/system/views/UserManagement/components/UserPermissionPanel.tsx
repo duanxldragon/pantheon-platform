@@ -11,24 +11,15 @@ import { ScrollArea } from '../../../../../components/ui/scroll-area';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import { api } from '../../../api';
 import type { User } from '../../../types';
+import { getUserManagementCopy } from '../userManagementCopy';
 
 interface UserPermissionPanelProps {
   user: User;
 }
 
 export function UserPermissionPanel({ user }: UserPermissionPanelProps) {
-  const { t, language } = useLanguageStore();
-  const i18n = t.systemManagement.users.permissionsPanel;
-  const zh = language === 'zh';
-  const copy = zh
-    ? {
-        loadPermissionsFailed: '加载用户权限失败，请重试',
-        permissionCodeCopied: '权限标识已复制',
-      }
-    : {
-        loadPermissionsFailed: 'Failed to load user permissions',
-        permissionCodeCopied: 'Permission code copied',
-      };
+  const { language } = useLanguageStore();
+  const copy = getUserManagementCopy(language).permissionsPanel;
   const fieldClassName =
     'h-11 rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10';
 
@@ -86,11 +77,11 @@ export function UserPermissionPanel({ user }: UserPermissionPanelProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="font-semibold text-slate-900">{i18n.title}</div>
-          <div className="text-xs text-slate-500">{i18n.description}</div>
+          <div className="font-semibold text-slate-900">{copy.title}</div>
+          <div className="text-xs text-slate-500">{copy.description}</div>
         </div>
         <Badge variant="outline" className="rounded-full border-slate-200 bg-white/90 px-3 py-1 text-slate-600">
-          {i18n.total}: {permissions.length}
+          {copy.total}: {permissions.length}
         </Badge>
       </div>
 
@@ -100,16 +91,16 @@ export function UserPermissionPanel({ user }: UserPermissionPanelProps) {
           <Input
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder={i18n.searchPlaceholder}
+            placeholder={copy.searchPlaceholder}
             className={`${fieldClassName} pl-10`}
           />
         </div>
 
         <ScrollArea className="h-[320px] pr-3">
           {loading ? (
-            <div className="py-10 text-center text-sm text-slate-500">{t.common.loading}</div>
+            <div className="py-10 text-center text-sm text-slate-500">{copy.loading}</div>
           ) : filteredPermissions.length === 0 ? (
-            <div className="py-10 text-center text-sm text-slate-500">{t.common.noData}</div>
+            <div className="py-10 text-center text-sm text-slate-500">{copy.noData}</div>
           ) : (
             <div className="space-y-2">
               {filteredPermissions.map((permission) => (
@@ -129,7 +120,7 @@ export function UserPermissionPanel({ user }: UserPermissionPanelProps) {
                       toast.success(copy.permissionCodeCopied);
                     }}
                   >
-                    {t.common.copy}
+                    {copy.copyButton}
                   </Button>
                 </div>
               ))}
@@ -139,27 +130,27 @@ export function UserPermissionPanel({ user }: UserPermissionPanelProps) {
       </Card>
 
       <Card className="space-y-3 rounded-[24px] border-slate-200/70 bg-white/88 p-4 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.28)] backdrop-blur-sm">
-        <div className="font-medium text-slate-900">{i18n.verifyTitle}</div>
-        <div className="text-xs text-slate-500">{i18n.verifyHint}</div>
+        <div className="font-medium text-slate-900">{copy.verifyTitle}</div>
+        <div className="text-xs text-slate-500">{copy.verifyHint}</div>
         <div className="flex items-center gap-2">
           <Input
             value={verifyValue}
             onChange={(event) => setVerifyValue(event.target.value)}
-            placeholder={i18n.verifyPlaceholder}
+            placeholder={copy.verifyPlaceholder}
             className={fieldClassName}
           />
           <Button
             onClick={handleVerify}
             className="rounded-2xl px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
           >
-            {i18n.verifyButton}
+            {copy.verifyButton}
           </Button>
         </div>
 
         {verifyResult !== null ? (
           <div className={`flex items-center gap-2 text-sm ${verifyResult ? 'text-emerald-700' : 'text-rose-700'}`}>
             {verifyResult ? <ShieldCheck className="h-4 w-4" /> : <ShieldX className="h-4 w-4" />}
-            {verifyResult ? i18n.verifyHas : i18n.verifyNot}
+            {verifyResult ? copy.verifyHas : copy.verifyNot}
           </div>
         ) : null}
       </Card>

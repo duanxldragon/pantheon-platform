@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Position } from '../../../types';
 
 interface Filters {
@@ -45,6 +45,10 @@ export function usePositionTable(initialPositions: Position[]) {
     const start = (page - 1) * pageSize;
     return filteredData.slice(start, start + pageSize);
   }, [filteredData, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [initialPositions, searchQuery, filters.departmentId, filters.level, filters.status]);
 
   return {
     searchQuery,

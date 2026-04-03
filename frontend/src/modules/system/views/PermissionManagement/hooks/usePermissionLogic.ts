@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Permission } from '../../../types';
 import { normalizePermissionModule } from '../moduleLocalization';
 
@@ -42,6 +42,10 @@ export function usePermissionLogic(initialPermissions: Permission[]) {
     const start = (page - 1) * pageSize;
     return filteredData.slice(start, start + pageSize);
   }, [filteredData, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [initialPermissions, searchQuery, filterType, filterModule, viewMode]);
 
   // 4. 模块提取
   const modules = useMemo(() => {

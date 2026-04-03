@@ -6,10 +6,10 @@ import { Position } from '../../types';
 import { useLanguageStore } from '../../../../stores/languageStore';
 import { toast } from 'sonner';
 import { Button } from '../../../../components/ui/button';
-import { Card } from '../../../../components/ui/card';
 import { Trash2, Download, Plus, Upload, Power, PowerOff } from 'lucide-react';
 import { PageLayout } from '../../../../components/layouts/PageLayout';
 import { ConfirmDialog } from '../../../../shared/components/ui/ConfirmDialog';
+import { ManagementActionBar, ManagementContentCard } from '../../../../shared/components/ui';
 import { useCSVImportExport } from '../../../../shared/hooks/useCSVImportExport';
 import { csvTemplates } from '../../../../shared/utils/csvTemplates';
 import { api } from '../../api';
@@ -18,6 +18,7 @@ import { QueryAccessBoundary } from '../../../../shared/components/QueryAccessBo
 import { useActionPermissionDialogGuard } from '../../../../shared/hooks/useActionPermissionDialogGuard';
 import { usePermissionConfirmGuard } from '../../../../shared/hooks/usePermissionConfirmGuard';
 import { useQueryPermissionDialogGuard } from '../../../../shared/hooks/useQueryPermissionDialogGuard';
+import type { ExportOptions } from '../../../../shared/components/ui/DataImportExportDialog';
 import { systemPermissions } from '../../constants/permissions';
 import { createEntityFeedback } from '../../utils/feedback';
 
@@ -26,6 +27,7 @@ import { PositionTable } from './components/PositionTable';
 import { PositionSearchForm } from './components/PositionSearchForm';
 import { PositionDialogManager } from './components/PositionDialogManager';
 import { usePositionTable } from './hooks/usePositionTable';
+import { getPositionManagementCopy } from './positionManagementCopy';
 
 interface StatusConfirmState {
   open: boolean;
@@ -48,68 +50,10 @@ const initialStatusConfirmState: StatusConfirmState = {
 };
 
 export function PositionManagement() {
-  const { t, language } = useLanguageStore();
+  const { language } = useLanguageStore();
   const zh = language === 'zh';
-  const positionMessages = createEntityFeedback(zh, { zh: '岗位', en: 'Position', enPlural: 'positions' });
-  const copy = zh
-    ? {
-        validation: {
-          nameRequired: '请输入岗位名称。',
-          codeRequired: '请输入岗位编码。',
-          departmentRequired: '请选择所属部门。',
-          departmentMissing: '所选部门不存在，请重新选择。',
-          departmentInactive: '所属部门已被禁用，请先启用部门。',
-        },
-        permissionLabels: {
-          create: '新增',
-          edit: '编辑',
-          delete: '删除',
-          import: '导入',
-          export: '导出',
-          members: '成员分配',
-          batchUpdate: '批量状态变更',
-          batchDelete: '批量删除',
-          batchEnable: '批量启用',
-          batchDisable: '批量禁用',
-        },
-        actions: {
-          batchEnable: (count: number) => `批量启用 (${count})`,
-          batchDisable: (count: number) => `批量禁用 (${count})`,
-          batchDelete: (count: number) => `批量删除 (${count})`,
-          assignSuccess: (name: string, count: number) => `已为岗位「${name}」分配 ${count} 名成员，相关用户权限已刷新`,
-          unassignSuccess: (name: string) => `已从岗位「${name}」移除成员，相关用户权限已刷新`,
-        },
-      }
-    : {
-        validation: {
-          nameRequired: 'Please enter the position name.',
-          codeRequired: 'Please enter the position code.',
-          departmentRequired: 'Please select a department.',
-          departmentMissing: 'The selected department does not exist.',
-          departmentInactive: 'The selected department is inactive.',
-        },
-        permissionLabels: {
-          create: 'create',
-          edit: 'edit',
-          delete: 'delete',
-          import: 'import',
-          export: 'export',
-          members: 'member assignment',
-          batchUpdate: 'batch status update',
-          batchDelete: 'batch delete',
-          batchEnable: 'batch enable',
-          batchDisable: 'batch disable',
-        },
-        actions: {
-          batchEnable: (count: number) => `Enable (${count})`,
-          batchDisable: (count: number) => `Disable (${count})`,
-          batchDelete: (count: number) => `Delete (${count})`,
-          assignSuccess: (name: string, count: number) =>
-            `Assigned ${count} members to position "${name}". User auth has been refreshed.`,
-          unassignSuccess: (name: string) =>
-            `Removed a member from position "${name}". User auth has been refreshed.`,
-        },
-      };
+  const copy = getPositionManagementCopy(language);
+  const positionMessages = createEntityFeedback(zh, copy.entity);
   const hasPermission = useAuthStore((state) => state.hasPermission);
   const canQueryPosition = hasPermission(systemPermissions.position.query);
   
@@ -162,32 +106,11 @@ export function PositionManagement() {
     users.filter((user) => String(user.positionId ?? '') === positionId).length;
 
   const buildPositionStatusMessages = (positionName: string, enabled: boolean, affectedUsers: number) => {
-    if (zh) {
-      return {
-        title: enabled ? '确认启用岗位' : '确认禁用岗位',
-        description:
-          affectedUsers > 0
-            ? `岗位「${positionName}」状态变更后，将影响 ${affectedUsers} 名用户，并触发权限刷新。请确认后继续。`
-            : `岗位「${positionName}」状态变更后，不会影响现有成员权限，但会立即生效。请确认后继续。`,
-        confirmText: enabled ? '确认启用' : '确认禁用',
-        success:
-          affectedUsers > 0
-            ? `已将岗位「${positionName}」${enabled ? '启用' : '禁用'}，影响 ${affectedUsers} 名用户，相关用户权限已刷新`
-            : `已将岗位「${positionName}」${enabled ? '启用' : '禁用'}`,
-      };
-    }
-
     return {
-      title: enabled ? 'Confirm enable position' : 'Confirm disable position',
-      description:
-        affectedUsers > 0
-          ? `Changing the status of position "${positionName}" will affect ${affectedUsers} users and refresh their auth snapshot.`
-          : `Changing the status of position "${positionName}" takes effect immediately and does not affect existing users.`,
-      confirmText: enabled ? 'Enable' : 'Disable',
-      success:
-        affectedUsers > 0
-          ? `Position "${positionName}" has been ${enabled ? 'enabled' : 'disabled'}. ${affectedUsers} users were affected and their auth was refreshed.`
-          : `Position "${positionName}" has been ${enabled ? 'enabled' : 'disabled'}.`,
+      title: copy.messages.statusTitle(enabled),
+      description: copy.messages.statusDescription(positionName, enabled, affectedUsers),
+      confirmText: copy.messages.statusConfirmText(enabled),
+      success: copy.messages.statusSuccess(positionName, enabled, affectedUsers),
     };
   };
 
@@ -219,67 +142,23 @@ export function PositionManagement() {
     action: () => Promise<void>,
   ) => {
     const affectedUsers = items.reduce((total, item) => total + getPositionAffectedUserCount(String(item.id)), 0);
-    const enableAction = mode === 'enable';
-    const isDelete = mode === 'delete';
-
-    const title = zh
-      ? isDelete
-        ? '确认批量删除岗位'
-        : `确认批量${enableAction ? '启用' : '禁用'}岗位`
-      : isDelete
-        ? 'Confirm batch delete positions'
-        : `Confirm batch ${enableAction ? 'enable' : 'disable'} positions`;
-
-    const description = zh
-      ? isDelete
-        ? `将删除 ${items.length} 个岗位，预计影响 ${affectedUsers} 名关联用户，并触发权限刷新。请确认后继续。`
-        : `将${enableAction ? '启用' : '禁用'} ${items.length} 个岗位，预计影响 ${affectedUsers} 名用户，并触发权限刷新。请确认后继续。`
-      : isDelete
-        ? `This will delete ${items.length} positions, affect ${affectedUsers} users, and refresh their auth snapshot.`
-        : `This will ${enableAction ? 'enable' : 'disable'} ${items.length} positions, affect ${affectedUsers} users, and refresh their auth snapshot.`;
-
-    const confirmText = zh
-      ? isDelete
-        ? '确认删除'
-        : `确认${enableAction ? '启用' : '禁用'}`
-      : isDelete
-        ? 'Delete'
-        : enableAction
-          ? 'Enable'
-          : 'Disable';
-
-    const success = zh
-      ? isDelete
-        ? `已删除 ${items.length} 个岗位，影响 ${affectedUsers} 名用户，相关用户权限已刷新`
-        : `已${enableAction ? '启用' : '禁用'} ${items.length} 个岗位，影响 ${affectedUsers} 名用户，相关用户权限已刷新`
-      : isDelete
-        ? `Deleted ${items.length} positions. ${affectedUsers} users were affected and refreshed.`
-        : `${items.length} positions have been ${enableAction ? 'enabled' : 'disabled'}. ${affectedUsers} users were affected and refreshed.`;
 
     setStatusConfirm({
       open: true,
-      title,
-      description,
-      confirmText,
-      variant: isDelete ? 'danger' : enableAction ? 'success' : 'warning',
-      guard: isDelete ? 'delete' : 'update',
+      title: copy.messages.batchTitle(mode),
+      description: copy.messages.batchDescription(mode, items.length, affectedUsers),
+      confirmText: copy.messages.batchConfirmText(mode),
+      variant: mode === 'delete' ? 'danger' : mode === 'enable' ? 'success' : 'warning',
+      guard: mode === 'delete' ? 'delete' : 'update',
       action: async () => {
         await action();
-        toast.success(success);
+        toast.success(copy.messages.batchSuccess(mode, items.length, affectedUsers));
       },
     });
   };
 
   const buildPositionDeleteDescription = (positionName: string, affectedUsers: number) => {
-    if (zh) {
-      return affectedUsers > 0
-        ? `确认删除岗位「${positionName}」？删除后将影响 ${affectedUsers} 名用户，并触发权限刷新。该操作不可恢复。`
-        : `确认删除岗位「${positionName}」？当前岗位无关联成员，删除后立即生效且不可恢复。`;
-    }
-
-    return affectedUsers > 0
-      ? `Delete position "${positionName}"? This will affect ${affectedUsers} users and refresh their auth snapshot.`
-      : `Delete position "${positionName}"? It currently has no related users. This action cannot be undone.`;
+    return copy.messages.deleteDescription(positionName, affectedUsers);
   };
 
   // 3. 表格与搜索逻辑 Hook
@@ -354,7 +233,7 @@ export function PositionManagement() {
 
   const handlers = {
     onSubmit: async () => {
-      if (!ensureActionPermission(dialogs.add ? canCreatePosition : canUpdatePosition, dialogs.add ? copy.permissionLabels.create : copy.permissionLabels.edit)) return;
+      if (!ensureActionPermission(dialogs.add ? canCreatePosition : canUpdatePosition, dialogs.add ? copy.actionLabels.add : copy.actionLabels.edit)) return;
       try {
         const normalizedFormData = normalizePositionFormData(formData);
         const validationMessage = validatePositionFormData(normalizedFormData);
@@ -389,7 +268,7 @@ export function PositionManagement() {
     },
     onDelete: async () => {
       if (!selectedPosition) return;
-      if (!ensureActionPermission(canDeletePosition, copy.permissionLabels.delete)) return;
+      if (!ensureActionPermission(canDeletePosition, copy.actionLabels.delete)) return;
       try {
         await api.deletePosition(String(selectedPosition.id));
         toast.success(positionMessages.deleteSuccess);
@@ -401,12 +280,12 @@ export function PositionManagement() {
       }
     },
     onImport: async (file: File) => {
-      if (!ensureActionPermission(canCreatePosition, copy.permissionLabels.import)) return;
+      if (!ensureActionPermission(canCreatePosition, copy.actionLabels.import)) return;
       await csvHandler.handleImport(file);
       setDialogOpen('import', false);
     },
-    onExport: async (options: any) => {
-      if (!ensureActionPermission(canExportPosition, copy.permissionLabels.export)) return;
+    onExport: async (options: ExportOptions) => {
+      if (!ensureActionPermission(canExportPosition, copy.actionLabels.export)) return;
       const dataToExport = options.scope === 'selected' && selectedPositions.length > 0
         ? selectedPositions
         : positions;
@@ -419,7 +298,7 @@ export function PositionManagement() {
       }
       try {
         await Promise.all(ids.map((id) => api.updateUser(id, { positionId: selectedPosition.id })));
-        toast.success(copy.actions.assignSuccess(selectedPosition.name, ids.length));
+        toast.success(copy.messages.assignSuccess(selectedPosition.name, ids.length));
         await Promise.all([reloadUsers(), reloadPositions()]);
       } catch {
         toast.error(positionMessages.assignMembersFailed);
@@ -431,7 +310,7 @@ export function PositionManagement() {
       }
       try {
         await api.updateUser(userId, { positionId: null });
-        toast.success(copy.actions.unassignSuccess(selectedPosition.name));
+        toast.success(copy.messages.unassignSuccess(selectedPosition.name));
         await Promise.all([reloadUsers(), reloadPositions()]);
       } catch {
         toast.error(positionMessages.removeMemberFailed);
@@ -440,7 +319,7 @@ export function PositionManagement() {
   };
 
   const handleBatchDelete = async () => {
-    if (!ensureActionPermission(canDeletePosition, copy.permissionLabels.batchDelete)) return;
+    if (!ensureActionPermission(canDeletePosition, copy.actionLabels.batchDelete)) return;
     openPositionBatchConfirm('delete', selectedPositions, async () => {
       try {
         await api.batchDeletePositions(selectedPositions.map((position) => String(position.id)));
@@ -462,38 +341,38 @@ export function PositionManagement() {
   const canExportPosition = hasPermission(systemPermissions.position.export);
   const { lossDescription: queryLossDescription } = useQueryPermissionDialogGuard({
     canQuery: canQueryPosition,
-    pageTitle: t.menu.systemPositions,
+    pageTitle: copy.page.title,
     dialogs,
     protectedDialogs: {
-      users: copy.permissionLabels.members,
+      users: copy.actionLabels.members,
     },
     closeDialogs: closeProtectedDialogs,
   });
   const { ensureActionPermission } = useActionPermissionDialogGuard({
-    pageTitle: t.menu.systemPositions,
+    pageTitle: copy.page.title,
     dialogs,
     guardedDialogs: {
-      add: { label: copy.permissionLabels.create, allowed: canCreatePosition },
-      edit: { label: copy.permissionLabels.edit, allowed: canUpdatePosition },
-      delete: { label: copy.permissionLabels.delete, allowed: canDeletePosition },
-      import: { label: copy.permissionLabels.import, allowed: canCreatePosition },
-      export: { label: copy.permissionLabels.export, allowed: canExportPosition },
+      add: { label: copy.actionLabels.add, allowed: canCreatePosition },
+      edit: { label: copy.actionLabels.edit, allowed: canUpdatePosition },
+      delete: { label: copy.actionLabels.delete, allowed: canDeletePosition },
+      import: { label: copy.actionLabels.import, allowed: canCreatePosition },
+      export: { label: copy.actionLabels.export, allowed: canExportPosition },
     },
     closeDialogs: closeProtectedDialogs,
   });
   const { ensureConfirmPermission } = usePermissionConfirmGuard({
     open: statusConfirm.open,
     guard: statusConfirm.guard,
-    pageTitle: t.menu.systemPositions,
+    pageTitle: copy.page.title,
     guards: {
-      update: { label: copy.permissionLabels.batchUpdate, allowed: canUpdatePosition },
-      delete: { label: copy.permissionLabels.batchDelete, allowed: canDeletePosition },
+      update: { label: copy.actionLabels.batchUpdate, allowed: canUpdatePosition },
+      delete: { label: copy.actionLabels.batchDelete, allowed: canDeletePosition },
     },
     closeConfirm: closeStatusConfirm,
   });
 
   const handleBatchPositionStatus = (enabled: boolean) => {
-    if (!ensureActionPermission(canUpdatePosition, enabled ? copy.permissionLabels.batchEnable : copy.permissionLabels.batchDisable)) return;
+    if (!ensureActionPermission(canUpdatePosition, enabled ? copy.actionLabels.batchEnable : copy.actionLabels.batchDisable)) return;
     const targetItems = enabled ? positionsToEnable : positionsToDisable;
     if (targetItems.length === 0) {
       return;
@@ -516,21 +395,21 @@ export function PositionManagement() {
 
   return (
     <PageLayout
-      title={t.menu.systemPositions}
+      title={copy.page.title}
       actions={canQueryPosition ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-[26px] border border-slate-200/70 bg-white/72 p-3 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
+        <ManagementActionBar>
           {selectedPositions.length > 0 && (
             <>
               {canUpdatePosition && positionsToEnable.length > 0 ? (
                 <Button variant="outline" onClick={() => handleBatchPositionStatus(true)} className="h-11 gap-2 rounded-2xl border-emerald-200/80 bg-emerald-50/80 px-4 text-emerald-700 shadow-sm shadow-emerald-100/60 transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50">
                   <Power className="w-4 h-4" />
-                  {copy.actions.batchEnable(positionsToEnable.length)}
+                  {copy.buttons.batchEnable(positionsToEnable.length)}
                 </Button>
               ) : null}
               {canUpdatePosition && positionsToDisable.length > 0 ? (
                 <Button variant="outline" onClick={() => handleBatchPositionStatus(false)} className="h-11 gap-2 rounded-2xl border-amber-200/80 bg-amber-50/80 px-4 text-amber-700 shadow-sm shadow-amber-100/60 transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50">
                   <PowerOff className="w-4 h-4" />
-                  {copy.actions.batchDisable(positionsToDisable.length)}
+                  {copy.buttons.batchDisable(positionsToDisable.length)}
                 </Button>
               ) : null}
               {canDeletePosition ? (
@@ -540,7 +419,7 @@ export function PositionManagement() {
                   className="h-11 gap-2 rounded-2xl border-rose-200/80 bg-rose-50/80 px-4 text-rose-600 shadow-sm shadow-rose-100/60 transition-all hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-50"
                 >
                   <Trash2 className="w-4 h-4" />
-                  {copy.actions.batchDelete(selectedPositions.length)}
+                  {copy.buttons.batchDelete(selectedPositions.length)}
                 </Button>
               ) : null}
             </>
@@ -548,28 +427,28 @@ export function PositionManagement() {
           {canCreatePosition ? (
             <Button variant="outline" onClick={() => setDialogOpen('import', true)} className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white">
               <Upload className="w-4 h-4" />
-              {t.actions.import}
+              {copy.actionLabels.import}
             </Button>
           ) : null}
           {canExportPosition ? (
             <Button variant="outline" onClick={() => setDialogOpen('export', true)} className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white">
               <Download className="w-4 h-4" />
-              {t.actions.export}
+              {copy.actionLabels.export}
             </Button>
           ) : null}
           {canCreatePosition ? (
             <Button onClick={openAddDialog} className="h-11 gap-2 rounded-2xl bg-primary px-4 shadow-[0_16px_30px_-18px_rgba(var(--primary),0.7)] transition-all active:scale-95 hover:-translate-y-0.5 hover:bg-primary/92 hover:shadow-[0_18px_34px_-18px_rgba(var(--primary),0.75)]">
               <Plus className="w-4 h-4" />
-              {t.actions.add}
+              {copy.actionLabels.add}
             </Button>
           ) : null}
-        </div>
+        </ManagementActionBar>
       ) : undefined}
     >
       {!canQueryPosition ? (
         <QueryAccessBoundary
           viewId="system-positions"
-          title={t.menu.systemPositions}
+          title={copy.page.title}
           queryPermission={systemPermissions.position.query}
           description={queryLossDescription}
           notificationDescription={queryLossDescription}
@@ -586,7 +465,7 @@ export function PositionManagement() {
       />
 
       {/* 2. 数据列表展示区 */}
-      <Card className="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/88 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.28)] backdrop-blur-sm">
+      <ManagementContentCard>
         <PositionTable
           data={paginatedData}
           selectedItems={selectedPositions}
@@ -609,7 +488,7 @@ export function PositionManagement() {
             onPageChange: setPage,
           }}
         />
-      </Card>
+      </ManagementContentCard>
 
       {/* 3. 对话框统一管理 */}
       <PositionDialogManager

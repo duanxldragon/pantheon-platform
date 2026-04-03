@@ -1,11 +1,12 @@
 import React from 'react';
 
 import { useLanguageStore } from '../../../../../stores/languageStore';
-import { DataImportExportDialog } from '../../../../../shared/components/ui/DataImportExportDialog';
+import { DataImportExportDialog, type ExportOptions } from '../../../../../shared/components/ui/DataImportExportDialog';
 import { DeleteConfirmDialog } from '../../../../../shared/components/ui/DeleteConfirmDialog';
 import { FormDialog } from '../../../../../shared/components/ui/FormDialog';
 import type { Menu } from '../../../types';
 import { MenuForm } from './MenuForm';
+import { getMenuManagementCopy } from '../menuManagementCopy';
 
 interface MenuStatusHint {
   fieldDescription: string;
@@ -31,7 +32,7 @@ interface MenuDialogManagerProps {
     onSubmit: () => void;
     onDelete: () => void;
     onImport: (file: File) => void;
-    onExport: (options: any) => void;
+    onExport: (options: ExportOptions) => void;
   };
   deleteDescription?: string;
   statusHint?: MenuStatusHint;
@@ -48,29 +49,26 @@ export const MenuDialogManager: React.FC<MenuDialogManagerProps> = ({
   deleteDescription,
   statusHint,
 }) => {
-  const { t, language } = useLanguageStore();
-  const zh = language === 'zh';
-  const templateHeaders = zh
-    ? ['名称', '编码', '上级ID', '类型', '路径', '图标', '权限标识', '排序']
-    : ['Name', 'Code', 'ParentId', 'Type', 'Path', 'Icon', 'Permission', 'Sort'];
+  const { language } = useLanguageStore();
+  const copy = getMenuManagementCopy(language);
 
   return (
     <>
       <FormDialog
-        title={`${t.actions.add} ${t.menu.systemMenus}`}
+        title={copy.dialog.addTitle}
         open={dialogs.add}
-      onOpenChange={(open) => setDialogOpen('add', open)}
-      onSubmit={handlers.onSubmit}
-    >
+        onOpenChange={(open) => setDialogOpen('add', open)}
+        onSubmit={handlers.onSubmit}
+      >
         <MenuForm data={formData} onChange={setFormData} menus={menus} statusHint={statusHint} />
       </FormDialog>
 
       <FormDialog
-        title={`${t.actions.edit} ${t.menu.systemMenus}`}
+        title={copy.dialog.editTitle}
         open={dialogs.edit}
-      onOpenChange={(open) => setDialogOpen('edit', open)}
-      onSubmit={handlers.onSubmit}
-    >
+        onOpenChange={(open) => setDialogOpen('edit', open)}
+        onSubmit={handlers.onSubmit}
+      >
         <MenuForm data={formData} onChange={setFormData} menus={menus} isEdit statusHint={statusHint} />
       </FormDialog>
 
@@ -78,24 +76,24 @@ export const MenuDialogManager: React.FC<MenuDialogManagerProps> = ({
         open={dialogs.delete}
         onOpenChange={(open) => setDialogOpen('delete', open)}
         onConfirm={handlers.onDelete}
-        title={t.actions.delete}
-        description={deleteDescription || (selectedMenu ? `${t.common.confirm} ${t.actions.delete} ${selectedMenu.name}?` : '')}
+        title={copy.dialog.deleteTitle}
+        description={deleteDescription || copy.dialog.deleteFallback(selectedMenu?.name)}
       />
 
       <DataImportExportDialog
         open={dialogs.import}
         onOpenChange={(open) => setDialogOpen('import', open)}
         mode="import"
-        resourceName={t.menu.systemMenus}
+        resourceName={copy.dialog.resourceName}
         onImport={handlers.onImport}
-        templateHeaders={templateHeaders}
+        templateHeaders={copy.templateHeaders}
       />
 
       <DataImportExportDialog
         open={dialogs.export}
         onOpenChange={(open) => setDialogOpen('export', open)}
         mode="export"
-        resourceName={t.menu.systemMenus}
+        resourceName={copy.dialog.resourceName}
         onExport={handlers.onExport}
       />
     </>

@@ -11,19 +11,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../../../../components/ui/select';
+import { ManagementFilterPanel } from '../../../../../shared/components/ui/ManagementSurface';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 
 import type { Department } from '../../../types';
+import { getPositionManagementCopy } from '../positionManagementCopy';
+
+interface PositionSearchFilters {
+  departmentId?: string;
+  level?: string;
+  status?: string;
+}
 
 interface PositionSearchFormProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
-  filters: {
-    departmentId?: string;
-    level?: string;
-    status?: string;
-  };
-  onFilterChange: (filters: any) => void;
+  filters: PositionSearchFilters;
+  onFilterChange: (filters: PositionSearchFilters) => void;
   departments: Department[];
 }
 
@@ -34,7 +38,8 @@ export const PositionSearchForm: React.FC<PositionSearchFormProps> = ({
   onFilterChange,
   departments,
 }) => {
-  const { t } = useLanguageStore();
+  const { language } = useLanguageStore();
+  const copy = getPositionManagementCopy(language).search;
   const fieldClassName =
     'h-11 rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10';
 
@@ -48,12 +53,12 @@ export const PositionSearchForm: React.FC<PositionSearchFormProps> = ({
   };
 
   return (
-    <div className="mb-5 rounded-[26px] border border-slate-200/70 bg-white/72 p-4 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
+    <ManagementFilterPanel>
       <div className="flex flex-wrap items-center gap-4">
         <div className="relative flex-1 min-w-[240px]">
           <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
-            placeholder={t.topBar.searchPlaceholder}
+            placeholder={copy.searchPlaceholder}
             value={searchQuery}
             onChange={(event) => onSearchChange(event.target.value)}
             className={`${fieldClassName} pl-10`}
@@ -68,14 +73,11 @@ export const PositionSearchForm: React.FC<PositionSearchFormProps> = ({
             <SelectTrigger className={fieldClassName}>
                 <div className="flex items-center gap-2">
                   <Building className="h-4 w-4 text-slate-400" />
-                  <SelectValue placeholder={t.user.department} />
+                  <SelectValue placeholder={copy.departmentPlaceholder} />
                 </div>
               </SelectTrigger>
               <SelectContent className="rounded-2xl border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/60">
-                <SelectItem value="all">
-                  {t.common.all}
-                  {t.user.department}
-                </SelectItem>
+                <SelectItem value="all">{copy.departmentAll}</SelectItem>
                 {departments.map((dept) => (
                   <SelectItem key={dept.id} value={dept.id}>
                     {dept.name}
@@ -93,14 +95,14 @@ export const PositionSearchForm: React.FC<PositionSearchFormProps> = ({
             <SelectTrigger className={fieldClassName}>
                 <div className="flex items-center gap-2">
                   <Layers className="h-4 w-4 text-slate-400" />
-                  <SelectValue placeholder={t.systemManagement.positions.level} />
+                  <SelectValue placeholder={copy.levelPlaceholder} />
                 </div>
               </SelectTrigger>
               <SelectContent className="rounded-2xl border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/60">
-                <SelectItem value="all">{t.systemManagement.positions.levelAll}</SelectItem>
-                <SelectItem value="1">{t.systemManagement.positions.levelL1}</SelectItem>
-                <SelectItem value="2">{t.systemManagement.positions.levelL2}</SelectItem>
-                <SelectItem value="3">{t.systemManagement.positions.levelL3}</SelectItem>
+                <SelectItem value="all">{copy.levelAll}</SelectItem>
+                <SelectItem value="1">{copy.levelL1}</SelectItem>
+                <SelectItem value="2">{copy.levelL2}</SelectItem>
+                <SelectItem value="3">{copy.levelL3}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -113,16 +115,13 @@ export const PositionSearchForm: React.FC<PositionSearchFormProps> = ({
             <SelectTrigger className={fieldClassName}>
               <div className="flex items-center gap-2">
                 <Layers className="h-4 w-4 text-slate-400" />
-                <SelectValue placeholder={t.user.status} />
+                <SelectValue placeholder={copy.statusPlaceholder} />
               </div>
             </SelectTrigger>
             <SelectContent className="rounded-2xl border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/60">
-              <SelectItem value="all">
-                {t.common.all}
-                {t.user.status}
-              </SelectItem>
-              <SelectItem value="active">{t.status.enabled}</SelectItem>
-              <SelectItem value="inactive">{t.status.disabled}</SelectItem>
+              <SelectItem value="all">{copy.statusAll}</SelectItem>
+              <SelectItem value="active">{copy.statusActive}</SelectItem>
+              <SelectItem value="inactive">{copy.statusInactive}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -133,9 +132,9 @@ export const PositionSearchForm: React.FC<PositionSearchFormProps> = ({
           className="h-11 rounded-2xl border-slate-200/80 bg-white/90 px-5 text-slate-600 shadow-sm shadow-slate-200/50 transition-all active:scale-95 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-primary"
         >
           <RotateCcw className="w-4 h-4 mr-2 opacity-70" />
-          {t.common.reset}
+          {copy.reset}
         </Button>
       </div>
-    </div>
+    </ManagementFilterPanel>
   );
 };

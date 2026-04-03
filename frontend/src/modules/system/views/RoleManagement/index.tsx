@@ -5,10 +5,10 @@ import { Role, RoleFormData } from '../../types';
 import { useLanguageStore } from '../../../../stores/languageStore';
 import { toast } from 'sonner';
 import { Button } from '../../../../components/ui/button';
-import { Card } from '../../../../components/ui/card';
 import { Trash2, Download, Upload, ShieldPlus, Power, PowerOff } from 'lucide-react';
 import { PageLayout } from '../../../../components/layouts/PageLayout';
 import { ConfirmDialog } from '../../../../shared/components/ui/ConfirmDialog';
+import { ManagementActionBar, ManagementContentCard } from '../../../../shared/components/ui';
 import { useCSVImportExport } from '../../../../shared/hooks/useCSVImportExport';
 import { csvTemplates } from '../../../../shared/utils/csvTemplates';
 import { api } from '../../api';
@@ -17,8 +17,10 @@ import { QueryAccessBoundary } from '../../../../shared/components/QueryAccessBo
 import { useActionPermissionDialogGuard } from '../../../../shared/hooks/useActionPermissionDialogGuard';
 import { usePermissionConfirmGuard } from '../../../../shared/hooks/usePermissionConfirmGuard';
 import { useQueryPermissionDialogGuard } from '../../../../shared/hooks/useQueryPermissionDialogGuard';
+import type { ExportOptions } from '../../../../shared/components/ui/DataImportExportDialog';
 import { systemPermissions } from '../../constants/permissions';
 import { createEntityFeedback } from '../../utils/feedback';
+import { getRoleManagementCopy } from './roleManagementCopy';
 
 // 导入重构后的组件和 Hook
 import { RoleTable } from './components/RoleTable';
@@ -47,52 +49,10 @@ const initialStatusConfirmState: StatusConfirmState = {
 };
 
 export function RoleManagement() {
-  const { t, language } = useLanguageStore();
+  const { language } = useLanguageStore();
   const zh = language === 'zh';
-  const roleMessages = createEntityFeedback(zh, { zh: '角色', en: 'Role', enPlural: 'roles' });
-  const copy = zh
-    ? {
-        actionLabels: {
-          add: '新增',
-          edit: '编辑',
-          delete: '删除',
-          permission: '权限授权',
-          detail: '详情',
-          members: '成员列表',
-          import: '导入',
-          export: '导出',
-          batchEnable: '批量启用',
-          batchDisable: '批量禁用',
-          batchDelete: '批量删除',
-          batchStatusUpdate: '批量状态变更',
-        },
-        buttons: {
-          batchEnable: (count: number) => `批量启用 (${count})`,
-          batchDisable: (count: number) => `批量禁用 (${count})`,
-          batchDelete: (count: number) => `批量删除 (${count})`,
-        },
-      }
-    : {
-        actionLabels: {
-          add: 'create',
-          edit: 'edit',
-          delete: 'delete',
-          permission: 'permission authorization',
-          detail: 'details',
-          members: 'member list',
-          import: 'import',
-          export: 'export',
-          batchEnable: 'batch enable',
-          batchDisable: 'batch disable',
-          batchDelete: 'batch delete',
-          batchStatusUpdate: 'batch status update',
-        },
-        buttons: {
-          batchEnable: (count: number) => `Enable (${count})`,
-          batchDisable: (count: number) => `Disable (${count})`,
-          batchDelete: (count: number) => `Delete (${count})`,
-        },
-      };
+  const copy = getRoleManagementCopy(language);
+  const roleMessages = createEntityFeedback(zh, copy.entity);
   const hasPermission = useAuthStore((state) => state.hasPermission);
   const canQueryRole = hasPermission(systemPermissions.role.query);
 
@@ -225,7 +185,7 @@ export function RoleManagement() {
       await csvHandler.handleImport(file);
       setDialogOpen('import', false);
     },
-    onExport: async (options: any) => {
+    onExport: async (options: ExportOptions) => {
       if (!ensureActionPermission(canExportRole, copy.actionLabels.export)) return;
       const dataToExport = options.scope === 'selected' && selectedRoles.length > 0
         ? selectedRoles
@@ -241,80 +201,49 @@ export function RoleManagement() {
   ) => {
     const details = items
       .slice(0, 3)
-      .map((item) => `${item.name}（${zh ? `${item.userCount} 名成员` : `${item.userCount} members`}）`)
-      .join(zh ? '；' : '; ');
+      .map((item) => copy.messages.roleDeleteBlockedItem(item.name, item.userCount))
+      .join(copy.messages.separator);
 
-    if (zh) {
-      return `${isBatch ? '批量删除已拦截：' : '删除已拦截：'}${details}${items.length > 3 ? '；其余角色也仍存在成员' : ''}`;
-    }
-
-    return `${isBatch ? 'Batch delete blocked: ' : 'Delete blocked: '}${details}${items.length > 3 ? '; other roles also still have members' : ''}`;
+    return copy.messages.roleDeleteBlockedSummary(details, isBatch, items.length > 3);
   };
 
   const buildSystemRoleDeleteBlockedMessage = (items: Role[], isBatch = false) => {
     const details = items
       .slice(0, 3)
       .map((item) => item.name)
-      .join(zh ? '；' : '; ');
+      .join(copy.messages.separator);
 
-    if (zh) {
-      return `${isBatch ? '批量删除已拦截：' : '删除已拦截：'}${details}${items.length > 3 ? '；其余系统内置角色也不可删除' : ' 为系统内置角色，不允许删除'}`;
-    }
-
-    return `${isBatch ? 'Batch delete blocked: ' : 'Delete blocked: '}${details}${items.length > 3 ? '; other built-in roles also cannot be deleted' : ' is a built-in system role and cannot be deleted'}`;
+    return copy.messages.systemRoleDeleteBlocked(details, isBatch, items.length > 3);
   };
 
   const buildRoleDeleteDescription = (role: Role) => {
-    if (zh) {
-      return role.userCount > 0
-        ? `角色「${role.name}」当前仍有 ${role.userCount} 名成员，后端会拒绝删除，请先解除成员绑定。`
-        : `确认删除角色「${role.name}」？当前无成员绑定，删除后角色授权关系会一并移除，且不可恢复。`;
-    }
-
     return role.userCount > 0
-      ? `Role "${role.name}" still has ${role.userCount} members. The backend will reject deletion until members are unbound.`
-      : `Delete role "${role.name}"? It currently has no members. Role authorization relations will be removed and cannot be restored.`;
+      ? copy.messages.deleteDescriptionBlocked(role.name, role.userCount)
+      : copy.messages.deleteDescriptionStandalone(role.name);
   };
 
   const buildRoleStatusCopy = (role: Role, enabled: boolean) => {
     const affectedUsers = role.userCount || 0;
-    if (zh) {
-      return {
-        title: enabled ? '确认启用角色' : '确认禁用角色',
-        description: enabled
-          ? `角色「${role.name}」启用后，将恢复 ${affectedUsers} 名成员的授权快照并刷新权限。`
-          : `角色「${role.name}」禁用后，将影响 ${affectedUsers} 名成员，并强制其相关会话失效。`,
-        confirmText: enabled ? '确认启用' : '确认禁用',
-        success: enabled
-          ? `已启用角色「${role.name}」，恢复 ${affectedUsers} 名成员的授权快照`
-          : `已禁用角色「${role.name}」，影响 ${affectedUsers} 名成员并强制其会话失效`,
-      };
-    }
-
     return {
-      title: enabled ? 'Confirm enable role' : 'Confirm disable role',
-      description: enabled
-        ? `Enabling role "${role.name}" will restore authorization snapshots for ${affectedUsers} members and refresh their permissions.`
-        : `Disabling role "${role.name}" will affect ${affectedUsers} members and revoke their related sessions.`,
-      confirmText: enabled ? 'Enable' : 'Disable',
-      success: enabled
-        ? `Role "${role.name}" enabled. Authorization snapshots for ${affectedUsers} members were restored.`
-        : `Role "${role.name}" disabled. ${affectedUsers} members were affected and their sessions were revoked.`,
+      title: copy.messages.statusTitle(enabled),
+      description: copy.messages.statusDescription(role.name, enabled, affectedUsers),
+      confirmText: copy.messages.statusConfirmText(enabled),
+      success: copy.messages.statusSuccess(role.name, enabled, affectedUsers),
     };
   };
 
   const openRoleStatusConfirm = (role: Role, enabled: boolean, action: () => Promise<void>) => {
-    const copy = buildRoleStatusCopy(role, enabled);
+    const statusCopy = buildRoleStatusCopy(role, enabled);
     setStatusConfirm({
       open: true,
-      title: copy.title,
-      description: copy.description,
-      confirmText: copy.confirmText,
+      title: statusCopy.title,
+      description: statusCopy.description,
+      confirmText: statusCopy.confirmText,
       variant: enabled ? 'success' : 'warning',
       guard: 'update',
       action: async () => {
         await action();
-        toast.success(copy.success);
+        toast.success(statusCopy.success);
       },
     });
   };
@@ -323,43 +252,26 @@ export function RoleManagement() {
 
   const buildRoleBatchStatusCopy = (rolesToChange: Role[], enabled: boolean) => {
     const affectedUsers = rolesToChange.reduce((total, role) => total + (role.userCount || 0), 0);
-    if (zh) {
-      return {
-        title: `确认批量${enabled ? '启用' : '禁用'}角色`,
-        description: enabled
-          ? `将批量启用 ${rolesToChange.length} 个角色，恢复 ${affectedUsers} 名成员的授权快照并刷新权限。`
-          : `将批量禁用 ${rolesToChange.length} 个角色，影响 ${affectedUsers} 名成员，并强制相关会话失效。`,
-        confirmText: `确认${enabled ? '启用' : '禁用'}`,
-        success: enabled
-          ? `已批量启用 ${rolesToChange.length} 个角色，恢复 ${affectedUsers} 名成员的授权快照`
-          : `已批量禁用 ${rolesToChange.length} 个角色，影响 ${affectedUsers} 名成员并强制其会话失效`,
-      };
-    }
-
     return {
-      title: `Confirm batch ${enabled ? 'enable' : 'disable'} roles`,
-      description: enabled
-        ? `This will enable ${rolesToChange.length} roles, restore authorization snapshots for ${affectedUsers} members, and refresh their permissions.`
-        : `This will disable ${rolesToChange.length} roles, affect ${affectedUsers} members, and revoke related sessions.`,
-      confirmText: enabled ? 'Enable' : 'Disable',
-      success: enabled
-        ? `${rolesToChange.length} roles enabled. Authorization snapshots for ${affectedUsers} members were restored.`
-        : `${rolesToChange.length} roles disabled. ${affectedUsers} members were affected and their sessions were revoked.`,
+      title: copy.messages.batchStatusTitle(enabled),
+      description: copy.messages.batchStatusDescription(rolesToChange.length, enabled, affectedUsers),
+      confirmText: copy.messages.batchStatusConfirmText(enabled),
+      success: copy.messages.batchStatusSuccess(rolesToChange.length, enabled, affectedUsers),
     };
   };
 
   const openRoleBatchStatusConfirm = (rolesToChange: Role[], enabled: boolean, action: () => Promise<void>) => {
-    const copy = buildRoleBatchStatusCopy(rolesToChange, enabled);
+    const statusCopy = buildRoleBatchStatusCopy(rolesToChange, enabled);
     setStatusConfirm({
       open: true,
-      title: copy.title,
-      description: copy.description,
-      confirmText: copy.confirmText,
+      title: statusCopy.title,
+      description: statusCopy.description,
+      confirmText: statusCopy.confirmText,
       variant: enabled ? 'success' : 'warning',
       guard: 'update',
       action: async () => {
         await action();
-        toast.success(copy.success);
+        toast.success(statusCopy.success);
       },
     });
   };
@@ -400,7 +312,7 @@ export function RoleManagement() {
   const canExportRole = hasPermission(systemPermissions.role.export);
   const { lossDescription: queryLossDescription } = useQueryPermissionDialogGuard({
     canQuery: canQueryRole,
-    pageTitle: t.menu.systemRoles,
+    pageTitle: copy.page.title,
     dialogs,
     protectedDialogs: {
       detail: copy.actionLabels.detail,
@@ -410,7 +322,7 @@ export function RoleManagement() {
     closeDialogs: closeProtectedDialogs,
   });
   const { ensureActionPermission } = useActionPermissionDialogGuard({
-    pageTitle: t.menu.systemRoles,
+    pageTitle: copy.page.title,
     dialogs,
     guardedDialogs: {
       add: { label: copy.actionLabels.add, allowed: canCreateRole },
@@ -425,7 +337,7 @@ export function RoleManagement() {
   const { ensureConfirmPermission } = usePermissionConfirmGuard({
     open: statusConfirm.open,
     guard: statusConfirm.guard,
-    pageTitle: t.menu.systemRoles,
+    pageTitle: copy.page.title,
     guards: {
       update: { label: copy.actionLabels.batchStatusUpdate, allowed: canUpdateRole },
     },
@@ -456,9 +368,9 @@ export function RoleManagement() {
 
   return (
     <PageLayout
-      title={t.menu.systemRoles}
+      title={copy.page.title}
       actions={canQueryRole ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-[26px] border border-slate-200/70 bg-white/72 p-3 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
+        <ManagementActionBar>
           {selectedRoles.length > 0 && (
             <>
               {canUpdateRole && rolesToEnable.length > 0 ? (
@@ -500,7 +412,7 @@ export function RoleManagement() {
               className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
             >
               <Upload className="w-4 h-4" />
-              {t.actions.import}
+              {copy.actionLabels.import}
             </Button>
           ) : null}
           {canExportRole ? (
@@ -510,7 +422,7 @@ export function RoleManagement() {
               className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
             >
               <Download className="w-4 h-4" />
-              {t.actions.export}
+              {copy.actionLabels.export}
             </Button>
           ) : null}
           {canCreateRole ? (
@@ -519,16 +431,16 @@ export function RoleManagement() {
               className="h-11 gap-2 rounded-2xl bg-primary px-4 shadow-[0_16px_30px_-18px_rgba(var(--primary),0.7)] transition-all active:scale-95 hover:-translate-y-0.5 hover:bg-primary/92 hover:shadow-[0_18px_34px_-18px_rgba(var(--primary),0.75)]"
             >
               <ShieldPlus className="w-4 h-4" />
-              {t.actions.add}
+              {copy.actionLabels.add}
             </Button>
           ) : null}
-        </div>
+        </ManagementActionBar>
       ) : undefined}
     >
       {!canQueryRole ? (
         <QueryAccessBoundary
           viewId="system-roles"
-          title={t.menu.systemRoles}
+          title={copy.page.title}
           queryPermission={systemPermissions.role.query}
           description={queryLossDescription}
           notificationDescription={queryLossDescription}
@@ -544,7 +456,7 @@ export function RoleManagement() {
       />
 
       {/* 2. 数据列表展示区 */}
-      <Card className="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/88 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.28)] backdrop-blur-sm">
+      <ManagementContentCard>
         <RoleTable
           data={paginatedData}
           selectedItems={selectedRoles}
@@ -567,7 +479,7 @@ export function RoleManagement() {
             onPageChange: setPage,
           }}
         />
-      </Card>
+      </ManagementContentCard>
 
       {/* 3. 对话框统一管理 */}
       <RoleDialogManager

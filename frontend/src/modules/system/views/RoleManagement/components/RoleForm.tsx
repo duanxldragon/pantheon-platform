@@ -20,6 +20,7 @@ import { FormField } from '../../../../../shared/components/ui/FormField';
 import { getMenuLabel } from '../../../../../shared/constants/viewsConfig';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import type { ID, Menu, RoleFormData } from '../../../types';
+import { getRoleManagementCopy } from '../roleManagementCopy';
 
 interface RoleFormProps {
   data?: Partial<RoleFormData>;
@@ -30,7 +31,6 @@ interface RoleFormProps {
 
 export function RoleForm({ data = {}, menus, onChange, isEdit = false }: RoleFormProps) {
   const { language, t } = useLanguageStore();
-  const zh = language === 'zh';
   const [formData, setFormData] = useState<Partial<RoleFormData>>({
     name: '',
     code: '',
@@ -42,6 +42,7 @@ export function RoleForm({ data = {}, menus, onChange, isEdit = false }: RoleFor
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set());
   const fieldClassName =
     'rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10';
+  const copy = getRoleManagementCopy(language).form;
 
   useEffect(() => {
     setFormData({
@@ -83,46 +84,6 @@ export function RoleForm({ data = {}, menus, onChange, isEdit = false }: RoleFor
   const menuTree = useMemo(() => buildMenuTree(menus || []), [menus]);
   const selectedCount = formData.menuIds?.length || 0;
 
-  const copy = zh
-    ? {
-        name: '角色名称',
-        code: '角色编码',
-        status: '状态',
-        description: '角色说明',
-        menuPermissions: '菜单权限',
-        menuPermissionsDescription: '为角色勾选可访问的菜单与按钮权限。',
-        namePlaceholder: '请输入角色名称',
-        codePlaceholder: '请输入角色编码',
-        descriptionPlaceholder: '请输入角色说明',
-        active: '启用',
-        inactive: '停用',
-        selectedCount: '已选权限',
-        menuType: {
-          directory: '目录',
-          menu: '菜单',
-          button: '按钮',
-        },
-      }
-    : {
-        name: 'Role Name',
-        code: 'Role Code',
-        status: 'Status',
-        description: 'Description',
-        menuPermissions: 'Menu Permissions',
-        menuPermissionsDescription: 'Select accessible menus and button permissions for this role.',
-        namePlaceholder: 'Enter role name',
-        codePlaceholder: 'Enter role code',
-        descriptionPlaceholder: 'Enter role description',
-        active: 'Active',
-        inactive: 'Inactive',
-        selectedCount: 'Selected',
-        menuType: {
-          directory: 'Directory',
-          menu: 'Menu',
-          button: 'Button',
-        },
-      };
-
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -146,7 +107,10 @@ export function RoleForm({ data = {}, menus, onChange, isEdit = false }: RoleFor
         </FormField>
 
         <FormField label={copy.status} required>
-          <Select value={formData.status} onValueChange={(value) => updateField('status', value as RoleFormData['status'])}>
+          <Select
+            value={formData.status}
+            onValueChange={(value) => updateField('status', value as RoleFormData['status'])}
+          >
             <SelectTrigger className={fieldClassName}>
               <SelectValue />
             </SelectTrigger>
@@ -168,7 +132,11 @@ export function RoleForm({ data = {}, menus, onChange, isEdit = false }: RoleFor
         </FormField>
       </div>
 
-      <FormField label={copy.menuPermissions} required description={copy.menuPermissionsDescription}>
+      <FormField
+        label={copy.menuPermissions}
+        required
+        description={copy.menuPermissionsDescription}
+      >
         <Card className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-slate-50/80 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.28)]">
           <div className="flex items-center justify-between border-b border-slate-200/70 bg-white/70 px-5 py-4">
             <div className="text-sm font-semibold text-slate-800">{copy.menuPermissions}</div>
@@ -261,12 +229,18 @@ function renderMenuTree({
               onCheckedChange={() => toggleMenu(menu.id)}
             />
 
-            <Label htmlFor={`role-menu-${menuId}`} className="flex-1 cursor-pointer text-sm font-medium text-slate-700">
+            <Label
+              htmlFor={`role-menu-${menuId}`}
+              className="flex-1 cursor-pointer text-sm font-medium text-slate-700"
+            >
               {getMenuLabel(menu, language, t)}
             </Label>
 
             {menu.type ? (
-              <Badge variant="outline" className="rounded-full border-slate-200 bg-white/90 px-2.5 py-1 text-xs text-slate-600">
+              <Badge
+                variant="outline"
+                className="rounded-full border-slate-200 bg-white/90 px-2.5 py-1 text-xs text-slate-600"
+              >
                 {typeLabelMap[menu.type]}
               </Badge>
             ) : null}

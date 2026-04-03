@@ -1,12 +1,14 @@
-﻿import React from 'react';
-import { useLanguageStore } from '../../../../../stores/languageStore';
+import React from 'react';
+
+import { DataImportExportDialog, type ExportOptions } from '../../../../../shared/components/ui/DataImportExportDialog';
 import { DeleteConfirmDialog } from '../../../../../shared/components/ui/DeleteConfirmDialog';
-import { DataImportExportDialog } from '../../../../../shared/components/ui/DataImportExportDialog';
+import { useLanguageStore } from '../../../../../stores/languageStore';
+import { Menu, Role, RoleFormData } from '../../../types';
+import { getRoleManagementCopy } from '../roleManagementCopy';
 import { AddRoleDialog } from './AddRoleDialog';
-import { RoleDetailDialog } from './RoleDetailDialog';
 import { PermissionConfigDialog } from './PermissionConfigDialog';
+import { RoleDetailDialog } from './RoleDetailDialog';
 import { RoleUsersDialog } from './RoleUsersDialog';
-import { Role, Menu, RoleFormData } from '../../../types';
 
 interface RoleDialogManagerProps {
   dialogs: {
@@ -26,7 +28,7 @@ interface RoleDialogManagerProps {
     onSubmit: (data: RoleFormData) => void;
     onDelete: () => void;
     onImport: (file: File) => void;
-    onExport: (options: any) => void;
+    onExport: (options: ExportOptions) => void;
   };
   onPermissionSuccess?: () => void;
   deleteDescription?: string;
@@ -41,13 +43,8 @@ export const RoleDialogManager: React.FC<RoleDialogManagerProps> = ({
   onPermissionSuccess,
   deleteDescription,
 }) => {
-  const { t, language } = useLanguageStore();
-  const zh = language === 'zh';
-  const copy = {
-    importHeaders: zh
-      ? ['角色名称', '角色编码', '角色说明', '状态', '类型', '排序']
-      : ['Name', 'Code', 'Description', 'Status', 'Type', 'Sort'],
-  };
+  const { language } = useLanguageStore();
+  const copy = getRoleManagementCopy(language).dialog;
 
   return (
     <>
@@ -98,20 +95,15 @@ export const RoleDialogManager: React.FC<RoleDialogManagerProps> = ({
         open={dialogs.delete}
         onOpenChange={(open) => setDialogOpen('delete', open)}
         onConfirm={handlers.onDelete}
-        title={t.actions.delete}
-        description={
-          deleteDescription ||
-          (selectedRole
-            ? `${t.common.confirm} ${t.actions.delete} ${selectedRole.name}?`
-            : '')
-        }
+        title={copy.deleteTitle}
+        description={deleteDescription || copy.deleteFallback(selectedRole?.name)}
       />
 
       <DataImportExportDialog
         open={dialogs.import}
         onOpenChange={(open) => setDialogOpen('import', open)}
         mode="import"
-        resourceName={t.menu.systemRoles}
+        resourceName={copy.resourceName}
         onImport={handlers.onImport}
         templateHeaders={copy.importHeaders}
       />
@@ -120,10 +112,9 @@ export const RoleDialogManager: React.FC<RoleDialogManagerProps> = ({
         open={dialogs.export}
         onOpenChange={(open) => setDialogOpen('export', open)}
         mode="export"
-        resourceName={t.menu.systemRoles}
+        resourceName={copy.resourceName}
         onExport={handlers.onExport}
       />
     </>
   );
 };
-

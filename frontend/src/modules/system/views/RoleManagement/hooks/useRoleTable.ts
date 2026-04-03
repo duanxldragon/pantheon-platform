@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Role } from '../../../types';
 
 interface Filters {
@@ -40,6 +40,10 @@ export function useRoleTable(initialRoles: Role[]) {
     const start = (page - 1) * pageSize;
     return filteredData.slice(start, start + pageSize);
   }, [filteredData, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [initialRoles, searchQuery, filters.type, filters.status]);
 
   return {
     searchQuery,

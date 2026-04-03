@@ -1,9 +1,9 @@
 ﻿import { useState, useEffect } from 'react';
 import { Permission, PermissionFormData } from '../../types';
+import { useCallback } from 'react';
 import { useLanguageStore } from '../../../../stores/languageStore';
 import { toast } from 'sonner';
 import { Button } from '../../../../components/ui/button';
-import { Card } from '../../../../components/ui/card';
 import {
   Trash2,
   Download,
@@ -19,6 +19,11 @@ import {
 import { PageLayout } from '../../../../components/layouts/PageLayout';
 import { ConfirmDialog } from '../../../../shared/components/ui/ConfirmDialog';
 import { Input } from '../../../../components/ui/input';
+import {
+  ManagementActionBar,
+  ManagementContentCard,
+  ManagementFilterPanel,
+} from '../../../../shared/components/ui';
 import { 
   Select, 
   SelectContent, 
@@ -43,6 +48,7 @@ import { usePermissionConfirmGuard } from '../../../../shared/hooks/usePermissio
 import { systemPermissions } from '../../constants/permissions';
 import { createEntityFeedback } from '../../utils/feedback';
 import { getPermissionModuleLabel } from './moduleLocalization';
+import { getPermissionManagementCopy } from './permissionManagementCopy';
 
 interface StatusConfirmState {
   open: boolean;
@@ -65,46 +71,10 @@ const initialStatusConfirmState: StatusConfirmState = {
 };
 
 export function PermissionManagement() {
-  const { t, language } = useLanguageStore();
+  const { language } = useLanguageStore();
   const zh = language === 'zh';
-  const permissionMessages = createEntityFeedback(zh, { zh: '权限', en: 'Permission', enPlural: 'permissions' });
-  const copy = zh
-    ? {
-        actionLabels: {
-          add: '新增',
-          edit: '编辑',
-          delete: '删除',
-          import: '导入',
-          export: '导出',
-          batchEnable: '批量启用',
-          batchDisable: '批量禁用',
-          batchStatusUpdate: '批量状态变更',
-          batchDelete: '批量删除',
-        },
-        buttons: {
-          batchEnable: (count: number) => `批量启用 (${count})`,
-          batchDisable: (count: number) => `批量禁用 (${count})`,
-          batchDelete: (count: number) => `批量删除 (${count})`,
-        },
-      }
-    : {
-        actionLabels: {
-          add: 'create',
-          edit: 'edit',
-          delete: 'delete',
-          import: 'import',
-          export: 'export',
-          batchEnable: 'batch enable',
-          batchDisable: 'batch disable',
-          batchStatusUpdate: 'batch status update',
-          batchDelete: 'batch delete',
-        },
-        buttons: {
-          batchEnable: (count: number) => `Enable (${count})`,
-          batchDisable: (count: number) => `Disable (${count})`,
-          batchDelete: (count: number) => `Delete (${count})`,
-        },
-      };
+  const copy = getPermissionManagementCopy(language);
+  const permissionMessages = createEntityFeedback(zh, copy.entity);
   const hasPermission = useAuthStore((state) => state.hasPermission);
   const canQueryPermission = hasPermission(systemPermissions.permission.query);
   const { menus } = useMenus({ enabled: canQueryPermission });
@@ -162,23 +132,23 @@ export function PermissionManagement() {
     setStatusConfirm(initialStatusConfirmState);
   };
 
+  const loadPermissions = useCallback(async () => {
+    try {
+      const data = await api.getPermissions();
+      setPermissions(data);
+    } catch {
+      toast.error(copy.feedback.loadFailed);
+    }
+  }, [copy.feedback.loadFailed]);
+
   // 3. 数据加载
   useEffect(() => {
     if (!canQueryPermission) {
       setPermissions([]);
       return;
     }
-    loadPermissions();
-  }, [canQueryPermission]);
-
-  const loadPermissions = async () => {
-    try {
-      const data = await api.getPermissions();
-      setPermissions(data);
-    } catch {
-      toast.error(t.systemManagement.permissionManagement.loadFailed);
-    }
-  };
+    void loadPermissions();
+  }, [canQueryPermission, loadPermissions]);
 
   // 4. 事件处理
   const handleAction = (action: string, permission: Permission) => {
@@ -240,13 +210,13 @@ export function PermissionManagement() {
     },
     onImport: async () => {
       if (!ensureActionPermission(canCreatePermission, copy.actionLabels.import)) return;
-      toast.success(t.systemManagement.permissionManagement.importSuccess);
+      toast.success(copy.feedback.importSuccess);
       setDialogOpen('import', false);
       await loadPermissions();
     },
     onExport: async () => {
       if (!ensureActionPermission(canExportPermission, copy.actionLabels.export)) return;
-      toast.success(t.systemManagement.permissionManagement.exporting);
+      toast.success(copy.feedback.exporting);
       setDialogOpen('export', false);
     }
   };
@@ -266,60 +236,50 @@ export function PermissionManagement() {
     const details = items
       .slice(0, 3)
       .map((item) =>
-        zh
-          ? `${item.name}（${item.affectedRoleCount} 个角色，${item.affectedUserCount} 名角色成员）`
-          : `${item.name} (${item.affectedRoleCount} roles, ${item.affectedUserCount} role members)`,
+        copy.messages.deleteBlockedItem(
+          item.name,
+          item.affectedRoleCount,
+          item.affectedUserCount,
+        ),
       )
-      .join(zh ? '；' : '; ');
+      .join(copy.messages.separator);
 
-    if (zh) {
-      return `${isBatch ? '批量删除已拦截：' : '删除已拦截：'}${details}${items.length > 3 ? '；其余权限也仍被角色引用' : ''}`;
-    }
-
-    return `${isBatch ? 'Batch delete blocked: ' : 'Delete blocked: '}${details}${items.length > 3 ? '; other permissions are also still referenced by roles' : ''}`;
+    return `${copy.messages.deleteBlockedSummaryPrefix(isBatch)}${details}${copy.messages.deleteBlockedSummarySuffix(items.length > 3)}`;
   };
 
   const buildPermissionDeleteDescription = (permission: Permission) => {
     const impact = getPermissionDeleteImpact(String(permission.id));
-    if (zh) {
-      return impact.affectedRoleCount > 0
-        ? `权限「${permission.name}」当前仍被 ${impact.affectedRoleCount} 个角色引用，影响 ${impact.affectedUserCount} 名角色成员，后端会拒绝删除。`
-        : `确认删除权限「${permission.name}」？当前未被角色引用，删除后立即生效且不可恢复。`;
-    }
-
     return impact.affectedRoleCount > 0
-      ? `Permission "${permission.name}" is still referenced by ${impact.affectedRoleCount} roles and affects ${impact.affectedUserCount} role members. The backend will reject deletion.`
-      : `Delete permission "${permission.name}"? It is not referenced by any role and the action cannot be undone.`;
+      ? copy.messages.deleteDescriptionAffected(
+          permission.name,
+          impact.affectedRoleCount,
+          impact.affectedUserCount,
+        )
+      : copy.messages.deleteDescriptionStandalone(permission.name);
   };
 
   const buildPermissionStatusCopy = (permission: Permission, enabled: boolean) => {
     const impact = getPermissionDeleteImpact(String(permission.id));
-    if (zh) {
-      return {
-        title: enabled ? '确认启用权限' : '确认禁用权限',
-        description:
-          impact.affectedRoleCount > 0
-            ? `权限「${permission.name}」状态变更将影响 ${impact.affectedRoleCount} 个角色、${impact.affectedUserCount} 名角色成员，并触发权限刷新。`
-            : `权限「${permission.name}」状态变更将立即生效。当前未被角色引用。`,
-        confirmText: enabled ? '确认启用' : '确认禁用',
-        success:
-          impact.affectedRoleCount > 0
-            ? `已${enabled ? '启用' : '禁用'}权限「${permission.name}」，影响 ${impact.affectedRoleCount} 个角色、${impact.affectedUserCount} 名角色成员`
-            : `已${enabled ? '启用' : '禁用'}权限「${permission.name}」`,
-      };
-    }
-
     return {
-      title: enabled ? 'Confirm enable permission' : 'Confirm disable permission',
+      title: copy.messages.statusTitle(enabled),
       description:
         impact.affectedRoleCount > 0
-          ? `Changing permission "${permission.name}" will affect ${impact.affectedRoleCount} roles and ${impact.affectedUserCount} role members, and refresh their authorization snapshot.`
-          : `Changing permission "${permission.name}" takes effect immediately. It is not referenced by any role.`,
-      confirmText: enabled ? 'Enable' : 'Disable',
+          ? copy.messages.statusDescriptionAffected(
+              permission.name,
+              impact.affectedRoleCount,
+              impact.affectedUserCount,
+            )
+          : copy.messages.statusDescriptionStandalone(permission.name),
+      confirmText: copy.messages.statusConfirmText(enabled),
       success:
         impact.affectedRoleCount > 0
-          ? `Permission "${permission.name}" ${enabled ? 'enabled' : 'disabled'}. ${impact.affectedRoleCount} roles and ${impact.affectedUserCount} role members were affected.`
-          : `Permission "${permission.name}" ${enabled ? 'enabled' : 'disabled'}.`,
+          ? copy.messages.statusSuccessAffected(
+              permission.name,
+              enabled,
+              impact.affectedRoleCount,
+              impact.affectedUserCount,
+            )
+          : copy.messages.statusSuccessStandalone(permission.name, enabled),
     };
   };
 
@@ -352,32 +312,27 @@ export function PermissionManagement() {
 
   const buildPermissionBatchStatusCopy = (items: Permission[], enabled: boolean) => {
     const impact = getPermissionBatchStatusImpact(items);
-    if (zh) {
-      return {
-        title: `确认批量${enabled ? '启用' : '禁用'}权限`,
-        description:
-          impact.affectedRoleCount > 0
-            ? `将批量${enabled ? '启用' : '禁用'} ${items.length} 项权限，影响 ${impact.affectedRoleCount} 个角色、${impact.affectedUserCount} 名角色成员，并触发权限刷新。`
-            : `将批量${enabled ? '启用' : '禁用'} ${items.length} 项权限，当前未影响任何角色。`,
-        confirmText: `确认${enabled ? '启用' : '禁用'}`,
-        success:
-          impact.affectedRoleCount > 0
-            ? `已批量${enabled ? '启用' : '禁用'} ${items.length} 项权限，影响 ${impact.affectedRoleCount} 个角色、${impact.affectedUserCount} 名角色成员`
-            : `已批量${enabled ? '启用' : '禁用'} ${items.length} 项权限`,
-      };
-    }
-
     return {
-      title: `Confirm batch ${enabled ? 'enable' : 'disable'} permissions`,
+      title: copy.messages.batchStatusTitle(enabled),
       description:
         impact.affectedRoleCount > 0
-          ? `This will ${enabled ? 'enable' : 'disable'} ${items.length} permissions, affect ${impact.affectedRoleCount} roles and ${impact.affectedUserCount} role members, and refresh authorization snapshots.`
-          : `This will ${enabled ? 'enable' : 'disable'} ${items.length} permissions and currently affects no roles.`,
-      confirmText: enabled ? 'Enable' : 'Disable',
+          ? copy.messages.batchStatusDescriptionAffected(
+              items.length,
+              enabled,
+              impact.affectedRoleCount,
+              impact.affectedUserCount,
+            )
+          : copy.messages.batchStatusDescriptionStandalone(items.length, enabled),
+      confirmText: copy.messages.batchStatusConfirmText(enabled),
       success:
         impact.affectedRoleCount > 0
-          ? `${items.length} permissions ${enabled ? 'enabled' : 'disabled'}. ${impact.affectedRoleCount} roles and ${impact.affectedUserCount} role members were affected.`
-          : `${items.length} permissions ${enabled ? 'enabled' : 'disabled'}.`,
+          ? copy.messages.batchStatusSuccessAffected(
+              items.length,
+              enabled,
+              impact.affectedRoleCount,
+              impact.affectedUserCount,
+            )
+          : copy.messages.batchStatusSuccessStandalone(items.length, enabled),
     };
   };
 
@@ -429,7 +384,7 @@ export function PermissionManagement() {
   const canDeletePermission = hasPermission(systemPermissions.permission.delete);
   const canExportPermission = hasPermission(systemPermissions.permission.export);
   const { ensureActionPermission } = useActionPermissionDialogGuard({
-    pageTitle: t.menu.systemPermissions,
+    pageTitle: copy.page.title,
     dialogs,
     guardedDialogs: {
       add: { label: copy.actionLabels.add, allowed: canCreatePermission },
@@ -451,7 +406,7 @@ export function PermissionManagement() {
   const { ensureConfirmPermission } = usePermissionConfirmGuard({
     open: statusConfirm.open,
     guard: statusConfirm.guard,
-    pageTitle: t.menu.systemPermissions,
+    pageTitle: copy.page.title,
     guards: {
       update: { label: copy.actionLabels.batchStatusUpdate, allowed: canUpdatePermission },
       delete: { label: copy.actionLabels.batchDelete, allowed: canDeletePermission },
@@ -483,10 +438,10 @@ export function PermissionManagement() {
 
   return (
     <PageLayout
-      title={t.menu.systemPermissions}
-      description={t.systemManagement.permissionManagement.pageDescription}
+      title={copy.page.title}
+      description={copy.page.description}
       actions={canQueryPermission ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-[26px] border border-slate-200/70 bg-white/72 p-3 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
+        <ManagementActionBar>
           {selectedPermissions.length > 0 && (
             <>
               {canUpdatePermission && permissionsToEnable.length > 0 ? (
@@ -528,7 +483,7 @@ export function PermissionManagement() {
               className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
             >
               <Upload className="w-4 h-4" />
-              {t.actions.import}
+              {copy.actionLabels.import}
             </Button>
           ) : null}
           {canExportPermission ? (
@@ -538,7 +493,7 @@ export function PermissionManagement() {
               className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
             >
               <Download className="w-4 h-4" />
-              {t.actions.export}
+              {copy.actionLabels.export}
             </Button>
           ) : null}
           {canCreatePermission ? (
@@ -547,16 +502,16 @@ export function PermissionManagement() {
               className="h-11 gap-2 rounded-2xl bg-primary px-4 shadow-[0_16px_30px_-18px_rgba(var(--primary),0.7)] transition-all active:scale-95 hover:-translate-y-0.5 hover:bg-primary/92 hover:shadow-[0_18px_34px_-18px_rgba(var(--primary),0.75)]"
             >
               <Plus className="w-4 h-4" />
-              {t.actions.add}
+              {copy.actionLabels.add}
             </Button>
           ) : null}
-        </div>
+        </ManagementActionBar>
       ) : undefined}
     >
       {!canQueryPermission ? (
         <QueryAccessBoundary
           viewId="system-permissions"
-          title={t.menu.systemPermissions}
+          title={copy.page.title}
           queryPermission={systemPermissions.permission.query}
         />
       ) : (
@@ -565,7 +520,7 @@ export function PermissionManagement() {
       <PermissionStats stats={stats} />
 
       {/* 2. 搜索过滤栏 */}
-      <div className="mb-6 flex flex-col gap-4 rounded-[26px] border border-slate-200/70 bg-white/72 p-4 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
+      <ManagementFilterPanel className="mb-6 flex flex-col gap-4">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-2 rounded-2xl border border-slate-200/70 bg-slate-100/85 p-1">
             <button
@@ -585,7 +540,7 @@ export function PermissionManagement() {
           <div className="flex-1 min-w-[300px] relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
-              placeholder={t.systemManagement.permissionManagement.searchPlaceholder}
+              placeholder={copy.search.searchPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-11 rounded-2xl border-slate-200/80 bg-white/90 pl-10 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10"
@@ -598,14 +553,14 @@ export function PermissionManagement() {
                 <SelectTrigger className="h-11 rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50">
                     <div className="flex items-center gap-2">
                       <Filter className="w-3.5 h-3.5 text-slate-400" />
-                      <SelectValue placeholder={t.systemManagement.permissionManagement.typePlaceholder} />
+                      <SelectValue placeholder={copy.search.typePlaceholder} />
                     </div>
                   </SelectTrigger>
                   <SelectContent className="rounded-2xl border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/60">
-                    <SelectItem value="all">{t.systemManagement.permissionManagement.typeAll}</SelectItem>
-                    <SelectItem value="menu">{t.systemManagement.permissionManagement.typeMenu}</SelectItem>
-                    <SelectItem value="operation">{t.systemManagement.permissionManagement.typeOperation}</SelectItem>
-                    <SelectItem value="data">{t.systemManagement.permissionManagement.typeData}</SelectItem>
+                    <SelectItem value="all">{copy.search.typeAll}</SelectItem>
+                    <SelectItem value="menu">{copy.search.typeMenu}</SelectItem>
+                    <SelectItem value="operation">{copy.search.typeOperation}</SelectItem>
+                    <SelectItem value="data">{copy.search.typeData}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -614,10 +569,10 @@ export function PermissionManagement() {
               <div className="w-44">
                 <Select value={filterModule} onValueChange={setFilterModule}>
                   <SelectTrigger className="h-11 rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50">
-                    <SelectValue placeholder={t.systemManagement.permissionManagement.modulePlaceholder} />
+                    <SelectValue placeholder={copy.search.modulePlaceholder} />
                   </SelectTrigger>
                   <SelectContent className="rounded-2xl border-slate-200/80 bg-white/95 shadow-xl shadow-slate-200/60">
-                    <SelectItem value="all">{t.systemManagement.permissionManagement.moduleAll}</SelectItem>
+                    <SelectItem value="all">{copy.search.moduleAll}</SelectItem>
                     {modules.map((module) => (
                       <SelectItem key={module} value={module}>
                         {getPermissionModuleLabel(module, language)}
@@ -629,10 +584,10 @@ export function PermissionManagement() {
             )}
           </div>
         </div>
-      </div>
+      </ManagementFilterPanel>
 
       {/* 3. 数据展示区 */}
-      <Card className="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/88 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.28)] backdrop-blur-sm">
+      <ManagementContentCard>
         {viewMode === 'list' ? (
           <PermissionTable
             data={paginatedData}
@@ -668,7 +623,7 @@ export function PermissionManagement() {
             />
           </div>
         )}
-      </Card>
+      </ManagementContentCard>
 
       {/* 4. 对话框统一管理 */}
       <PermissionDialogManager

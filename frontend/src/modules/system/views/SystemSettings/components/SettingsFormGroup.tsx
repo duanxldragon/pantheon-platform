@@ -5,51 +5,30 @@ import { Input } from '../../../../../components/ui/input';
 import { Switch } from '../../../../../components/ui/switch';
 import { Textarea } from '../../../../../components/ui/textarea';
 import { Lock, Settings2 } from 'lucide-react';
-import { useLanguageStore } from '../../../../../stores/languageStore';
-
-interface SettingItem {
-  key: string;
-  label: string;
-  description: string;
-  value: any;
-  type: string;
-  options?: string[];
-  editable: boolean;
-  required?: boolean;
-}
+import type { SettingsField, SettingsSection, SettingValue } from '../hooks/useSettingsLogic';
 
 interface SettingsFormGroupProps {
-  section: {
-    title: string;
-    description: string;
-    settings: SettingItem[];
+  section: SettingsSection;
+  values: Partial<Record<string, SettingValue>>;
+  onChange: (key: string, value: SettingValue) => void;
+  copy: {
+    required: string;
+    enabled: string;
+    disabled: string;
   };
-  values: Record<string, any>;
-  onChange: (key: string, value: any) => void;
 }
 
 export const SettingsFormGroup: React.FC<SettingsFormGroupProps> = ({
   section,
   values,
   onChange,
+  copy,
 }) => {
-  const { language } = useLanguageStore();
-  const zh = language === 'zh';
-  const copy = zh
-    ? {
-        required: '必填',
-        enabled: '启用',
-        disabled: '禁用',
-      }
-    : {
-        required: 'Required',
-        enabled: 'Enabled',
-        disabled: 'Disabled',
-      };
-
-  const renderField = (item: SettingItem) => {
+  const renderField = (item: SettingsField) => {
     const value = Object.prototype.hasOwnProperty.call(values, item.key) ? values[item.key] : item.value;
     const isModified = Object.prototype.hasOwnProperty.call(values, item.key) && values[item.key] !== item.value;
+    const booleanValue = typeof value === 'boolean' ? value : value === 'true';
+    const inputValue = typeof value === 'string' || typeof value === 'number' ? value : '';
 
     return (
       <div
@@ -83,13 +62,13 @@ export const SettingsFormGroup: React.FC<SettingsFormGroupProps> = ({
               <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-2">
                 <span
                   className={`text-[10px] font-bold uppercase tracking-wider ${
-                    value ? 'text-emerald-500' : 'text-slate-400'
+                    booleanValue ? 'text-emerald-500' : 'text-slate-400'
                   }`}
                 >
-                  {value ? copy.enabled : copy.disabled}
+                  {booleanValue ? copy.enabled : copy.disabled}
                 </span>
                 <Switch
-                  checked={value}
+                  checked={booleanValue}
                   onCheckedChange={(checked) => onChange(item.key, checked)}
                   disabled={!item.editable}
                   className="data-[state=checked]:bg-emerald-500"
@@ -97,14 +76,14 @@ export const SettingsFormGroup: React.FC<SettingsFormGroupProps> = ({
               </div>
             ) : item.type === 'textarea' ? (
               <Textarea
-                value={value}
+                value={inputValue}
                 onChange={(e) => onChange(item.key, e.target.value)}
                 disabled={!item.editable}
                 className="min-h-[100px] rounded-2xl border-slate-100 bg-slate-50 font-mono text-xs transition-all focus:bg-white"
               />
             ) : item.type === 'select' ? (
               <select
-                value={value}
+                value={inputValue}
                 onChange={(e) => onChange(item.key, e.target.value)}
                 disabled={!item.editable}
                 className="h-11 w-full rounded-2xl border border-slate-100 bg-slate-50 px-4 text-sm font-medium outline-none transition-all focus:bg-white focus:ring-2 focus:ring-primary/20"
@@ -118,7 +97,7 @@ export const SettingsFormGroup: React.FC<SettingsFormGroupProps> = ({
             ) : (
               <Input
                 type={item.type === 'number' ? 'number' : 'text'}
-                value={value}
+                value={inputValue}
                 onChange={(e) => onChange(item.key, item.type === 'number' ? Number(e.target.value) : e.target.value)}
                 disabled={!item.editable}
                 className="h-11 rounded-2xl border-slate-100 bg-slate-50 font-bold text-slate-700 shadow-sm shadow-slate-200/40 transition-all focus:bg-white"

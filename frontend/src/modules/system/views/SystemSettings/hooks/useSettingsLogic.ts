@@ -1,32 +1,63 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { useLanguageStore } from '../../../../../stores/languageStore';
 import { settingApi } from '../../../api/settingApi';
+import type { SystemSetting } from '../../../types';
 
-function buildSchemaDefaults(schema: Record<string, any>) {
-  const defaults: Record<string, any> = {};
-  Object.values(schema).forEach((section: any) => {
-    section.settings?.forEach((setting: any) => {
+export type SettingValue = string | number | boolean;
+export type SettingType = SystemSetting['type'];
+
+export interface SettingsField {
+  key: string;
+  label: string;
+  description: string;
+  value: SettingValue;
+  type: SettingType;
+  options?: string[];
+  editable: boolean;
+  required?: boolean;
+}
+
+export interface SettingsSection {
+  title: string;
+  description: string;
+  settings: SettingsField[];
+}
+
+export type SettingsSchema = Record<string, SettingsSection>;
+type SettingsValueMap = Record<string, SettingValue>;
+
+function buildSchemaDefaults(schema: SettingsSchema): SettingsValueMap {
+  const defaults: SettingsValueMap = {};
+  Object.values(schema).forEach((section) => {
+    section.settings.forEach((setting) => {
       defaults[setting.key] = setting.value;
     });
   });
   return defaults;
 }
 
-export function useSettingsLogic(schema: Record<string, any>, enabled = true) {
-  const { language } = useLanguageStore();
-  const zh = language === 'zh';
+interface SettingsLogicMessages {
+  loading: string;
+  success: string;
+  error: string;
+  reset: string;
+}
 
+export function useSettingsLogic(
+  schema: SettingsSchema,
+  messages: SettingsLogicMessages,
+  enabled = true,
+) {
   const [activeTab, setActiveTab] = useState('basic');
-  const [baseValues, setBaseValues] = useState<Record<string, any>>({});
-  const [editingValues, setEditingValues] = useState<Record<string, any>>({});
+  const [baseValues, setBaseValues] = useState<SettingsValueMap>({});
+  const [editingValues, setEditingValues] = useState<Partial<SettingsValueMap>>({});
   const [loading, setLoading] = useState(true);
 
-  const typeMap = useMemo<Record<string, string>>(() => {
-    const map: Record<string, string> = {};
-    Object.values(schema).forEach((section: any) => {
-      section.settings?.forEach((setting: any) => {
+  const typeMap = useMemo<Record<string, SettingType>>(() => {
+    const map: Record<string, SettingType> = {};
+    Object.values(schema).forEach((section) => {
+      section.settings.forEach((setting) => {
         map[setting.key] = setting.type ?? 'text';
       });
     });
@@ -77,7 +108,7 @@ export function useSettingsLogic(schema: Record<string, any>, enabled = true) {
   const isDirty = useMemo(() => Object.keys(editingValues).length > 0, [editingValues]);
 
   const handleChange = useCallback(
-    (key: string, value: any) => {
+    (key: string, value: SettingValue) => {
       const base = Object.prototype.hasOwnProperty.call(baseValues, key) ? baseValues[key] : undefined;
       if (value === base) {
         setEditingValues((prev) => {
@@ -105,23 +136,23 @@ export function useSettingsLogic(schema: Record<string, any>, enabled = true) {
     };
 
     toast.promise(doSave(), {
-      loading: zh ? '正在同步系统配置...' : 'Syncing system settings...',
-      success: zh ? '系统配置已更新' : 'System settings updated',
-      error: zh ? '配置同步失败，请重试' : 'Failed to sync settings',
+      loading: messages.loading,
+      success: messages.success,
+      error: messages.error,
     });
-  }, [editingValues, zh]);
+  }, [editingValues, messages.error, messages.loading, messages.success]);
 
   const handleReset = useCallback(() => {
     setEditingValues({});
-    toast.info(zh ? '已还原所有未保存的修改' : 'Reverted all unsaved changes');
-  }, [zh]);
+    toast.info(messages.reset);
+  }, [messages.reset]);
 
   const sectionsWithValues = useMemo(() => {
-    const result: Record<string, any> = {};
-    Object.entries(schema).forEach(([tabKey, section]: [string, any]) => {
+    const result: SettingsSchema = {};
+    Object.entries(schema).forEach(([tabKey, section]) => {
       result[tabKey] = {
         ...section,
-        settings: (section.settings ?? []).map((setting: any) => ({
+        settings: section.settings.map((setting) => ({
           ...setting,
           value: Object.prototype.hasOwnProperty.call(baseValues, setting.key)
             ? baseValues[setting.key]

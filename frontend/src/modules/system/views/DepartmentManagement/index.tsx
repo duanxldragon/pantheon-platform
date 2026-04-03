@@ -6,11 +6,11 @@ import { useLanguageStore } from '../../../../stores/languageStore';
 import { toast } from 'sonner';
 import { api } from '../../api';
 import { Button } from '../../../../components/ui/button';
-import { Card } from '../../../../components/ui/card';
 import { Plus, Upload, Download, Search, ChevronRight, ChevronDown, Trash2, Power, PowerOff } from 'lucide-react';
 import { PageLayout } from '../../../../components/layouts/PageLayout';
 import { Input } from '../../../../components/ui/input';
 import { ConfirmDialog } from '../../../../shared/components/ui/ConfirmDialog';
+import { ManagementActionBar, ManagementContentCard } from '../../../../shared/components/ui';
 import { useCSVImportExport } from '../../../../shared/hooks/useCSVImportExport';
 import { csvTemplates } from '../../../../shared/utils/csvTemplates';
 import { useAuthStore } from '../../../auth/store/authStore';
@@ -18,6 +18,7 @@ import { QueryAccessBoundary } from '../../../../shared/components/QueryAccessBo
 import { useActionPermissionDialogGuard } from '../../../../shared/hooks/useActionPermissionDialogGuard';
 import { usePermissionConfirmGuard } from '../../../../shared/hooks/usePermissionConfirmGuard';
 import { useQueryPermissionDialogGuard } from '../../../../shared/hooks/useQueryPermissionDialogGuard';
+import type { ExportOptions } from '../../../../shared/components/ui/DataImportExportDialog';
 import { systemPermissions } from '../../constants/permissions';
 import { createEntityFeedback } from '../../utils/feedback';
 
@@ -25,6 +26,7 @@ import { createEntityFeedback } from '../../utils/feedback';
 import { DepartmentTreeTable } from './components/DepartmentTreeTable';
 import { DepartmentDialogManager } from './components/DepartmentDialogManager';
 import { useDepartmentTree, DepartmentNode } from './hooks/useDepartmentTree';
+import { getDepartmentManagementCopy } from './departmentManagementCopy';
 
 interface StatusConfirmState {
   open: boolean;
@@ -47,56 +49,10 @@ const initialStatusConfirmState: StatusConfirmState = {
 };
 
 export function DepartmentManagement() {
-  const { t, language } = useLanguageStore();
+  const { language } = useLanguageStore();
   const zh = language === 'zh';
-  const departmentMessages = createEntityFeedback(zh, { zh: '部门', en: 'Department', enPlural: 'departments' });
-  const copy = zh
-    ? {
-        actions: {
-          add: '新增',
-          edit: '编辑',
-          delete: '删除',
-          import: '导入',
-          export: '导出',
-          memberAssign: '成员分配',
-          batchEnable: '批量启用',
-          batchDisable: '批量禁用',
-          batchDelete: '批量删除',
-          batchStatusUpdate: '批量状态变更',
-        },
-        buttons: {
-          batchEnable: (count: number) => `批量启用 (${count})`,
-          batchDisable: (count: number) => `批量禁用 (${count})`,
-          batchDelete: (count: number) => `批量删除 (${count})`,
-        },
-        titles: {
-          expandAll: '全部展开',
-          collapseAll: '全部收起',
-        },
-      }
-    : {
-        actions: {
-          add: 'create',
-          edit: 'edit',
-          delete: 'delete',
-          import: 'import',
-          export: 'export',
-          memberAssign: 'member assignment',
-          batchEnable: 'batch enable',
-          batchDisable: 'batch disable',
-          batchDelete: 'batch delete',
-          batchStatusUpdate: 'batch status update',
-        },
-        buttons: {
-          batchEnable: (count: number) => `Enable (${count})`,
-          batchDisable: (count: number) => `Disable (${count})`,
-          batchDelete: (count: number) => `Delete (${count})`,
-        },
-        titles: {
-          expandAll: 'Expand all',
-          collapseAll: 'Collapse all',
-        },
-      };
+  const copy = getDepartmentManagementCopy(language);
+  const departmentMessages = createEntityFeedback(zh, copy.entity);
   const hasPermission = useAuthStore((state) => state.hasPermission);
   const canQueryDepartment = hasPermission(systemPermissions.department.query);
   
@@ -197,32 +153,11 @@ export function DepartmentManagement() {
   };
 
   const buildDepartmentStatusMessages = (departmentName: string, enabled: boolean, affectedUsers: number) => {
-    if (zh) {
-      return {
-        title: enabled ? '确认启用部门' : '确认禁用部门',
-        description:
-          affectedUsers > 0
-            ? `部门「${departmentName}」状态变更后，将影响 ${affectedUsers} 名用户，并触发权限刷新。请确认后继续。`
-            : `部门「${departmentName}」状态变更后，不会影响现有成员权限，但会立即生效。请确认后继续。`,
-        confirmText: enabled ? '确认启用' : '确认禁用',
-        success:
-          affectedUsers > 0
-            ? `已将部门「${departmentName}」${enabled ? '启用' : '禁用'}，影响 ${affectedUsers} 名用户，相关用户权限已刷新`
-            : `已将部门「${departmentName}」${enabled ? '启用' : '禁用'}`,
-      };
-    }
-
     return {
-      title: enabled ? 'Confirm enable department' : 'Confirm disable department',
-      description:
-        affectedUsers > 0
-          ? `Changing the status of department "${departmentName}" will affect ${affectedUsers} users and refresh their auth snapshot.`
-          : `Changing the status of department "${departmentName}" takes effect immediately and does not affect existing users.`,
-      confirmText: enabled ? 'Enable' : 'Disable',
-      success:
-        affectedUsers > 0
-          ? `Department "${departmentName}" has been ${enabled ? 'enabled' : 'disabled'}. ${affectedUsers} users were affected and their auth was refreshed.`
-          : `Department "${departmentName}" has been ${enabled ? 'enabled' : 'disabled'}.`,
+      title: copy.messages.statusTitle(enabled),
+      description: copy.messages.statusDescription(departmentName, enabled, affectedUsers),
+      confirmText: copy.messages.statusConfirmText(enabled),
+      success: copy.messages.statusSuccess(departmentName, enabled, affectedUsers),
     };
   };
 
@@ -260,9 +195,7 @@ export function DepartmentManagement() {
   };
 
   const buildDepartmentDeleteDescription = (departmentName: string) =>
-    zh
-      ? `确认删除部门「${departmentName}」？当前部门无直属下级部门、无直属成员，删除后立即生效且不可恢复。`
-      : `Delete department "${departmentName}"? It currently has no direct child departments or direct members. This action takes effect immediately and cannot be undone.`;
+    copy.messages.deleteDescription(departmentName);
 
   const buildDepartmentDeleteBlockedMessage = (
     items: Array<{ name: string; childCount: number; directUserCount: number }>,
@@ -273,20 +206,16 @@ export function DepartmentManagement() {
       .map((item) => {
         const parts: string[] = [];
         if (item.childCount > 0) {
-          parts.push(zh ? `${item.childCount} 个直属下级部门` : `${item.childCount} direct child departments`);
+          parts.push(copy.messages.directChildrenLabel(item.childCount));
         }
         if (item.directUserCount > 0) {
-          parts.push(zh ? `${item.directUserCount} 名直属成员` : `${item.directUserCount} direct members`);
+          parts.push(copy.messages.directMembersLabel(item.directUserCount));
         }
-        return `${item.name}（${parts.join('，')}）`;
+        return copy.messages.deleteBlockedItem(item.name, parts.join(copy.messages.namesSeparator));
       })
-      .join(zh ? '；' : '; ');
+      .join(copy.messages.detailSeparator);
 
-    if (zh) {
-      return `${isBatch ? '批量删除已拦截：' : '删除已拦截：'}${details}${items.length > 3 ? '；其余部门也存在直属下级或直属成员' : ''}`;
-    }
-
-    return `${isBatch ? 'Batch delete blocked: ' : 'Delete blocked: '}${details}${items.length > 3 ? '; other departments also still have child departments or direct members' : ''}`;
+    return copy.messages.deleteBlockedSummary(details, isBatch, items.length > 3);
   };
 
   const openDepartmentBatchConfirm = (
@@ -295,27 +224,31 @@ export function DepartmentManagement() {
     action: () => Promise<void>,
   ) => {
     const ids = items.map((item) => String(item.id));
-    const namesPreview = items.slice(0, 3).map((item) => item.name).join('、');
+    const namesPreview = items
+      .slice(0, 3)
+      .map((item) => item.name)
+      .join(copy.messages.namesSeparator);
 
     if (mode === 'delete') {
       const impact = getDepartmentBatchDeleteImpact(ids);
-      const description = zh
-        ? `将删除 ${impact.selectedCount} 个部门，涉及 ${impact.descendantCount} 个下级部门、${impact.affectedUsers} 名关联用户。若所选部门仍有直属下级或直属成员，后端会拒绝删除。`
-        : `This will delete ${impact.selectedCount} departments, involving ${impact.descendantCount} child departments and ${impact.affectedUsers} related users. The backend will reject deletion when a selected department still has direct children or direct members.`;
-      const success = zh
-        ? `已提交删除 ${impact.selectedCount} 个部门${namesPreview ? `（${namesPreview}${items.length > 3 ? ' 等' : ''}）` : ''}`
-        : `Deleted ${impact.selectedCount} departments${namesPreview ? ` (${namesPreview}${items.length > 3 ? ' and more' : ''})` : ''}.`;
+      const preview = namesPreview
+        ? `${namesPreview}${items.length > 3 ? copy.messages.moreSuffix : ''}`
+        : '';
 
       setStatusConfirm({
         open: true,
-        title: zh ? '确认批量删除部门' : 'Confirm batch delete departments',
-        description,
-        confirmText: zh ? '确认删除' : 'Delete',
+        title: copy.messages.batchDeleteTitle,
+        description: copy.messages.batchDeleteDescription(
+          impact.selectedCount,
+          impact.descendantCount,
+          impact.affectedUsers,
+        ),
+        confirmText: copy.actionLabels.delete,
         variant: 'danger',
         guard: 'delete',
         action: async () => {
           await action();
-          toast.success(success);
+          toast.success(copy.messages.batchDeleteSuccess(impact.selectedCount, preview));
         },
       });
       return;
@@ -324,23 +257,17 @@ export function DepartmentManagement() {
     const affectedDepartmentIds = collectDepartmentScopeIds(ids);
     const affectedUsers = users.filter((user) => affectedDepartmentIds.has(String(user.departmentId ?? ''))).length;
     const enableAction = mode === 'enable';
-    const description = zh
-      ? `将${enableAction ? '启用' : '禁用'} ${items.length} 个部门，预计影响 ${affectedUsers} 名用户，并触发权限刷新。`
-      : `This will ${enableAction ? 'enable' : 'disable'} ${items.length} departments, affect ${affectedUsers} users, and refresh their auth snapshot.`;
-    const success = zh
-      ? `已${enableAction ? '启用' : '禁用'} ${items.length} 个部门，影响 ${affectedUsers} 名用户，相关用户权限已刷新`
-      : `${items.length} departments have been ${enableAction ? 'enabled' : 'disabled'}. ${affectedUsers} users were affected and refreshed.`;
 
     setStatusConfirm({
       open: true,
-      title: zh ? `确认批量${enableAction ? '启用' : '禁用'}部门` : `Confirm batch ${enableAction ? 'enable' : 'disable'} departments`,
-      description,
-      confirmText: zh ? `确认${enableAction ? '启用' : '禁用'}` : enableAction ? 'Enable' : 'Disable',
+      title: copy.messages.batchStatusTitle(enableAction),
+      description: copy.messages.batchStatusDescription(items.length, enableAction, affectedUsers),
+      confirmText: copy.messages.batchStatusConfirmText(enableAction),
       variant: enableAction ? 'success' : 'warning',
       guard: 'update',
       action: async () => {
         await action();
-        toast.success(success);
+        toast.success(copy.messages.batchStatusSuccess(items.length, enableAction, affectedUsers));
       },
     });
   };
@@ -413,20 +340,20 @@ export function DepartmentManagement() {
     const currentId = currentDepartment ? String(currentDepartment.id) : '';
 
     if (!normalized.name) {
-      return zh ? '请输入部门名称。' : 'Please enter the department name.';
+      return copy.validation.nameRequired;
     }
     if (!normalized.code) {
-      return zh ? '请输入部门编码。' : 'Please enter the department code.';
+      return copy.validation.codeRequired;
     }
     if (normalized.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized.email)) {
-      return zh ? '请输入正确的邮箱地址。' : 'Please enter a valid email address.';
+      return copy.validation.emailInvalid;
     }
 
     if (!parentId) {
       if (normalized.leaderId != null) {
         const leaderUser = users.find((user) => String(user.id) === String(normalized.leaderId));
         if (!leaderUser) {
-          return zh ? '所选负责人不存在，请重新选择。' : 'The selected leader does not exist.';
+          return copy.validation.leaderMissing;
         }
       }
       return null;
@@ -434,25 +361,25 @@ export function DepartmentManagement() {
 
     const parentDepartment = departments.find((department) => String(department.id) === parentId);
     if (!parentDepartment) {
-      return zh ? '所选上级部门不存在，请重新选择。' : 'The selected parent department does not exist.';
+      return copy.validation.parentMissing;
     }
     if (parentDepartment.status !== 'active') {
-      return zh ? '上级部门已被禁用，请先启用上级部门。' : 'The selected parent department is inactive.';
+      return copy.validation.parentInactive;
     }
     if (currentId && currentId === parentId) {
-      return zh ? '上级部门不能选择自己。' : 'The parent department cannot be itself.';
+      return copy.validation.parentSelf;
     }
     if (currentId) {
       const currentScopeIds = collectDepartmentScopeIds([currentId]);
       if (currentScopeIds.has(parentId)) {
-        return zh ? '上级部门不能选择当前部门或其下级部门。' : 'The parent department cannot be the current department or one of its descendants.';
+        return copy.validation.parentDescendant;
       }
     }
 
     if (normalized.leaderId != null) {
       const leaderUser = users.find((user) => String(user.id) === String(normalized.leaderId));
       if (!leaderUser) {
-        return zh ? '所选负责人不存在，请重新选择。' : 'The selected leader does not exist.';
+        return copy.validation.leaderMissing;
       }
     }
 
@@ -461,7 +388,7 @@ export function DepartmentManagement() {
 
   const handlers = {
     onSubmit: async () => {
-      if (!ensureActionPermission(dialogs.add ? canCreateDepartment : canUpdateDepartment, dialogs.add ? (zh ? '新增' : 'create') : (zh ? '编辑' : 'edit'))) return;
+      if (!ensureActionPermission(dialogs.add ? canCreateDepartment : canUpdateDepartment, dialogs.add ? copy.actionLabels.add : copy.actionLabels.edit)) return;
       try {
         const normalizedFormData = normalizeDepartmentFormData(formData);
         const validationMessage = validateDepartmentFormData(normalizedFormData, selectedDepartment);
@@ -496,7 +423,7 @@ export function DepartmentManagement() {
     },
     onDelete: async () => {
       if (!selectedDepartment) return;
-      if (!ensureActionPermission(canDeleteDepartment, zh ? '删除' : 'delete')) return;
+      if (!ensureActionPermission(canDeleteDepartment, copy.actionLabels.delete)) return;
       try {
         await api.deleteDepartment(String(selectedDepartment.id));
         toast.success(departmentMessages.deleteSuccess);
@@ -508,12 +435,12 @@ export function DepartmentManagement() {
       }
     },
     onImport: async (file: File) => {
-      if (!ensureActionPermission(canCreateDepartment, zh ? '导入' : 'import')) return;
+      if (!ensureActionPermission(canCreateDepartment, copy.actionLabels.import)) return;
       await csvHandler.handleImport(file);
       setDialogOpen('import', false);
     },
-    onExport: async (options: any) => {
-      if (!ensureActionPermission(canExportDepartment, zh ? '导出' : 'export')) return;
+    onExport: async (options: ExportOptions) => {
+      if (!ensureActionPermission(canExportDepartment, copy.actionLabels.export)) return;
       const dataToExport = options.scope === 'selected' && selectedDepartments.length > 0
         ? selectedDepartments
         : departments;
@@ -526,11 +453,7 @@ export function DepartmentManagement() {
       }
       try {
         await Promise.all(userIds.map((id) => api.updateUser(id, { departmentId: selectedDepartment.id })));
-        toast.success(
-          zh
-            ? `已为部门「${selectedDepartment.name}」添加 ${userIds.length} 名成员，相关用户权限已刷新`
-            : `Added ${userIds.length} members to department "${selectedDepartment.name}". User auth has been refreshed.`,
-        );
+        toast.success(copy.messages.addMembersSuccess(selectedDepartment.name, userIds.length));
         await Promise.all([reloadUsers(), reloadDepartments()]);
       } catch {
         toast.error(departmentMessages.addMembersFailed);
@@ -542,11 +465,7 @@ export function DepartmentManagement() {
       }
       try {
         await api.updateUser(userId, { departmentId: null });
-        toast.success(
-          zh
-            ? `已从部门「${selectedDepartment.name}」移除成员，相关用户权限已刷新`
-            : `Removed a member from department "${selectedDepartment.name}". User auth has been refreshed.`,
-        );
+        toast.success(copy.messages.removeMemberSuccess(selectedDepartment.name));
         await Promise.all([reloadUsers(), reloadDepartments()]);
       } catch {
         toast.error(departmentMessages.removeMemberFailed);
@@ -563,38 +482,38 @@ export function DepartmentManagement() {
   const canExportDepartment = hasPermission(systemPermissions.department.export);
   const { lossDescription: queryLossDescription } = useQueryPermissionDialogGuard({
     canQuery: canQueryDepartment,
-    pageTitle: t.menu.systemDepartments,
+    pageTitle: copy.page.title,
     dialogs,
     protectedDialogs: {
-      members: copy.actions.memberAssign,
+      members: copy.actionLabels.memberAssign,
     },
     closeDialogs: closeProtectedDialogs,
   });
   const { ensureActionPermission } = useActionPermissionDialogGuard({
-    pageTitle: t.menu.systemDepartments,
+    pageTitle: copy.page.title,
     dialogs,
     guardedDialogs: {
-      add: { label: copy.actions.add, allowed: canCreateDepartment },
-      edit: { label: copy.actions.edit, allowed: canUpdateDepartment },
-      delete: { label: copy.actions.delete, allowed: canDeleteDepartment },
-      import: { label: copy.actions.import, allowed: canCreateDepartment },
-      export: { label: copy.actions.export, allowed: canExportDepartment },
+      add: { label: copy.actionLabels.add, allowed: canCreateDepartment },
+      edit: { label: copy.actionLabels.edit, allowed: canUpdateDepartment },
+      delete: { label: copy.actionLabels.delete, allowed: canDeleteDepartment },
+      import: { label: copy.actionLabels.import, allowed: canCreateDepartment },
+      export: { label: copy.actionLabels.export, allowed: canExportDepartment },
     },
     closeDialogs: closeProtectedDialogs,
   });
   const { ensureConfirmPermission } = usePermissionConfirmGuard({
     open: statusConfirm.open,
     guard: statusConfirm.guard,
-    pageTitle: t.menu.systemDepartments,
+    pageTitle: copy.page.title,
     guards: {
-      update: { label: copy.actions.batchStatusUpdate, allowed: canUpdateDepartment },
-      delete: { label: copy.actions.batchDelete, allowed: canDeleteDepartment },
+      update: { label: copy.actionLabels.batchStatusUpdate, allowed: canUpdateDepartment },
+      delete: { label: copy.actionLabels.batchDelete, allowed: canDeleteDepartment },
     },
     closeConfirm: closeStatusConfirm,
   });
 
   const handleBatchDepartmentStatus = (enabled: boolean) => {
-    if (!ensureActionPermission(canUpdateDepartment, enabled ? copy.actions.batchEnable : copy.actions.batchDisable)) return;
+    if (!ensureActionPermission(canUpdateDepartment, enabled ? copy.actionLabels.batchEnable : copy.actionLabels.batchDisable)) return;
     const targetItems = enabled ? departmentsToEnable : departmentsToDisable;
     if (targetItems.length === 0) {
       return;
@@ -616,7 +535,7 @@ export function DepartmentManagement() {
   };
 
   const handleBatchDepartmentDelete = () => {
-    if (!ensureActionPermission(canDeleteDepartment, copy.actions.batchDelete)) return;
+    if (!ensureActionPermission(canDeleteDepartment, copy.actionLabels.batchDelete)) return;
     if (selectedDepartmentIds.length === 0) {
       return;
     }
@@ -652,9 +571,9 @@ export function DepartmentManagement() {
 
   return (
     <PageLayout
-      title={t.menu.systemDepartments}
+      title={copy.page.title}
       actions={canQueryDepartment ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-[26px] border border-slate-200/70 bg-white/72 p-3 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
+        <ManagementActionBar>
           {selectedDepartments.length > 0 && (
             <>
               {canUpdateDepartment && departmentsToEnable.length > 0 ? (
@@ -680,7 +599,7 @@ export function DepartmentManagement() {
           <div className="relative mr-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
-              placeholder={t.topBar.searchPlaceholder}
+              placeholder={copy.page.searchPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-11 w-64 rounded-2xl border-slate-200/80 bg-white/90 pl-10 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10"
@@ -709,35 +628,35 @@ export function DepartmentManagement() {
           {canCreateDepartment ? (
             <Button variant="outline" onClick={() => setDialogOpen('import', true)} className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white">
               <Upload className="w-4 h-4" />
-              {t.actions.import}
+              {copy.actionLabels.import}
             </Button>
           ) : null}
           {canExportDepartment ? (
             <Button variant="outline" onClick={() => setDialogOpen('export', true)} className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white">
               <Download className="w-4 h-4" />
-              {t.actions.export}
+              {copy.actionLabels.export}
             </Button>
           ) : null}
           {canCreateDepartment ? (
             <Button onClick={openAddDialog} className="h-11 gap-2 rounded-2xl bg-primary px-4 shadow-[0_16px_30px_-18px_rgba(var(--primary),0.7)] transition-all active:scale-95 hover:-translate-y-0.5 hover:bg-primary/92 hover:shadow-[0_18px_34px_-18px_rgba(var(--primary),0.75)]">
               <Plus className="w-4 h-4" />
-              {t.actions.add}
+              {copy.actionLabels.add}
             </Button>
           ) : null}
-        </div>
+        </ManagementActionBar>
       ) : undefined}
     >
       {!canQueryDepartment ? (
         <QueryAccessBoundary
           viewId="system-departments"
-          title={t.menu.systemDepartments}
+          title={copy.page.title}
           queryPermission={systemPermissions.department.query}
           description={queryLossDescription}
           notificationDescription={queryLossDescription}
         />
       ) : (
         <>
-      <Card className="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/88 p-0 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.28)] backdrop-blur-sm">
+      <ManagementContentCard className="p-0">
         <DepartmentTreeTable
           data={flattenedDisplayData}
           expandedKeys={expandedKeys}
@@ -757,7 +676,7 @@ export function DepartmentManagement() {
           selectedItems={selectedDepartments}
           onSelectionChange={setSelectedDepartments}
         />
-      </Card>
+      </ManagementContentCard>
 
       <DepartmentDialogManager
         dialogs={dialogs}

@@ -3,6 +3,7 @@ import { CheckCircle2, FileText, XCircle } from 'lucide-react';
 
 import { Card } from '../../../../../components/ui/card';
 import { useLanguageStore } from '../../../../../stores/languageStore';
+import { getUnifiedLogManagementCopy } from '../unifiedLogManagementCopy';
 
 interface LogStatsProps {
   activeTab: 'login' | 'operation';
@@ -15,16 +16,9 @@ interface LogStatsProps {
 }
 
 export const LogStatsCards: React.FC<LogStatsProps> = ({ activeTab, stats, loading }) => {
-  const { t, language } = useLanguageStore();
-  const zh = language === 'zh';
-  const currentTabLabel =
-    activeTab === 'login'
-      ? zh
-        ? '登录日志'
-        : 'Login Logs'
-      : zh
-        ? '操作日志'
-        : 'Operation Logs';
+  const { language } = useLanguageStore();
+  const copy = getUnifiedLogManagementCopy(language).stats;
+  const currentTabLabel = activeTab === 'login' ? copy.loginLogs : copy.operationLogs;
   const completionRate = stats.total > 0 ? Math.round((stats.success / stats.total) * 100) : 0;
 
   const cards = [
@@ -34,30 +28,23 @@ export const LogStatsCards: React.FC<LogStatsProps> = ({ activeTab, stats, loadi
       icon: FileText,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
-      hint: zh ? '当前筛选结果' : 'Current filtered results',
+      hint: copy.currentFilteredResults,
     },
     {
-      label: t.modules.deploy.status.success,
+      label: copy.statusSuccess,
       value: stats.success,
       icon: CheckCircle2,
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-50',
-      hint: zh ? `占比 ${completionRate}%` : `${completionRate}% of total`,
+      hint: copy.completionRate(completionRate),
     },
     {
-      label: t.modules.deploy.status.failed,
+      label: copy.statusFailed,
       value: stats.failed,
       icon: XCircle,
       color: 'text-rose-600',
       bgColor: 'bg-rose-50',
-      hint:
-        stats.failed > 0
-          ? zh
-            ? '建议优先排查'
-            : 'Needs attention'
-          : zh
-            ? '当前无失败'
-            : 'No failures currently',
+      hint: stats.failed > 0 ? copy.needsAttention : copy.noFailures,
     },
   ];
 
@@ -74,7 +61,7 @@ export const LogStatsCards: React.FC<LogStatsProps> = ({ activeTab, stats, loadi
               <div className="flex items-baseline gap-2">
                 <p className={`text-2xl font-bold ${card.color}`}>{loading ? '--' : card.value.toLocaleString()}</p>
               </div>
-              <p className="text-xs text-slate-400">{loading ? '...' : card.hint}</p>
+              <p className="text-xs text-slate-400">{loading ? copy.loadingHint : card.hint}</p>
             </div>
             <div
               className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 duration-300 ${card.bgColor}`}

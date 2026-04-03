@@ -18,6 +18,7 @@ import { useLanguageStore } from '../../../../../stores/languageStore';
 import { useAuthStore } from '../../../../auth/store/authStore';
 import { systemPermissions } from '../../../constants/permissions';
 import { Role } from '../../../types';
+import { getRoleManagementCopy } from '../roleManagementCopy';
 
 interface RoleTableProps {
   data: Role[];
@@ -40,31 +41,14 @@ export const RoleTable: React.FC<RoleTableProps> = ({
   onStatusChange,
   pagination,
 }) => {
-  const { t, language } = useLanguageStore();
-  const zh = language === 'zh';
+  const { language } = useLanguageStore();
   const hasPermission = useAuthStore((state) => state.hasPermission);
-  const copy = zh
-    ? {
-        builtIn: '系统内置',
-        custom: '自定义',
-        stats: '权限/成员',
-        configurePermissions: '权限配置',
-        viewDetails: '查看详情',
-        members: '成员列表',
-      }
-    : {
-        builtIn: 'Built-in',
-        custom: 'Custom',
-        stats: 'Perms/Users',
-        configurePermissions: 'Configure Permissions',
-        viewDetails: 'View Details',
-        members: 'Members',
-      };
+  const copy = getRoleManagementCopy(language).table;
 
   const columns: Column<Role>[] = [
     {
       key: 'name',
-      label: t.user.role,
+      label: copy.name,
       width: '240px',
       render: (role) => (
         <div className="flex items-center gap-3">
@@ -87,7 +71,7 @@ export const RoleTable: React.FC<RoleTableProps> = ({
     },
     {
       key: 'type',
-      label: t.common.info,
+      label: copy.info,
       width: '120px',
       render: (role) =>
         role.type === 'system' ? (
@@ -139,7 +123,7 @@ export const RoleTable: React.FC<RoleTableProps> = ({
     },
     {
       key: 'status',
-      label: t.user.status,
+      label: copy.status,
       width: '112px',
       align: 'center',
       render: (role) => {
@@ -156,15 +140,17 @@ export const RoleTable: React.FC<RoleTableProps> = ({
     },
     {
       key: 'description',
-      label: t.modules.deploy.description,
+      label: copy.description,
       width: '220px',
       render: (role) => (
-        <span className="line-clamp-2 max-w-[200px] text-xs leading-6 text-slate-500">{role.description || '-'}</span>
+        <span className="line-clamp-2 max-w-[200px] text-xs leading-6 text-slate-500">
+          {role.description || '-'}
+        </span>
       ),
     },
     {
       key: 'actions',
-      label: t.common.actions,
+      label: copy.actions,
       width: '220px',
       align: 'right',
       render: (role) => {
@@ -184,7 +170,7 @@ export const RoleTable: React.FC<RoleTableProps> = ({
                 },
                 {
                   icon: <Edit className="h-4 w-4 text-amber-500" />,
-                  label: t.common.edit,
+                  label: copy.edit,
                   onClick: () => onAction('edit', role),
                   permission: systemPermissions.role.update,
                 },
@@ -225,7 +211,7 @@ export const RoleTable: React.FC<RoleTableProps> = ({
                       disabled={role.type === 'system'}
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
-                      {t.common.delete}
+                      {copy.delete}
                       {role.type === 'system' ? <Lock className="ml-auto h-3 w-3 opacity-50" /> : null}
                     </DropdownMenuItem>
                   ) : null}

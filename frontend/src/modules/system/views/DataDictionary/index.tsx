@@ -1,11 +1,12 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Loader2, Pencil, Plus, RefreshCcw, Search, Trash2, Upload } from 'lucide-react';
+import { useCallback } from 'react';
 import { toast } from 'sonner';
 
 import { PageLayout } from '../../../../components/layouts/PageLayout';
 import { Button } from '../../../../components/ui/button';
-import { Card } from '../../../../components/ui/card';
 import { Input } from '../../../../components/ui/input';
+import { ManagementActionBar, ManagementContentCard } from '../../../../shared/components/ui';
 import { useLanguageStore } from '../../../../stores/languageStore';
 import { useAuthStore } from '../../../auth/store/authStore';
 import { QueryAccessBoundary } from '../../../../shared/components/QueryAccessBoundary';
@@ -17,6 +18,7 @@ import { createEntityFeedback } from '../../utils/feedback';
 import { DictDataTable, type DictItem } from './components/DictDataTable';
 import { DictDialogManager, type DictTypeForm } from './components/DictDialogManager';
 import { DictTypeSidebar, type DictTypeItem } from './components/DictTypeSidebar';
+import { getDataDictionaryCopy } from './dataDictionaryCopy';
 
 type ExportedDict = {
   version: string;
@@ -84,94 +86,12 @@ function mapDictItem(item: DictDataDTO): DictItem {
 }
 
 export function DataDictionary() {
-  const { t, language } = useLanguageStore();
+  const { language } = useLanguageStore();
   const zh = language === 'zh';
-  const dictionaryMessages = createEntityFeedback(zh, { zh: '数据字典', en: 'Dictionary' });
-  const dictionaryItemMessages = createEntityFeedback(zh, { zh: '字典项', en: 'Dictionary item', enPlural: 'dictionary items' });
-  const dictionaryTypeMessages = createEntityFeedback(zh, { zh: '字典类型', en: 'Dictionary type', enPlural: 'dictionary types' });
-  const copy = zh
-    ? {
-        pageTitle: '数据字典',
-        pageDescription: '维护系统字典类型和字典项，支撑菜单、状态、枚举等基础配置。',
-        actions: {
-          refresh: '刷新',
-          import: '导入',
-          export: '导出',
-          addType: '新增类型',
-          addItem: '新增字典项',
-          editType: '编辑类型',
-          deleteType: '删除类型',
-        },
-        fields: {
-          selectType: '请选择字典类型',
-          typeHint: '选择左侧类型后即可管理对应字典项。',
-          searchPlaceholder: '搜索字典标签、值或备注',
-          prev: '上一页',
-          next: '下一页',
-          page: '第',
-        },
-        messages: {
-          selectTypeFirst: '请先选择一个字典类型',
-          typeRequired: '未选择字典类型',
-          itemRequired: '请填写完整的字典项信息',
-          typeFormRequired: '请填写完整的字典类型信息',
-          invalidFile: '无效的数据字典文件格式',
-          itemStatusUpdated: '字典项状态更新成功',
-        },
-        permissionLabels: {
-          addItem: '新增字典项',
-          editItem: '编辑字典项',
-          deleteItem: '删除字典项',
-          addType: '新增字典类型',
-          editType: '编辑字典类型',
-          deleteType: '删除字典类型',
-          export: '导出',
-          import: '导入',
-          enableItem: '字典项启用',
-          disableItem: '字典项禁用',
-        },
-      }
-    : {
-        pageTitle: 'Data Dictionary',
-        pageDescription: 'Manage dictionary types and items used by statuses, enums, and base metadata.',
-        actions: {
-          refresh: 'Refresh',
-          import: 'Import',
-          export: 'Export',
-          addType: 'Add Type',
-          addItem: 'Add Item',
-          editType: 'Edit Type',
-          deleteType: 'Delete Type',
-        },
-        fields: {
-          selectType: 'Select a dictionary type',
-          typeHint: 'Choose a type from the left to manage dictionary items.',
-          searchPlaceholder: 'Search label, value, or remark',
-          prev: 'Previous',
-          next: 'Next',
-          page: 'Page',
-        },
-        messages: {
-          selectTypeFirst: 'Please select a dictionary type first',
-          typeRequired: 'Dictionary type is required',
-          itemRequired: 'Please complete dictionary item fields',
-          typeFormRequired: 'Please complete dictionary type fields',
-          invalidFile: 'Invalid data dictionary file format',
-          itemStatusUpdated: 'Dictionary item status updated',
-        },
-        permissionLabels: {
-          addItem: 'add item',
-          editItem: 'edit item',
-          deleteItem: 'delete item',
-          addType: 'add type',
-          editType: 'edit type',
-          deleteType: 'delete type',
-          export: 'export',
-          import: 'import',
-          enableItem: 'item enable',
-          disableItem: 'item disable',
-        },
-      };
+  const copy = getDataDictionaryCopy(language);
+  const dictionaryMessages = createEntityFeedback(zh, copy.entity.dictionary);
+  const dictionaryItemMessages = createEntityFeedback(zh, copy.entity.item);
+  const dictionaryTypeMessages = createEntityFeedback(zh, copy.entity.type);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasPermission = useAuthStore((state) => state.hasPermission);
   const canQueryDictionary = hasPermission(systemPermissions.dictionary.query);
@@ -211,7 +131,7 @@ export function DataDictionary() {
     });
   };
 
-  const loadTypes = async (preferCode?: string) => {
+  const loadTypes = useCallback(async (preferCode?: string) => {
     if (!canQueryDictionary) {
       setTypes([]);
       setSelectedTypeCode('');
@@ -225,9 +145,9 @@ export function DataDictionary() {
     const target = mapped.find((item) => item.code === nextCode) || mapped[0];
     setSelectedTypeCode(target?.code || '');
     return mapped;
-  };
+  }, [canQueryDictionary, selectedTypeCode]);
 
-  const loadItems = async (typeCode?: string) => {
+  const loadItems = useCallback(async (typeCode?: string) => {
     if (!canQueryDictionary) {
       setItems([]);
       setTotalPages(1);
@@ -250,9 +170,9 @@ export function DataDictionary() {
     setItems(resp.items.map(mapDictItem));
     setTotalPages(resp.pagination?.total_pages || Math.max(1, Math.ceil((resp.pagination?.total || 0) / pageSize)) || 1);
     setTypes((current) => current.map((item) => (item.id === currentType.id ? { ...item, itemCount: resp.pagination?.total || resp.items.length } : item)));
-  };
+  }, [canQueryDictionary, page, pageSize, searchTerm, selectedTypeCode, types]);
 
-  const refreshAll = async (preferCode?: string) => {
+  const refreshAll = useCallback(async (preferCode?: string) => {
     if (!canQueryDictionary) {
       setTypes([]);
       setItems([]);
@@ -272,7 +192,7 @@ export function DataDictionary() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [canQueryDictionary, dictionaryMessages.loadFailed, loadItems, loadTypes]);
 
   useEffect(() => {
     if (!canQueryDictionary) {
@@ -283,13 +203,13 @@ export function DataDictionary() {
       return;
     }
     void refreshAll();
-  }, [canQueryDictionary]);
+  }, [canQueryDictionary, refreshAll]);
 
   useEffect(() => {
     if (canQueryDictionary && selectedTypeCode) {
       void loadItems(selectedTypeCode);
     }
-  }, [canQueryDictionary, selectedTypeCode, page, searchTerm]);
+  }, [canQueryDictionary, loadItems, page, searchTerm, selectedTypeCode]);
 
   const openAddItem = () => {
     if (!ensureActionPermission(canCreateDictionary, copy.permissionLabels.addItem)) return;
@@ -561,7 +481,7 @@ export function DataDictionary() {
   };
   const { lossDescription: queryLossDescription } = useQueryPermissionDialogGuard({
     canQuery: canQueryDictionary,
-    pageTitle: t?.menu?.systemDictionary || copy.pageTitle,
+    pageTitle: copy.pageTitle,
     dialogs,
     protectedDialogs: {
       add: copy.permissionLabels.addItem,
@@ -574,7 +494,7 @@ export function DataDictionary() {
     closeDialogs: closeProtectedDialogs,
   });
   const { ensureActionPermission } = useActionPermissionDialogGuard({
-    pageTitle: t?.menu?.systemDictionary || copy.pageTitle,
+    pageTitle: copy.pageTitle,
     dialogs,
     guardedDialogs: {
       add: { label: copy.permissionLabels.addItem, allowed: canCreateDictionary },
@@ -589,10 +509,10 @@ export function DataDictionary() {
 
   return (
     <PageLayout
-      title={t?.menu?.systemDictionary || copy.pageTitle}
+      title={copy.pageTitle}
       description={copy.pageDescription}
       actions={canQueryDictionary ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-[26px] border border-slate-200/70 bg-white/72 p-3 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
+        <ManagementActionBar>
           <input
             ref={fileInputRef}
             type="file"
@@ -656,20 +576,20 @@ export function DataDictionary() {
               {copy.actions.addItem}
             </Button>
           ) : null}
-        </div>
+        </ManagementActionBar>
       ) : undefined}
     >
       {!canQueryDictionary ? (
         <QueryAccessBoundary
           viewId="system-dictionary"
-          title={t?.menu?.systemDictionary || copy.pageTitle}
+          title={copy.pageTitle}
           queryPermission={systemPermissions.dictionary.query}
           description={queryLossDescription}
           notificationDescription={queryLossDescription}
         />
       ) : (
       <>
-      <Card className="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/88 p-6 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.28)] backdrop-blur-sm">
+      <ManagementContentCard className="p-6">
         <div className="flex min-h-[680px] gap-6">
           <DictTypeSidebar
             types={types}
@@ -757,7 +677,7 @@ export function DataDictionary() {
             </div>
           </div>
         </div>
-      </Card>
+      </ManagementContentCard>
 
       <DictDialogManager
         dialogs={dialogs}

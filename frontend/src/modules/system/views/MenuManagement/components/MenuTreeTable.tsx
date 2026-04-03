@@ -31,6 +31,7 @@ import { useLanguageStore } from '../../../../../stores/languageStore';
 import { useAuthStore } from '../../../../auth/store/authStore';
 import { systemPermissions } from '../../../constants/permissions';
 import { MenuNode } from '../hooks/useMenuTree';
+import { getMenuManagementCopy } from '../menuManagementCopy';
 
 interface MenuTreeTableProps {
   data: MenuNode[];
@@ -61,18 +62,16 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
 }) => {
   const { t, language } = useLanguageStore();
   const hasPermission = useAuthStore((state) => state.hasPermission);
-  const copy = language === 'zh'
-    ? { routePrefix: '路由：', permissionPrefix: '权限：' }
-    : { routePrefix: 'URL:', permissionPrefix: 'Perm:' };
+  const copy = getMenuManagementCopy(language).table;
 
   const getTypeInfo = (type: string) => {
     switch (type) {
       case 'directory':
-        return { label: t.systemManagement.menuManagement.typeDirectory, color: 'bg-blue-50 text-blue-600 border-blue-100', icon: Folder };
+        return { label: copy.typeDirectory, color: 'bg-blue-50 text-blue-600 border-blue-100', icon: Folder };
       case 'menu':
-        return { label: t.systemManagement.menuManagement.typeMenu, color: 'bg-emerald-50 text-emerald-600 border-emerald-100', icon: FileCode };
+        return { label: copy.typeMenu, color: 'bg-emerald-50 text-emerald-600 border-emerald-100', icon: FileCode };
       case 'button':
-        return { label: t.systemManagement.menuManagement.typeButton, color: 'bg-amber-50 text-amber-600 border-amber-100', icon: MousePointer2 };
+        return { label: copy.typeButton, color: 'bg-amber-50 text-amber-600 border-amber-100', icon: MousePointer2 };
       default:
         return { label: type, color: 'bg-slate-50 text-slate-600 border-slate-100', icon: FileCode };
     }
@@ -81,7 +80,7 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
   const columns: Column<MenuNode>[] = [
     {
       key: 'name',
-      label: t.menu.systemMenus,
+      label: copy.name,
       width: '380px',
       render: (node) => {
         const hasChildren = node.children && node.children.length > 0;
@@ -138,7 +137,7 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
     },
     {
       key: 'type',
-      label: t.systemManagement.menuManagement.columns.type,
+      label: copy.type,
       width: '100px',
       render: (node) => {
         const { label, color } = getTypeInfo(node.type);
@@ -151,7 +150,7 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
     },
     {
       key: 'route',
-      label: t.systemManagement.menuManagement.columns.routePermission,
+      label: copy.routePermission,
       width: '280px',
       render: (node) => (
         <div className="flex flex-col gap-1">
@@ -170,7 +169,7 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
     },
     {
       key: 'status',
-      label: t.user.status,
+      label: copy.status,
       width: '112px',
       align: 'center',
       render: (node) => (
@@ -184,7 +183,7 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
     },
     {
       key: 'sort',
-      label: t.systemManagement.menuManagement.columns.sort,
+      label: copy.sort,
       width: '80px',
       align: 'center',
       render: (node) => (
@@ -195,7 +194,7 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
     },
     {
       key: 'actions',
-      label: t.common.actions,
+      label: copy.actions,
       width: '220px',
       align: 'right',
       render: (node) => {
@@ -209,13 +208,13 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
               actions={[
                 {
                   icon: <Plus className="w-4 h-4 text-emerald-500" />,
-                  label: t.systemManagement.menuManagement.actions.addChild,
+                  label: copy.addChild,
                   onClick: () => onAction('add-sub', node),
                   permission: systemPermissions.menu.create,
                 },
                 {
                   icon: <Edit className="w-4 h-4 text-amber-500" />,
-                  label: t.common.edit,
+                  label: copy.edit,
                   onClick: () => onAction('edit', node),
                   permission: systemPermissions.menu.update,
                 },
@@ -236,13 +235,13 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
                   {canUpdateMenu ? (
                     <DropdownMenuItem className="rounded-xl focus:bg-slate-100" onClick={() => onAction('edit', node)}>
                       <Edit className="w-4 h-4 mr-2 text-amber-500" />
-                      {t.common.edit}
+                      {copy.edit}
                     </DropdownMenuItem>
                   ) : null}
                   {canDeleteMenu ? (
                     <DropdownMenuItem className="rounded-xl text-rose-600 focus:bg-rose-50 focus:text-rose-700" onClick={() => onAction('delete', node)}>
                       <Trash2 className="w-4 h-4 mr-2" />
-                      {t.common.delete}
+                      {copy.delete}
                     </DropdownMenuItem>
                   ) : null}
                 </DropdownMenuContent>
@@ -266,4 +265,3 @@ export const MenuTreeTable: React.FC<MenuTreeTableProps> = ({
     />
   );
 };
-

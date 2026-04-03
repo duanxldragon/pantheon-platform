@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { Search, UserMinus, UserPlus, Users } from 'lucide-react';
+import { useCallback } from 'react';
 import { toast } from 'sonner';
 
 import { Badge } from '../../../../../components/ui/badge';
@@ -21,6 +22,7 @@ import { getDialogClassName, getDialogStyle } from '../../../../../shared/consta
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import { api } from '../../../api';
 import type { Role, User } from '../../../types';
+import { getRoleManagementCopy } from '../roleManagementCopy';
 
 interface RoleUsersDialogProps {
   open: boolean;
@@ -34,20 +36,8 @@ function asID(value: unknown): string {
 }
 
 export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUsersDialogProps) {
-  const { t, language } = useLanguageStore();
-  const i18n = t.systemManagement.roles.usersDialog;
-  const zh = language === 'zh';
-  const copy = zh
-    ? {
-        loadFailed: '加载角色成员失败，请重试',
-        addFailed: '添加角色成员失败，请重试',
-        removeFailed: '移除角色成员失败，请重试',
-      }
-    : {
-        loadFailed: 'Failed to load role members',
-        addFailed: 'Failed to add role members',
-        removeFailed: 'Failed to remove role members',
-      };
+  const { language } = useLanguageStore();
+  const copy = getRoleManagementCopy(language).users;
   const fieldClassName =
     'h-11 rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10';
 
@@ -60,17 +50,7 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
 
   const roleId = asID(role.id);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    setActiveTab('current');
-    setSearchQuery('');
-    setSelectedUserIds(new Set());
-    void refreshData();
-  }, [open, roleId]);
-
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     setLoading(true);
     try {
       const [currentResponse, allResponse] = await Promise.all([
@@ -84,14 +64,24 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
     } finally {
       setLoading(false);
     }
-  };
+  }, [copy.loadFailed, roleId]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    setActiveTab('current');
+    setSearchQuery('');
+    setSelectedUserIds(new Set());
+    void refreshData();
+  }, [open, refreshData, roleId]);
 
   const availableUsers = useMemo(
     () => allUsers.filter((user) => !user.roleIds?.map(asID).includes(roleId)),
     [allUsers, roleId],
   );
 
-  const filterUsers = (users: User[]) => {
+  const filterUsers = useCallback((users: User[]) => {
     if (!searchQuery.trim()) {
       return users;
     }
@@ -103,10 +93,13 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
         user.username.toLowerCase().includes(keyword) ||
         (user.email || '').toLowerCase().includes(keyword),
     );
-  };
+  }, [searchQuery]);
 
-  const filteredCurrentUsers = useMemo(() => filterUsers(currentUsers), [currentUsers, searchQuery]);
-  const filteredAvailableUsers = useMemo(() => filterUsers(availableUsers), [availableUsers, searchQuery]);
+  const filteredCurrentUsers = useMemo(() => filterUsers(currentUsers), [currentUsers, filterUsers]);
+  const filteredAvailableUsers = useMemo(
+    () => filterUsers(availableUsers),
+    [availableUsers, filterUsers],
+  );
   const displayedUsers = activeTab === 'current' ? filteredCurrentUsers : filteredAvailableUsers;
 
   const toggleSelect = (userId: string) => {
@@ -166,7 +159,7 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
         }),
       );
 
-      toast.success(mode === 'add' ? i18n.addSuccess : i18n.removeSuccess);
+      toast.success(mode === 'add' ? copy.addSuccess : copy.removeSuccess);
       setSelectedUserIds(new Set());
       await refreshData();
       onUpdate?.();
@@ -192,20 +185,23 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className={getDialogClassName('3xl', 'flex min-h-0 flex-col p-0')} style={getDialogStyle('3xl')}>
+      <DialogContent
+        className={getDialogClassName('3xl', 'flex min-h-0 flex-col p-0')}
+        style={getDialogStyle('3xl')}
+      >
         <DialogHeader className="border-b border-slate-100/90 bg-slate-50/70 px-6 py-5">
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5 text-blue-600" />
-            {i18n.title}: {role.name}
+            {copy.title}: {role.name}
           </DialogTitle>
-          <DialogDescription>{i18n.description}</DialogDescription>
+          <DialogDescription>{copy.description}</DialogDescription>
         </DialogHeader>
 
         <div className="flex min-h-0 flex-1 flex-col space-y-4 px-6 py-5">
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
-              placeholder={i18n.searchPlaceholder}
+              placeholder={copy.searchPlaceholder}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               className={`${fieldClassName} pl-10`}
@@ -220,11 +216,11 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
             <TabsList className="grid w-full grid-cols-2 rounded-2xl border border-slate-200/70 bg-slate-100/85 p-1">
               <TabsTrigger value="current" className="gap-2 rounded-xl">
                 <UserMinus className="h-4 w-4" />
-                {i18n.tabCurrent} <Badge variant="outline">{currentUsers.length}</Badge>
+                {copy.tabCurrent} <Badge variant="outline">{currentUsers.length}</Badge>
               </TabsTrigger>
               <TabsTrigger value="add" className="gap-2 rounded-xl">
                 <UserPlus className="h-4 w-4" />
-                {i18n.tabAdd} <Badge variant="outline">{availableUsers.length}</Badge>
+                {copy.tabAdd} <Badge variant="outline">{availableUsers.length}</Badge>
               </TabsTrigger>
             </TabsList>
 
@@ -233,7 +229,7 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
                 users={filteredCurrentUsers}
                 selectedUserIds={selectedUserIds}
                 onToggle={toggleSelect}
-                emptyText={searchQuery ? i18n.emptySearch : i18n.emptyCurrent}
+                emptyText={searchQuery ? copy.emptySearch : copy.emptyCurrent}
               />
             </TabsContent>
 
@@ -242,7 +238,7 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
                 users={filteredAvailableUsers}
                 selectedUserIds={selectedUserIds}
                 onToggle={toggleSelect}
-                emptyText={i18n.emptySearch}
+                emptyText={copy.emptySearch}
               />
             </TabsContent>
           </Tabs>
@@ -250,7 +246,7 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
 
         <DialogFooter className="border-t border-slate-100/90 bg-slate-50/80 px-6 py-4 sm:justify-between">
           <div className="text-xs text-slate-500">
-            {i18n.selectedLabel}: {selectedUserIds.size} / {displayedUsers.length}
+            {copy.selectedLabel}: {selectedUserIds.size} / {displayedUsers.length}
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -259,7 +255,7 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
               disabled={displayedUsers.length === 0 || loading}
               className="rounded-2xl border-slate-200 bg-white/90 px-5 hover:bg-white"
             >
-              {t.common.selectAll}
+              {copy.selectAll}
             </Button>
             {activeTab === 'current' ? (
               <Button
@@ -268,7 +264,7 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
                 disabled={selectedUserIds.size === 0 || loading}
                 className="rounded-2xl bg-rose-600 px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-rose-700 hover:shadow-md"
               >
-                {i18n.removeSelected}
+                {copy.removeSelected}
               </Button>
             ) : (
               <Button
@@ -276,7 +272,7 @@ export function RoleUsersDialog({ open, onOpenChange, role, onUpdate }: RoleUser
                 disabled={selectedUserIds.size === 0 || loading}
                 className="rounded-2xl px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
               >
-                {i18n.addSelected}
+                {copy.addSelected}
               </Button>
             )}
           </div>

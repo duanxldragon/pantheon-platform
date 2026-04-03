@@ -23,6 +23,7 @@ import { getDialogClassName, getDialogStyle } from '../../../../../shared/consta
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../../../components/ui/tabs';
 import { useLanguageStore } from '../../../../../stores/languageStore';
 import type { User } from '../../../types';
+import { getUserManagementCopy } from '../userManagementCopy';
 import { UserPermissionPanel } from './UserPermissionPanel';
 
 interface EnhancedUserDetailDialogProps {
@@ -37,54 +38,7 @@ export function EnhancedUserDetailDialog({
   user,
 }: EnhancedUserDetailDialogProps) {
   const { language } = useLanguageStore();
-  const zh = language === 'zh';
-  const copy = zh
-    ? {
-        description: '查看用户基础资料、权限详情和最近登录活动。',
-        tabInfo: '基本信息',
-        tabPermissions: '权限明细',
-        tabActivity: '登录活动',
-        username: '用户名',
-        realName: '姓名',
-        email: '邮箱',
-        phone: '手机号',
-        department: '所属部门',
-        roles: '角色',
-        noRoles: '未分配角色',
-        status: '账号状态',
-        statusActive: '启用',
-        statusInactive: '停用',
-        statusLocked: '锁定',
-        createdAt: '创建时间',
-        lastLogin: '最近登录',
-        noRecord: '暂无记录',
-        remark: '备注说明',
-        recentLoginTime: '最近登录时间：',
-        recentLoginIp: '最近登录 IP：',
-      }
-    : {
-        description: 'View user profile, permission details, and recent login activity.',
-        tabInfo: 'Profile',
-        tabPermissions: 'Permissions',
-        tabActivity: 'Activity',
-        username: 'Username',
-        realName: 'Name',
-        email: 'Email',
-        phone: 'Phone',
-        department: 'Department',
-        roles: 'Roles',
-        noRoles: 'No roles assigned',
-        status: 'Account Status',
-        statusActive: 'Active',
-        statusInactive: 'Inactive',
-        statusLocked: 'Locked',
-        createdAt: 'Created At',
-        lastLogin: 'Last Login',
-        noRecord: 'No record',
-        remark: 'Remarks',
-        recentLoginTime: 'Last login time: ',
-        recentLoginIp: 'Last login IP: ',
-      };
+  const copy = getUserManagementCopy(language).detail;
 
   if (!user) {
     return null;

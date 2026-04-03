@@ -6,7 +6,6 @@ import { UserFormData, User } from '../../types';
 import { useLanguageStore } from '../../../../stores/languageStore';
 import { toast } from 'sonner';
 import { Button } from '../../../../components/ui/button';
-import { Card } from '../../../../components/ui/card';
 import { Trash2, Download, UserPlus, Upload } from '../../../../shared/components/ui/icons';
 import { PageLayout } from '../../../../components/layouts/PageLayout';
 import { useCSVImportExport } from '../../../../shared/hooks/useCSVImportExport';
@@ -18,9 +17,12 @@ import { QueryAccessBoundary } from '../../../../shared/components/QueryAccessBo
 import { useActionPermissionDialogGuard } from '../../../../shared/hooks/useActionPermissionDialogGuard';
 import { usePermissionConfirmGuard } from '../../../../shared/hooks/usePermissionConfirmGuard';
 import { useQueryPermissionDialogGuard } from '../../../../shared/hooks/useQueryPermissionDialogGuard';
+import type { ExportOptions } from '../../../../shared/components/ui/DataImportExportDialog';
 import { Power, PowerOff } from 'lucide-react';
+import { ManagementActionBar, ManagementContentCard } from '../../../../shared/components/ui';
 import { systemPermissions } from '../../constants/permissions';
-import { createEntityFeedback, createResetPasswordMessages } from '../../utils/feedback';
+import { createEntityFeedback } from '../../utils/feedback';
+import { getUserManagementCopy } from './userManagementCopy';
 
 // 导入拆分后的子组件和 Hook
 import { UserTable } from './components/UserTable';
@@ -49,89 +51,10 @@ const initialStatusConfirmState: StatusConfirmState = {
 };
 
 export function UserManagement() {
-  const { t, language } = useLanguageStore();
+  const { language } = useLanguageStore();
   const zh = language === 'zh';
-  const userMessages = createEntityFeedback(zh, { zh: '用户', en: 'User', enPlural: 'users' });
-  const resetPasswordMessages = createResetPasswordMessages(zh);
-  const copy = zh
-    ? {
-        validation: {
-          usernameRequired: '请输入用户名。',
-          realNameRequired: '请输入姓名。',
-          emailRequired: '请输入邮箱地址。',
-          emailInvalid: '请输入正确的邮箱地址。',
-          phoneRequired: '请输入手机号。',
-          departmentRequired: '请选择所属部门。',
-          departmentMissing: '所选部门不存在，请重新选择。',
-          departmentInactive: '所属部门已被禁用，请先启用部门。',
-          roleRequired: '请至少分配一个角色。',
-          roleInvalid: '存在无效角色，请重新选择。',
-          passwordRequired: '新建用户时必须设置初始密码。',
-        },
-        actionLabels: {
-          add: '新增',
-          edit: '编辑',
-          delete: '删除',
-          resetPassword: '重置密码',
-          roleAssignment: '角色分配',
-          import: '导入',
-          export: '导出',
-          detail: '详情',
-          roleGuard: '角色分配授权',
-          batchEnable: '批量启用',
-          batchDisable: '批量禁用',
-          batchDelete: '批量删除',
-          batchStatusUpdate: '批量状态变更',
-        },
-        buttons: {
-          batchEnable: (count: number) => `批量启用 (${count})`,
-          batchDisable: (count: number) => `批量禁用 (${count})`,
-          batchDelete: (count: number) => `批量删除 (${count})`,
-        },
-        confirms: {
-          batchDeleteTitle: '确认批量删除用户',
-          deleteText: '确认删除',
-        },
-      }
-    : {
-        validation: {
-          usernameRequired: 'Please enter the username.',
-          realNameRequired: 'Please enter the real name.',
-          emailRequired: 'Please enter the email address.',
-          emailInvalid: 'Please enter a valid email address.',
-          phoneRequired: 'Please enter the phone number.',
-          departmentRequired: 'Please select a department.',
-          departmentMissing: 'The selected department does not exist.',
-          departmentInactive: 'The selected department is inactive.',
-          roleRequired: 'Please assign at least one role.',
-          roleInvalid: 'One or more selected roles are invalid.',
-          passwordRequired: 'An initial password is required when creating a user.',
-        },
-        actionLabels: {
-          add: 'create',
-          edit: 'edit',
-          delete: 'delete',
-          resetPassword: 'reset password',
-          roleAssignment: 'role assignment',
-          import: 'import',
-          export: 'export',
-          detail: 'details',
-          roleGuard: 'role assignment',
-          batchEnable: 'batch enable',
-          batchDisable: 'batch disable',
-          batchDelete: 'batch delete',
-          batchStatusUpdate: 'batch status update',
-        },
-        buttons: {
-          batchEnable: (count: number) => `Enable (${count})`,
-          batchDisable: (count: number) => `Disable (${count})`,
-          batchDelete: (count: number) => `Delete (${count})`,
-        },
-        confirms: {
-          batchDeleteTitle: 'Confirm batch delete users',
-          deleteText: 'Delete',
-        },
-      };
+  const copy = getUserManagementCopy(language);
+  const userMessages = createEntityFeedback(zh, copy.entity);
   const authUser = useAuthStore((state) => state.user);
   const hasPermission = useAuthStore((state) => state.hasPermission);
   const canQueryUser = hasPermission(systemPermissions.user.query);
@@ -201,7 +124,7 @@ export function UserManagement() {
   const csvHandler = useCSVImportExport({
     templateConfig: csvTemplates.user,
     onDataImported: (data) => {
-      toast.success(t.systemManage.importExport.importSuccess.replace('{count}', String(data.length)));
+      toast.success(copy.messages.importSuccess(data.length));
     },
     requiredFields: ['username', 'email'],
   });
@@ -264,15 +187,9 @@ export function UserManagement() {
     userId != null && authUser?.id != null && String(userId) === String(authUser.id);
 
   const buildUserSelfProtectedMessage = (action: 'delete' | 'disable' | 'batch-delete' | 'batch-disable') => {
-    if (zh) {
-      return action === 'delete' || action === 'batch-delete'
-        ? '当前登录账号不能删除自己，请使用其他管理员账号操作。'
-        : '当前登录账号不能禁用自己，请使用其他管理员账号操作。';
-    }
-
-    return action === 'delete' || action === 'batch-delete'
-      ? 'You cannot delete the account currently in use.'
-      : 'You cannot disable the account currently in use.';
+    return copy.messages.selfProtected(
+      action === 'delete' || action === 'batch-delete' ? 'delete' : 'disable',
+    );
   };
 
   const buildUserDeleteDescription = (user: User) => {
@@ -282,15 +199,7 @@ export function UserManagement() {
       return buildUserSelfProtectedMessage('delete');
     }
 
-    if (zh) {
-      return user.status === 'active'
-        ? `确认删除用户「${user.realName}」？删除后将立即强制其登录会话失效，移除 ${roleCount} 个角色绑定及组织关系，且不可恢复。`
-        : `确认删除用户「${user.realName}」？删除后将移除 ${roleCount} 个角色绑定及组织关系，且不可恢复。`;
-    }
-
-    return user.status === 'active'
-      ? `Delete user "${user.realName}"? This immediately revokes active sessions, removes ${roleCount} role bindings and organization relations, and cannot be undone.`
-      : `Delete user "${user.realName}"? This removes ${roleCount} role bindings and organization relations, and cannot be undone.`;
+    return copy.messages.deleteDescription(user.realName, roleCount, user.status === 'active');
   };
 
   const buildUserDeleteBlockedMessage = (items: User[], isBatch = false) => {
@@ -299,51 +208,22 @@ export function UserManagement() {
       .map((item) => item.realName || item.username)
       .join(zh ? '、' : ', ');
 
-    if (zh) {
-      return `${isBatch ? '批量删除已拦截：' : '删除已拦截：'}${details} 中包含当前登录账号，请使用其他管理员账号操作。`;
-    }
-
-    return `${isBatch ? 'Batch delete blocked: ' : 'Delete blocked: '}${details} includes the current signed-in account.`;
+    return copy.messages.deleteBlocked(details, isBatch);
   };
 
   const buildUserBatchDeleteDescription = (items: User[]) => {
     const activeCount = items.filter((user) => user.status === 'active').length;
     const roleBindingCount = items.reduce((total, user) => total + (user.roleNames?.length || 0), 0);
 
-    if (zh) {
-      return activeCount > 0
-        ? `确认批量删除 ${items.length} 个用户？其中 ${activeCount} 个账号当前处于启用状态，删除后将立即强制其会话失效，并移除共 ${roleBindingCount} 个角色绑定与组织关系。`
-        : `确认批量删除 ${items.length} 个用户？删除后将移除共 ${roleBindingCount} 个角色绑定与组织关系，且不可恢复。`;
-    }
-
-    return activeCount > 0
-      ? `Delete ${items.length} users? ${activeCount} accounts are still active. This immediately revokes their sessions and removes ${roleBindingCount} role bindings and organization relations.`
-      : `Delete ${items.length} users? This removes ${roleBindingCount} role bindings and organization relations and cannot be undone.`;
+    return copy.messages.batchDeleteDescription(items.length, activeCount, roleBindingCount);
   };
 
   const buildUserStatusCopy = (user: User, enabled: boolean) => {
-    if (zh) {
-      return {
-        title: enabled ? '确认启用用户' : '确认禁用用户',
-        description: enabled
-          ? `用户「${user.realName}」启用后将恢复登录能力，并在下次鉴权时重新加载动态菜单与权限快照。`
-          : `用户「${user.realName}」禁用后将立即强制其会话失效，并撤销当前动态菜单与权限快照。`,
-        confirmText: enabled ? '确认启用' : '确认禁用',
-        success: enabled
-          ? `已启用用户「${user.realName}」，其登录能力已恢复`
-          : `已禁用用户「${user.realName}」，相关会话已强制失效`,
-      };
-    }
-
     return {
-      title: enabled ? 'Confirm enable user' : 'Confirm disable user',
-      description: enabled
-        ? `Enabling user "${user.realName}" restores sign-in access and reloads menus and permission snapshots on the next authorization check.`
-        : `Disabling user "${user.realName}" immediately revokes active sessions and removes current menu and permission snapshots.`,
-      confirmText: enabled ? 'Enable' : 'Disable',
-      success: enabled
-        ? `User "${user.realName}" enabled. Sign-in access was restored.`
-        : `User "${user.realName}" disabled. Related sessions were revoked.`,
+      title: copy.messages.statusTitle(enabled),
+      description: copy.messages.statusDescription(user.realName, enabled),
+      confirmText: copy.messages.statusConfirmText(enabled),
+      success: copy.messages.statusSuccess(user.realName, enabled),
     };
   };
 
@@ -369,28 +249,11 @@ export function UserManagement() {
   };
 
   const buildUserBatchStatusCopy = (targetUsers: User[], enabled: boolean) => {
-    if (zh) {
-      return {
-        title: `确认批量${enabled ? '启用' : '禁用'}用户`,
-        description: enabled
-          ? `将批量启用 ${targetUsers.length} 个用户，并在其后续鉴权时重新加载动态菜单与权限快照。`
-          : `将批量禁用 ${targetUsers.length} 个用户，并立即强制这些用户的会话失效。`,
-        confirmText: `确认${enabled ? '启用' : '禁用'}`,
-        success: enabled
-          ? `已批量启用 ${targetUsers.length} 个用户`
-          : `已批量禁用 ${targetUsers.length} 个用户，相关会话已强制失效`,
-      };
-    }
-
     return {
-      title: `Confirm batch ${enabled ? 'enable' : 'disable'} users`,
-      description: enabled
-        ? `This enables ${targetUsers.length} users and reloads their menus and permission snapshots on the next authorization check.`
-        : `This disables ${targetUsers.length} users and immediately revokes their sessions.`,
-      confirmText: enabled ? 'Enable' : 'Disable',
-      success: enabled
-        ? `${targetUsers.length} users enabled.`
-        : `${targetUsers.length} users disabled. Related sessions were revoked.`,
+      title: copy.messages.batchStatusTitle(enabled),
+      description: copy.messages.batchStatusDescription(targetUsers.length, enabled),
+      confirmText: copy.messages.batchStatusConfirmText(enabled),
+      success: copy.messages.batchStatusSuccess(targetUsers.length, enabled),
     };
   };
 
@@ -463,9 +326,7 @@ export function UserManagement() {
       (role) => roleIds.includes(String(role.id)) && role.status !== 'active',
     );
     if (inactiveRole) {
-      return zh
-        ? `角色「${inactiveRole.name}」已被禁用，请先启用后再分配。`
-        : `Role "${inactiveRole.name}" is inactive.`;
+      return copy.validation.inactiveRole(inactiveRole.name);
     }
 
     if (!isEdit && !normalized.password) {
@@ -549,10 +410,10 @@ export function UserManagement() {
       if (!ensureActionPermission(canUpdateUser, copy.actionLabels.resetPassword)) return;
       try {
         await api.resetPassword(String(currentUser.id), pwd);
-        toast.success(resetPasswordMessages.success);
+        toast.success(copy.messages.resetPasswordSuccess);
         setDialogOpen('resetPassword', false);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : resetPasswordMessages.failed);
+        toast.error(error instanceof Error ? error.message : copy.messages.resetPasswordFailed);
       }
     },
     onRoleAssigned: async (roleIds: User['roleIds']) => {
@@ -578,9 +439,7 @@ export function UserManagement() {
       }));
 
       toast.success(
-        zh
-          ? `用户「${currentUser.realName}」角色已更新，动态菜单与权限快照将立即刷新。`
-          : `Roles for "${currentUser.realName}" were updated. Menus and permission snapshots will refresh immediately.`,
+        copy.messages.roleUpdated(currentUser.realName),
       );
 
       await reload();
@@ -590,7 +449,7 @@ export function UserManagement() {
       await csvHandler.handleImport(file);
       setDialogOpen('import', false);
     },
-    onExport: async (options: any) => {
+    onExport: async (options: ExportOptions) => {
       if (!ensureActionPermission(canExportUser, copy.actionLabels.export)) return;
       const dataToExport = options.scope === 'selected' && selectedUsers.length > 0
         ? selectedUsers
@@ -608,7 +467,7 @@ export function UserManagement() {
   const canExportUser = hasPermission(systemPermissions.user.export);
   const { lossDescription: queryLossDescription } = useQueryPermissionDialogGuard({
     canQuery: canQueryUser,
-    pageTitle: t.menu.systemUsers,
+    pageTitle: copy.page.title,
     dialogs,
     protectedDialogs: {
       detail: copy.actionLabels.detail,
@@ -617,7 +476,7 @@ export function UserManagement() {
     closeDialogs: closeProtectedDialogs,
   });
   const { ensureActionPermission } = useActionPermissionDialogGuard({
-    pageTitle: t.menu.systemUsers,
+    pageTitle: copy.page.title,
     dialogs,
     guardedDialogs: {
       add: { label: copy.actionLabels.add, allowed: canCreateUser },
@@ -633,7 +492,7 @@ export function UserManagement() {
   const { ensureConfirmPermission } = usePermissionConfirmGuard({
     open: statusConfirm.open,
     guard: statusConfirm.guard,
-    pageTitle: t.menu.systemUsers,
+    pageTitle: copy.page.title,
     guards: {
       update: { label: copy.actionLabels.batchStatusUpdate, allowed: canUpdateUser },
       delete: { label: copy.actionLabels.batchDelete, allowed: canDeleteUser },
@@ -694,9 +553,9 @@ export function UserManagement() {
 
   return (
     <PageLayout
-      title={t.menu.systemUsers}
+      title={copy.page.title}
       actions={canQueryUser ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-[26px] border border-slate-200/70 bg-white/72 p-3 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.22)] backdrop-blur-sm">
+        <ManagementActionBar>
           {selectedUsers.length > 0 && (
             <>
               {canUpdateUser && selectedUsersToEnable.length > 0 ? (
@@ -738,7 +597,7 @@ export function UserManagement() {
               className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
             >
               <Upload className="w-4 h-4" />
-              {t.actions.import}
+              {copy.actionLabels.import}
             </Button>
           ) : null}
           {canExportUser ? (
@@ -748,7 +607,7 @@ export function UserManagement() {
               className="h-11 gap-2 rounded-2xl border-slate-200/80 bg-white/90 px-4 text-slate-700 shadow-sm shadow-slate-200/60 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
             >
               <Download className="w-4 h-4" />
-              {t.actions.export}
+              {copy.actionLabels.export}
             </Button>
           ) : null}
           {canCreateUser ? (
@@ -757,16 +616,16 @@ export function UserManagement() {
               className="h-11 gap-2 rounded-2xl bg-primary px-4 shadow-[0_16px_30px_-18px_rgba(var(--primary),0.7)] transition-all active:scale-95 hover:-translate-y-0.5 hover:bg-primary/92 hover:shadow-[0_18px_34px_-18px_rgba(var(--primary),0.75)]"
             >
               <UserPlus className="w-4 h-4" />
-              {t.actions.add}
+              {copy.actionLabels.add}
             </Button>
           ) : null}
-        </div>
+        </ManagementActionBar>
       ) : undefined}
     >
       {!canQueryUser ? (
         <QueryAccessBoundary
           viewId="system-users"
-          title={t.menu.systemUsers}
+          title={copy.page.title}
           queryPermission={systemPermissions.user.query}
           description={queryLossDescription}
           notificationDescription={queryLossDescription}
@@ -784,7 +643,7 @@ export function UserManagement() {
       />
 
       {/* 2. 数据列表展示区 */}
-      <Card className="overflow-hidden rounded-[30px] border border-slate-200/70 bg-white/88 shadow-[0_24px_56px_-36px_rgba(15,23,42,0.28)] backdrop-blur-sm">
+      <ManagementContentCard>
         <UserTable
           data={paginatedData}
           selectedItems={selectedUsers}
@@ -807,7 +666,7 @@ export function UserManagement() {
             onPageChange: setPage,
           }}
         />
-      </Card>
+      </ManagementContentCard>
 
       {/* 3. 对话框统一管理 */}
       <UserDialogManager

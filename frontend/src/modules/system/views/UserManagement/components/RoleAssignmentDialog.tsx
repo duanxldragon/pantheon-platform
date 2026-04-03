@@ -27,6 +27,7 @@ import { useLanguageStore } from '../../../../../stores/languageStore';
 import { api } from '../../../api';
 import { useRoles } from '../../../hooks/useRoles';
 import type { ID } from '../../../types';
+import { getUserManagementCopy } from '../userManagementCopy';
 
 interface RoleAssignmentDialogProps {
   open: boolean;
@@ -49,9 +50,9 @@ export function RoleAssignmentDialog({
   const [expiresAt, setExpiresAt] = useState<Date | undefined>();
   const [hasExpiry, setHasExpiry] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const { language, t } = useLanguageStore();
+  const { language } = useLanguageStore();
   const { roles } = useRoles();
-  const i18n = t.systemManagement.users.roleAssignDialog;
+  const copy = getUserManagementCopy(language).roleAssign;
   const fieldClassName =
     'h-11 rounded-2xl border-slate-200/80 bg-white/90 shadow-sm shadow-slate-200/50 transition-all focus:border-primary/40 focus:bg-white focus:ring-primary/10';
 
@@ -90,10 +91,10 @@ export function RoleAssignmentDialog({
     try {
       await api.updateUser(String(userId), { roleIds: selectedRoleIds });
       await onConfirm?.(selectedRoleIds, hasExpiry ? expiresAt : undefined);
-      toast.success(i18n.updated);
+      toast.success(copy.updated);
       onOpenChange(false);
     } catch {
-      toast.error(i18n.updateFailed);
+      toast.error(copy.updateFailed);
     }
   };
 
@@ -103,10 +104,10 @@ export function RoleAssignmentDialog({
         <DialogHeader className="border-b border-slate-100/90 bg-slate-50/70 px-6 py-5">
           <DialogTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-blue-600" />
-            {i18n.title}
+            {copy.title}
           </DialogTitle>
           <DialogDescription>
-            {i18n.description} <span className="font-medium">{userName}</span>
+            {copy.description} <span className="font-medium">{userName}</span>
           </DialogDescription>
         </DialogHeader>
 
@@ -117,14 +118,14 @@ export function RoleAssignmentDialog({
             </div>
             <div>
               <div className="font-semibold text-slate-900">{userName}</div>
-              <div className="text-sm text-slate-500">{i18n.selectRoles}</div>
+              <div className="text-sm text-slate-500">{copy.selectRoles}</div>
             </div>
           </div>
 
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
-              placeholder={i18n.searchPlaceholder}
+              placeholder={copy.searchPlaceholder}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               className={`${fieldClassName} pl-10`}
@@ -132,7 +133,7 @@ export function RoleAssignmentDialog({
           </div>
 
           <div>
-            <Label className="mb-2 text-sm font-medium text-slate-700">{i18n.rolesLabel}</Label>
+            <Label className="mb-2 text-sm font-medium text-slate-700">{copy.rolesLabel}</Label>
             <ScrollArea className="h-[240px] rounded-[24px] border border-slate-200/70 bg-slate-50/65 p-3 shadow-[0_18px_36px_-32px_rgba(15,23,42,0.24)]">
               <div className="space-y-1 pr-3">
                 {filteredRoles.map((role) => {
@@ -167,7 +168,7 @@ export function RoleAssignmentDialog({
                                 : 'border-slate-200 bg-slate-100 text-slate-600',
                             )}
                           >
-                            {systemRole ? i18n.systemRole : i18n.customRole}
+                            {systemRole ? copy.systemRole : copy.customRole}
                           </Badge>
                         </div>
                         <div className="text-xs text-slate-500">{role.code}</div>
@@ -188,7 +189,7 @@ export function RoleAssignmentDialog({
               />
               <Label htmlFor="has-expiry" className="flex cursor-pointer items-center gap-2 text-sm">
                 <Clock className="h-4 w-4" />
-                {i18n.setExpiry}
+                {copy.setExpiry}
               </Label>
             </div>
 
@@ -205,7 +206,7 @@ export function RoleAssignmentDialog({
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {expiresAt
                       ? format(expiresAt, 'yyyy-MM-dd', { locale: dateLocale })
-                      : i18n.expiryPlaceholder}
+                      : copy.expiryPlaceholder}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -226,12 +227,12 @@ export function RoleAssignmentDialog({
             <div className="flex items-start gap-2 rounded-[24px] border border-blue-200/80 bg-blue-50/85 p-4 text-sm text-blue-800 shadow-[0_18px_36px_-32px_rgba(59,130,246,0.28)]">
               <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
               <span>
-                {i18n.tipAssignPrefix}{' '}
-                <span className="font-semibold">{selectedRoleIds.length}</span> {i18n.tipRoleSuffix}
+                {copy.tipAssignPrefix}{' '}
+                <span className="font-semibold">{selectedRoleIds.length}</span> {copy.tipRoleSuffix}
                 {hasExpiry && expiresAt && (
                   <>
                     {' '}
-                    {i18n.tipUntil}{' '}
+                    {copy.tipUntil}{' '}
                     <span className="font-semibold">
                       {format(expiresAt, 'yyyy-MM-dd', { locale: dateLocale })}
                     </span>
@@ -243,21 +244,21 @@ export function RoleAssignmentDialog({
         </div>
 
         <DialogFooter className="border-t border-slate-100/90 bg-slate-50/80 px-6 py-4 sm:justify-between">
-          <div className="text-xs text-slate-400">{i18n.selectRoles}</div>
+          <div className="text-xs text-slate-400">{copy.selectRoles}</div>
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
               className="rounded-2xl border-slate-200 bg-white/90 px-5 hover:bg-white"
             >
-              {t.common.cancel}
+              {copy.cancel}
             </Button>
             <Button
               onClick={handleSubmit}
               disabled={selectedRoleIds.length === 0}
               className="rounded-2xl px-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
             >
-              {t.common.confirm}
+              {copy.confirm}
             </Button>
           </div>
         </DialogFooter>
