@@ -1,6 +1,6 @@
 import { toast } from 'sonner';
 
-import { useLanguageStore } from '../../stores/languageStore';
+import { useLanguageStore } from '../../stores/language_store';
 
 export interface NotificationOptions {
   duration?: number;
@@ -200,3 +200,4 @@ export const systemNotification = {
     });
   },
 };
+

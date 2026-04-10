@@ -13,17 +13,17 @@
 
 ## 1. 核心入口
 
-- 服务入口：`backend/internal/modules/auth/service.go`
-- 认证服务拆分：`backend/internal/modules/auth/auth_service.go`
+- 服务接口：`backend/internal/modules/auth/auth_interface.go`
+- 认证服务实现：`backend/internal/modules/auth/auth_service.go`
 - 会话服务：`backend/internal/modules/auth/session_service.go`
 - API Key 服务：`backend/internal/modules/auth/api_key_service.go`
 - 登录尝试服务：`backend/internal/modules/auth/login_attempt_service.go`
 - 双因素认证服务：`backend/internal/modules/auth/two_factor_service.go`
-- HTTP 处理器：`backend/internal/modules/auth/handler.go`
-- 路由注册：`backend/internal/modules/auth/router.go`
-- DAO：`backend/internal/modules/auth/dao.go`
-- DTO：`backend/internal/modules/auth/dto.go`
-- 模型：`backend/internal/modules/auth/model.go`
+- HTTP 处理器：`backend/internal/modules/auth/auth_handler.go`
+- 路由注册：`backend/internal/modules/auth/auth_router.go`
+- DAO：`backend/internal/modules/auth/auth_dao.go`
+- DTO：`backend/internal/modules/auth/auth_dto.go`
+- 模型：`backend/internal/modules/auth/auth_model.go`
 - 2FA 安全辅助：`backend/internal/modules/auth/two_factor_security.go`
 - 密码校验：`backend/internal/modules/auth/password_validator.go`
 - API Key 中间件：`backend/internal/modules/auth/api_key_middleware.go`

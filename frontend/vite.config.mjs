@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -8,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const DEFAULT_BACKEND = process.env.VITE_BACKEND_URL ?? 'http://localhost:8080';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
     alias: [
@@ -18,7 +19,7 @@ export default defineConfig({
     ],
   },
   server: {
-    port: 3000,
+    port: 5173,
     open: false,
     proxy: {
       '/api': {
@@ -31,16 +32,16 @@ export default defineConfig({
     outDir: 'build',
     chunkSizeWarningLimit: 1000,
     sourcemap: false,
+    // 优化构建
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // 生产环境移除console
+        drop_debugger: true,
+      },
+    },
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes('node_modules/lucide-react/') || id.includes('node_modules/lucide/')) {
-            return 'icons';
-          }
-          if (id.includes('node_modules/')) {
-            return 'vendor';
-          }
-        },
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',

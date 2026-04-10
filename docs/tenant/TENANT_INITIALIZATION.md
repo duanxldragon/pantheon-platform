@@ -20,6 +20,7 @@
 
 - 认证安全与会话失效：见 `docs/auth/AUTH_SECURITY.md` 与 `docs/auth/AUTH_SESSION_STRATEGY.md`
 - 系统管理对象关系：见 `docs/system/SYSTEM_MANAGEMENT.md`
+- 数据库命名基线：见 `docs/tenant/DATABASE_NAMING_STRATEGY.md`
 - 后端/前端具体代码落点：见 `backend/docs/tenant/TENANT_BACKEND.md` 与 `frontend/docs/tenant/TENANT_FRONTEND.md`
 
 ---
@@ -135,9 +136,9 @@
 
 推荐的租户初始化闭环如下：
 
-1. 创建租户：`POST /api/v1/tenants/register`
-2. 用户登录成功后检查租户状态：`GET /api/v1/tenants/status?code=...`
-3. 若租户数据库未配置，前端进入 `TenantSetupWizard`
+1. 在平台管理端创建租户（数据库写入，目前无公开自注册端点）
+2. 用户登录成功后检查租户状态：`GET /api/v1/tenants/current`
+3. 若租户数据库未配置（`is_first_login=true`），前端进入 `TenantSetupWizard`
 4. 测试连接：`POST /api/v1/tenants/test-connection`
 5. 提交初始化：`POST /api/v1/tenants/setup`
 6. 后端建立租户数据库连接并执行租户级迁移
@@ -181,6 +182,22 @@ flowchart TD
 - 建立连接池；
 - 保存密文配置；
 - 执行租户迁移。
+
+默认命名建议：
+
+- 平台主库：`pantheon_master`
+- 监控库：`pantheon_monitor`
+- 租户库：`pantheon_tenant_<tenant_code>`
+
+默认表前缀建议：
+
+- 平台主库：`tenant_`
+- 租户运行库：`system_` / `auth_` / `notification_`
+- Casbin 规则表：`casbin_rule`
+
+若后续业务域确需物理拆库，再扩展为：
+
+- `pantheon_tenant_<tenant_code>_<domain>`
 
 ### 阶段三：业务就绪
 
@@ -382,4 +399,3 @@ flowchart TD
 - 再读 `docs/auth/AUTH_SECURITY.md`
 - 再读 `docs/auth/AUTH_SESSION_STRATEGY.md`
 - 最后进入 `backend/docs/tenant/TENANT_BACKEND.md` 与 `frontend/docs/tenant/TENANT_FRONTEND.md`
-

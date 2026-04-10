@@ -8,11 +8,11 @@ import (
 
 // RolePermission 角色权限关联模型
 type RolePermission struct {
-	ID           uuid.UUID `json:"id" gorm:"type:char(36);primary_key"`
-	RoleID       uuid.UUID `json:"role_id" gorm:"type:char(36);notNull;index"`
-	PermissionID uuid.UUID `json:"permission_id" gorm:"type:char(36);notNull;index"`
+	ID           uuid.UUID `json:"id" gorm:"size:36;primary_key"`
+	RoleID       uuid.UUID `json:"role_id" gorm:"size:36;notNull;index"`
+	PermissionID uuid.UUID `json:"permission_id" gorm:"size:36;notNull;index"`
 	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
-	TenantID     string    `json:"tenant_id" gorm:"type:char(36);index"`
+	TenantID     string    `json:"tenant_id" gorm:"size:36;index"`
 }
 
 // TableName 表名

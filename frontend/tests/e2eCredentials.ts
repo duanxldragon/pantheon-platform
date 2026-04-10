@@ -1,4 +1,5 @@
 export const e2eAdminUsername = process.env.E2E_ADMIN_USERNAME?.trim() || 'admin';
+export const e2eTenantCode = process.env.E2E_TENANT_CODE?.trim() || '';
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();

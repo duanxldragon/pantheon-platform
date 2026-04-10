@@ -1,1 +1,2 @@
-export * from './profileSettingsStorage';
+export * from './profile_settings_storage';
+

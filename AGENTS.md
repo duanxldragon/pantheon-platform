@@ -52,8 +52,8 @@
 ## 3. 项目事实
 
 - 这是一个多租户后台平台底座，不是普通单体后台页面工程。
-- 核心主线模块只有：`auth`、`tenant`、`system`。
-- 后端技术栈：`Go 1.23`、`Gin`、`GORM`、`Casbin`、`Redis`。
+- 核心主线是：`auth`、`tenant`、`system`；另有 `notification` 等支撑模块。
+- 后端技术栈：`Go 1.24`、`Gin`、`GORM`、`Casbin`、`Redis`。
 - 前端技术栈：`React 19`、`TypeScript`、`Vite`、`Zustand`、`Tailwind CSS`、`shadcn/ui`、`i18next`。
 - 数据分层必须牢记：
   - `Master DB`：平台级与租户主数据
@@ -125,7 +125,7 @@
 
 ### 前端挂载
 
-- 涉及菜单、权限、标签页时，先理解 `authStore`、`systemStore`、`uiStore`、`ViewManager`
+- 涉及菜单、权限、标签页时，先理解 `authStore`、`systemStore`、`uiStore`、`ViewRenderer`、`useViewManager`
 - 新页面优先按“权限码 + 菜单 + 视图注册”方式接入
 
 ## 7. Git 规则
@@ -224,7 +224,8 @@
   - `authStore`
   - `systemStore`
   - `uiStore`
-  - `ViewManager`
+  - `ViewRenderer`
+  - `useViewManager`
 - 涉及登录、刷新、2FA、会话失效时，必须同时检查认证链路与权限刷新链路。
 - 涉及租户开通、初始化、上下文切换时，必须同时检查租户模块、数据库连接管理与初始化流程。
 - 关键阻塞步骤由主协调负责；只有边界清晰、写入范围独立的子任务才允许并行。

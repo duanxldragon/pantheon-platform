@@ -14,9 +14,9 @@ type User struct {
 	Avatar       *string    `json:"avatar,omitempty" gorm:"size:255"`
 	PasswordHash string     `json:"-" gorm:"size:255;notNull"`
 	Status       string     `json:"status" gorm:"size:20;notNull;default:'active'"`
-	TenantID     string     `json:"tenant_id" gorm:"type:char(36);index"`
-	DepartmentID *string    `json:"department_id,omitempty" gorm:"type:char(36);index"`
-	PositionID   *string    `json:"position_id,omitempty" gorm:"type:char(36)"`
+	TenantID     string     `json:"tenant_id" gorm:"size:36;index"`
+	DepartmentID *string    `json:"department_id,omitempty" gorm:"size:36;index"`
+	PositionID   *string    `json:"position_id,omitempty" gorm:"size:36"`
 	LastLoginAt  *time.Time `json:"last_login_at,omitempty"`
 	LastLoginIP  string     `json:"last_login_ip,omitempty" gorm:"size:50"`
 }

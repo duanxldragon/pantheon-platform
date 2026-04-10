@@ -1,1 +1,2 @@
-export { TenantSetupWizard } from './TenantSetupWizard';
+export { TenantSetupWizard } from './tenant_setup_wizard';
+

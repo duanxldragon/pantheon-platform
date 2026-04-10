@@ -139,10 +139,8 @@ func (s *authService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 		masterCtx := context.WithValue(ctx, "tenant_db", s.masterDB)
 		userRecord, err := s.userService.GetByUsername(masterCtx, req.Username)
 		if err != nil {
-			log.Printf("User not found, using fallback admin login: %v", err)
 			return s.fallbackAdminLogin(req)
 		}
-		log.Printf("User found: %s, EnableMultiTenant=%v", userRecord.Username, s.config.EnableMultiTenant)
 
 		userID = userRecord.ID.String()
 		username = userRecord.Username
@@ -424,7 +422,13 @@ func (s *authService) GetCurrentUser(ctx context.Context, userID, username, tena
 
 		tenantDB := s.dbManager.GetTenantDB(tenantUUID)
 		if tenantDB == nil {
-			if s.config != nil && s.config.DefaultAdmin.Enabled && username == s.config.DefaultAdmin.Username {
+			// 检查是否为单租户模式或默认管理员
+			if s.config != nil && s.config.IsPrivateSingleTenantMode() && tenantID == s.config.DefaultTenantID {
+				// 单租户模式：使用主数据库
+				queryDB = s.masterDB.WithContext(ctx)
+				roleCtx = context.WithValue(roleCtx, "tenant_db", s.masterDB)
+			} else if s.config != nil && s.config.DefaultAdmin.Enabled && username == s.config.DefaultAdmin.Username {
+				// 默认管理员：使用主数据库
 				queryDB = s.masterDB.WithContext(ctx)
 				roleCtx = context.WithValue(roleCtx, "tenant_db", s.masterDB)
 			} else {

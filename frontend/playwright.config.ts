@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const frontendPort = Number(process.env.PLAYWRIGHT_PORT || process.env.PORT || 5173);
+
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
@@ -9,12 +11,12 @@ export default defineConfig({
   reporter: 'list',
   webServer: {
     command: 'npm run build && node ./tests/static-server.cjs',
-    port: 5173,
+    port: frontendPort,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: `http://localhost:${frontendPort}`,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },

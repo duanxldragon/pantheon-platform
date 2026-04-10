@@ -8,7 +8,7 @@ type Role struct {
 	Description string `json:"description" gorm:"type:text"`
 	Status      string `json:"status" gorm:"size:20;notNull;default:'active'"`
 	Type        string `json:"type" gorm:"size:20;notNull;default:'custom'"`
-	TenantID    string `json:"tenant_id" gorm:"type:char(36);index"`
+	TenantID    string `json:"tenant_id" gorm:"size:36;index"`
 	IsSystem    bool   `json:"is_system" gorm:"default:false"`
 }
 

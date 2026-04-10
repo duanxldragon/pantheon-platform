@@ -1,13 +1,20 @@
 ﻿# Pantheon Platform - 前端实现总览
 
-> 本文是前端工程实现总览，只讲项目结构、应用启动、状态流转、动态视图、API 约定、样式规范和测试构建。  
+> 本文是前端工程实现总览，只讲项目结构、应用启动、状态流转、路由与工作台运行时、API 约定、样式规范和测试构建。  
 > 认证、租户、系统管理的业务规则与交互边界，请分别进入专题文档阅读：
 >
 > - `docs/auth/AUTH_SECURITY.md`
 > - `docs/auth/AUTH_SESSION_STRATEGY.md`
 > - `docs/tenant/TENANT_INITIALIZATION.md`
 > - `docs/system/SYSTEM_MANAGEMENT.md`
+> - `frontend/DESIGN.md`
 > - `frontend/docs/FRONTEND_DOCS_INDEX.md`
+> - `frontend/docs/DYNAMIC_VIEW_RUNTIME.md`
+> - `frontend/docs/system/SYSTEM_INITIALIZATION_LAYERS.md`
+> - `frontend/docs/system/UI_IMPLEMENTATION_GUIDE.md`
+> - `frontend/docs/system/UI_PAGE_TEMPLATES.md`
+> - `frontend/docs/system/UI_DELIVERY_CHECKLIST.md`
+> - `frontend/docs/system/UI_REFACTOR_PROGRESS.md`
 
 ## 1. 文档定位
 
@@ -15,7 +22,7 @@
 
 - 前端项目目录怎么组织；
 - 应用是如何启动和初始化的；
-- 为什么不用传统路由而采用动态视图管理；
+- 为什么采用 React Router + 工作台壳层的混合导航模型；
 - Zustand、认证状态、系统状态如何协作；
 - API 请求、错误处理、国际化、主题如何统一；
 - 新业务模块如何按平台规范接入。
@@ -26,6 +33,18 @@
 - 认证安全与 2FA 规则；
 - 租户初始化业务流程；
 - 后端权限模型与租户数据库实现细节。
+
+### 1.1 UI 文档导航
+
+如果当前任务主要是前端 UI 设计、页面统一或交付说明，建议按下面顺序阅读：
+
+1. 稳定设计描述：`frontend/DESIGN.md`
+2. 前端文档中心：`frontend/docs/FRONTEND_DOCS_INDEX.md`
+3. UI 实现规范：`frontend/docs/system/UI_IMPLEMENTATION_GUIDE.md`
+4. 页面模板：`frontend/docs/system/UI_PAGE_TEMPLATES.md`
+5. 交付对照清单：`frontend/docs/system/UI_DELIVERY_CHECKLIST.md`
+6. 改造进度：`frontend/docs/system/UI_REFACTOR_PROGRESS.md`
+7. 阶段总结：`frontend/docs/system/UI_REFACTOR_SUMMARY.md`
 
 ---
 
@@ -109,57 +128,58 @@ frontend/src/
 - `frontend/src/main.tsx`
 - `frontend/src/App.tsx`
 
-`main.tsx` 只负责挂载 React；真正的初始化逻辑收敛在 `App.tsx`。
+`main.tsx` 只负责挂载 React；真正的 Provider 装配、运行时能力初始化和 Router 入口收敛在 `App.tsx`。
 
 ### 4.2 `App.tsx` 启动流程
 
-当前应用启动后的关键链路如下：
+当前 `App.tsx` 的职责更接近“前端运行时根节点”，关键链路如下：
 
-1. 初始化安全工具与 API 拦截器；
-2. 注册全局错误处理；
-3. 读取认证状态；
-4. 若已登录，初始化系统数据；
-5. 刷新当前用户与权限；
-6. 若启用多租户，检查租户初始化状态；
-7. 根据当前状态在登录页、租户初始化向导、正式业务界面之间切换。
+1. 装配主题、语言、Query Client、错误边界等全局 Provider；
+2. 启动认证恢复、系统初始化同步等全局 Hook；
+3. 创建并挂载 `AppRouter`；
+4. 由路由守卫统一处理未登录、租户未初始化、已登录三种主状态；
+5. 进入主业务区后，再交给 `MainLayout` 管理工作台壳层。
+
+更细的初始化与恢复分层，见 `frontend/docs/system/SYSTEM_INITIALIZATION_LAYERS.md`。
 
 ### 4.3 三种主界面分流
 
-`App.tsx` 当前会分流到三类界面：
+`App.tsx` 通过 React Router 分流到三类界面：
 
-- **未登录**：显示 `Login`；
-- **已登录但租户未初始化**：显示 `TenantSetupWizard`；
-- **已登录且租户就绪**：显示正式业务壳层。
+- **未登录**：路由到 `/login`，显示 `Login` 组件；
+- **已登录但租户未初始化**：路由到 `/tenant-setup`，显示 `TenantSetupWizard` 组件；
+- **已登录且租户就绪**：路由到主业务路由，显示正式业务壳层（`MainLayout`）和对应业务页面。
 
-这也是平台前端初始化最关键的设计点之一。
+这也是平台前端初始化最关键的设计点之一。更多架构变更细节请参考 `docs/ARCHITECTURE_MIGRATION_2026.md`。
 
 ---
 
-## 5. 布局与动态视图体系
+## 5. 布局与运行时体系
 
 ### 5.1 正式业务壳层
 
-正式业务界面的基础壳层由以下组件组成：
+正式业务界面的基础壳层（`MainLayout`）由以下部分组成：
 
 - `SidebarNew`：侧边导航；
 - `TopBar`：顶部栏；
 - `BreadcrumbNav`：面包屑；
 - `TabManager`：多标签容器；
-- `ViewManager`：动态视图渲染器；
+- `Outlet`：React Router 渲染子路由的位置；
 - `Footer`：页脚。
 
-### 5.2 为什么不依赖传统路由
+### 5.2 为什么是混合模型
 
-当前项目的核心交互不是“URL 跳页面”，而是：
+当前项目既不是纯静态路由后台，也不是完全脱离 URL 的动态视图容器，而是混合模型：
 
-- 菜单由后端配置；
-- 标签页由 `uiStore` 驱动；
-- 页面视图由 `ViewManager` 按标识符动态渲染；
-- 权限变化后可以直接重建当前导航和标签页状态。
+- Router 负责顶层页面切分与地址栏同步；
+- 菜单仍然由后端配置驱动；
+- 标签页仍然由 `uiStore` 管理；
+- `viewsConfig` 继续承担“菜单/视图标识 -> 页面元数据”的稳定映射；
+- 权限变化后仍然可以重建导航和标签页状态。
 
-因此这里更像“桌面工作台式前端壳层”，而不是标准内容站路由模式。
+因此这里更像“带 URL 的桌面工作台式前端壳层”，而不是标准内容站模式。
 
-### 5.3 动态挂载链路
+### 5.3 工作台导航链路
 
 一个菜单到页面的基本链路如下：
 
@@ -167,13 +187,19 @@ frontend/src/
 后端菜单配置
   -> 前端菜单树
   -> SidebarNew
+  -> useViewManager.navigateToView()
+  -> 权限校验
   -> uiStore.addTab()
+  -> 路由跳转
   -> TabManager
-  -> ViewManager
+  -> MainLayout
+  -> Outlet
   -> 实际页面组件
 ```
 
-如果后端菜单、角色、权限发生变化，前端只需要重建用户授权与系统状态，就能实现动态更新。
+`MainLayout` 还会根据当前 `pathname` 反向同步激活标签，保证标签状态和 URL 状态一致。
+
+更完整的运行时说明，见 `frontend/docs/DYNAMIC_VIEW_RUNTIME.md`。
 
 ---
 
@@ -213,6 +239,8 @@ frontend/src/
 - 授权发生变更后重新初始化；
 - logout 后清空。
 
+当前 `initialize()` 更偏向“系统管理快照”而不是“最小壳层初始化”，详见 `frontend/docs/system/SYSTEM_INITIALIZATION_LAYERS.md`。
+
 ### 6.4 `uiStore` 的角色
 
 `uiStore` 负责：
@@ -222,7 +250,7 @@ frontend/src/
 - 关闭标签页；
 - 保存当前工作台式导航状态。
 
-因此它是“动态菜单 -> 多标签视图”这一交互模型的核心状态源。
+因此它仍然是“动态菜单 -> 多标签工作台”这一交互模型的核心状态源。
 
 ---
 
@@ -243,8 +271,8 @@ frontend/src/
 全局拦截器在 refresh 成功后会继续执行：
 
 - 更新 token；
-- `authStore.reloadAuthorization()`；
-- `systemStore.initialize()`。
+- `authStore.refreshTenantContext()`；
+- 在该入口内部再串联 `reloadAuthorization()`、`checkTenantStatus()`、`systemStore.initialize()`。
 
 所以“权限变更后无感更新”不只是后端问题，前端也已经有明确承接链路。
 
@@ -254,6 +282,8 @@ frontend/src/
 
 - `frontend/docs/auth/AUTH_FRONTEND.md`
 - `frontend/docs/system/SYSTEM_FRONTEND.md`
+- `frontend/docs/system/SYSTEM_INITIALIZATION_LAYERS.md`
+- `frontend/docs/DYNAMIC_VIEW_RUNTIME.md`
 - `frontend/docs/tenant/TENANT_FRONTEND.md`
 
 ---
@@ -273,10 +303,9 @@ frontend/src/
 
 关键文件包括：
 
-- `frontend/src/shared/utils/apiClient.ts`
-- `frontend/src/shared/utils/apiInterceptor.ts`
-- `frontend/src/modules/auth/api/authApi.ts`
-- `frontend/src/modules/tenant/api/tenantDatabaseApi.ts`
+- `frontend/src/shared/utils/api_client.ts`
+- `frontend/src/modules/auth/api/auth_api.ts`
+- `frontend/src/modules/tenant/api/tenant_database_api.ts`
 
 ### 8.3 错误处理原则
 
@@ -296,7 +325,7 @@ frontend/src/
 国际化相关入口：
 
 - `frontend/src/i18n/`
-- `frontend/src/stores/languageStore.ts`
+- `frontend/src/stores/language_store.ts`
 
 约束建议：
 
@@ -308,7 +337,7 @@ frontend/src/
 
 主题状态入口：
 
-- `frontend/src/stores/themeStore.ts`
+- `frontend/src/stores/theme_store.ts`
 
 当前前端已支持主题配置与应用壳层联动，后续业务页面应尽量复用现有主题变量与组件风格，不要在模块内重新造一套主题体系。
 
@@ -336,10 +365,13 @@ frontend/src/
 
 ### 10.3 命名建议
 
+- 文件名：优先使用 `snake_case`，与后端职责命名保持一致
 - 组件名：`PascalCase`
 - Hook：`useXxx`
+- Store Hook：`useXxxStore`
 - API 方法：`fetchXxx` / `createXxx` / `updateXxx` / `deleteXxx`
 - 布尔变量：`isXxx` / `hasXxx` / `canXxx`
+- 详细规则见 `frontend/docs/FRONTEND_NAMING_CONVENTIONS.md`
 
 ---
 
@@ -350,7 +382,7 @@ frontend/src/
 1. 在 `src/modules/` 下新建模块目录；
 2. 划分 `api/`、`components/`、`views/`、`types/`；
 3. 补前端页面组件；
-4. 在视图映射中注册组件；
+4. 在路由树和视图注册表中接入页面；
 5. 接入菜单配置与权限判断；
 6. 补语言资源、错误提示、必要测试；
 7. 在专题文档中记录模块实现方式。
@@ -361,7 +393,7 @@ frontend/src/
 
 - 不改主框架；
 - 不改固定静态导航；
-- 通过菜单 + 权限 + 动态视图即可挂载；
+- 通过菜单 + 权限 + 路由/视图注册即可挂载；
 - 与租户隔离和系统初始化天然兼容。
 
 这也是你后续扩展“主机管理”等模块时最重要的前端接入原则。
@@ -485,8 +517,9 @@ npm run build
 
 1. 先读 `README.md`
 2. 再读 `docs/DOCS_INDEX.md`
-3. 再读 `frontend/docs/FRONTEND_DOCS_INDEX.md`
-4. 再按专题进入：
+3. 再读 `frontend/DESIGN.md`
+4. 再读 `frontend/docs/FRONTEND_DOCS_INDEX.md`
+5. 再按专题进入：
    - `frontend/docs/system/SYSTEM_FRONTEND.md`
    - `frontend/docs/auth/AUTH_FRONTEND.md`
    - `frontend/docs/tenant/TENANT_FRONTEND.md`
@@ -500,6 +533,6 @@ npm run build
 - `README.md`：平台入口
 - `docs/`：平台级业务设计
 - `frontend/FRONTEND_GUIDE.md`：前端工程实现总览
+- `frontend/DESIGN.md`：稳定视觉描述与 AI 生成约束
 - `frontend/docs/*`：前端专题实现细节
 - 模块内注释与 README：只补局部实现说明，不重复平台规则
-

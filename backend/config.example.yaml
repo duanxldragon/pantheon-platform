@@ -1,0 +1,72 @@
+# Pantheon Platform 配置示例文件
+# 注意：这是配置文件的示例，请复制为 config.yaml 并填入实际配置
+# 敏感信息请使用环境变量配置，不要在配置文件中明文存储
+
+server:
+  port: 8080              # 服务端口
+  mode: release           # 运行模式: debug, release, test
+
+environment: development  # 环境标识: development, staging, production
+
+# 主数据库配置
+master_db:
+  type: mysql             # 数据库类型
+  host: localhost         # 数据库主机
+  port: 3306             # 数据库端口
+  database: pantheon_master # 数据库名称
+  username: root         # 数据库用户名
+  # ⚠️ 安全提示: 请使用环境变量 DB_PASSWORD 配置密码
+  # password: ${DB_PASSWORD}
+
+# Redis配置
+redis:
+  enabled: true          # 是否启用Redis
+  host: localhost        # Redis主机
+  port: 6379            # Redis端口
+  # ⚠️ 安全提示: 请使用环境变量 REDIS_PASSWORD 配置密码
+  # password: ${REDIS_PASSWORD}
+  db: 0                 # Redis数据库编号
+
+# JWT配置
+jwt:
+  # ⚠️ 安全提示: 请使用环境变量 JWT_SECRET 配置密钥
+  # secret: ${JWT_SECRET}
+  expires_in: 3600      # 访问令牌过期时间(秒)
+
+# 多租户配置
+multi_tenant:
+  enabled: true         # 是否启用多租户
+  # ⚠️ 安全提示: 请使用环境变量 ENCRYPTION_KEY 配置加密密钥
+  # encryption_key: ${ENCRYPTION_KEY}
+
+# 默认管理员账户
+default_admin:
+  enabled: true         # 是否创建默认管理员
+  username: admin       # 默认用户名
+  # ⚠️ 安全提示: 请使用环境变量 ADMIN_PASSWORD 配置密码
+  # password: ${ADMIN_PASSWORD}
+  email: admin@example.com  # 默认邮箱
+  real_name: System Admin   # 默认真实姓名
+
+# 数据库迁移
+auto_migrate: true      # 是否自动执行数据库迁移
+
+# 日志配置
+log:
+  level: info          # 日志级别: debug, info, warn, error
+  filename: logs/app.log  # 日志文件路径
+
+# CORS配置
+cors:
+  allowed_origins:     # 允许的跨域来源
+    - http://localhost:3000
+    - http://localhost:5173
+    - https://yourdomain.com
+  allow_credentials: true  # 是否允许携带凭证
+
+# 国际化配置
+i18n:
+  default: zh          # 默认语言
+  supported:          # 支持的语言列表
+    - zh
+    - en

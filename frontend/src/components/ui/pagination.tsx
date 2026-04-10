@@ -1,7 +1,7 @@
 import * as React from "react";
 import { cn } from "./utils";
 import { Button } from "./button";
-import { buttonVariants } from "./buttonVariants";
+import { buttonVariants } from "./button_variants";
 
 const ChevronLeft = ({ className, ...props }: React.ComponentProps<"svg">) => (
   <svg
@@ -76,7 +76,7 @@ function PaginationContent({
   return (
     <ul
       data-slot="pagination-content"
-      className={cn("flex flex-row items-center gap-1", className)}
+      className={cn("flex flex-row items-center gap-1.5 rounded-2xl border border-border/70 bg-white/90 p-1.5 shadow-[0_18px_42px_-30px_rgba(15,23,42,0.24)] ring-1 ring-white/70 backdrop-blur-sm dark:bg-slate-950/80", className)}
       {...props}
     />
   );
@@ -107,6 +107,7 @@ function PaginationLink({
           variant: isActive ? "outline" : "ghost",
           size,
         }),
+        isActive && "border-primary/20 bg-primary/8 text-primary shadow-[0_10px_24px_-18px_rgba(37,99,235,0.35)]",
         className,
       )}
       {...props}
@@ -122,7 +123,7 @@ function PaginationPrevious({
     <PaginationLink
       aria-label="Go to previous page"
       size="default"
-      className={cn("gap-1 px-2.5 sm:pl-2.5", className)}
+      className={cn("gap-1.5 rounded-xl px-3 sm:pl-3", className)}
       {...props}
     >
       <ChevronLeft />
@@ -139,7 +140,7 @@ function PaginationNext({
     <PaginationLink
       aria-label="Go to next page"
       size="default"
-      className={cn("gap-1 px-2.5 sm:pr-2.5", className)}
+      className={cn("gap-1.5 rounded-xl px-3 sm:pr-3", className)}
       {...props}
     >
       <span className="hidden sm:block">Next</span>
@@ -156,7 +157,7 @@ function PaginationEllipsis({
     <span
       aria-hidden
       data-slot="pagination-ellipsis"
-      className={cn("flex size-9 items-center justify-center", className)}
+      className={cn("text-muted-foreground flex size-9 items-center justify-center rounded-xl", className)}
       {...props}
     >
       <MoreHorizontal className="size-4" />

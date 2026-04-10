@@ -1,2 +1,3 @@
-export { LoginModeSelector } from './LoginModeSelector';
-export { ProfileDialog } from './ProfileDialog';
+export { LoginModeSelector } from './login_mode_selector';
+export { ProfileDialog } from './profile_dialog';
+

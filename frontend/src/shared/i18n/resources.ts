@@ -1,4 +1,4 @@
-import { languageResources } from '../../stores/languageStore';
+import { languageResources } from '../../stores/language_store';
 import type { Translations } from './types';
 
 const SHARED_ZH_EXTENSIONS: Translations = {
@@ -125,3 +125,4 @@ export const BUILTIN_TRANSLATIONS: Record<'zh' | 'en', Translations> = {
   zh: mergeTranslations(languageResources.zh as Translations, SHARED_ZH_EXTENSIONS),
   en: mergeTranslations(languageResources.en as Translations, SHARED_EN_EXTENSIONS),
 };
+

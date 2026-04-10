@@ -1,0 +1,14 @@
+run:
+  timeout: 5m
+
+issues:
+  exclude-rules:
+    - path: '.*swagger\.go'
+      linters:
+        - unused
+    - text: 'SA1029: should not use built-in type string as key for value'
+      linters:
+        - staticcheck
+    - text: 'SA1019: .*SetNX is deprecated'
+      linters:
+        - staticcheck

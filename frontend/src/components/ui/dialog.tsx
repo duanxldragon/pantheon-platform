@@ -56,13 +56,13 @@ const DialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "pointer-events-auto relative grid max-h-[calc(100vh-2rem)] w-full max-w-[calc(100%-2rem)] gap-4 overflow-hidden rounded-[28px] border border-slate-200/80 bg-white p-6 text-slate-950 shadow-2xl duration-200 dark:border-slate-800/80 dark:bg-slate-950 dark:text-slate-50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:max-w-lg",
+          "pointer-events-auto relative grid max-h-[calc(100vh-2rem)] w-full max-w-[calc(100%-2rem)] gap-4 overflow-hidden rounded-[30px] border border-slate-200/80 bg-gradient-to-br from-white via-white to-slate-50/80 p-6 text-slate-950 shadow-[0_32px_80px_-40px_rgba(15,23,42,0.45)] ring-1 ring-white/60 duration-200 dark:border-slate-800/80 dark:bg-slate-950 dark:text-slate-50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:max-w-lg",
           className,
         )}
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
+        <DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xl border border-slate-200/80 bg-white/90 p-2 text-slate-500 shadow-sm opacity-90 transition-all hover:-translate-y-0.5 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
           <X />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>

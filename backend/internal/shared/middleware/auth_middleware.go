@@ -138,7 +138,7 @@ func Auth(redisClient *cache.RedisClient) gin.HandlerFunc {
 			deviceKey := fmt.Sprintf("auth:session:device:%s:%s", claims.UserID, claims.ID)
 			now := fmt.Sprintf("%d", time.Now().Unix())
 			_ = redisClient.HSet(c.Request.Context(), deviceKey, "last_active", now)
-			_ = redisClient.Expire(c.Request.Context(), deviceKey, claims.ExpiresAt.Time.Sub(time.Now()))
+			_ = redisClient.Expire(c.Request.Context(), deviceKey, time.Until(claims.ExpiresAt.Time))
 		}
 
 		c.Set("user_id", claims.UserID)

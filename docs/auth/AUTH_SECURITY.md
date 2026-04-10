@@ -208,6 +208,36 @@ API Key 面向系统集成、自动化任务或服务间访问，不应替代普
 - 高风险 API Key 操作应审计；
 - 建议与权限系统联动，而不是绕过授权体系。
 
+### 7.3 权限边界（重要）
+
+API Key 认证后的权限边界与其归属用户一致：
+
+- **不是独立权限体**：API Key 通过后，后端注入与 JWT 认证相同的 `user_id` 到请求上下文
+- **受 Casbin 鉴权约束**：API Key 请求同样经过路径级权限校验，不绕过授权体系
+- **受 data scope 约束**：数据范围过滤与用户直接登录时完全相同
+- **产生操作日志**：API Key 请求会被操作日志中间件记录，`operator` 为归属用户
+- **不受 2FA 要求约束**：API Key 是独立认证渠道，绕过 2FA 验证步骤；高安全场景下需要在业务层额外评估
+
+### 7.4 API Key 格式
+
+```
+sk_<selector>_<uuid>
+```
+
+- 前缀 `sk_` 标识 API Key
+- `selector` 为 12 位随机字符串，用于数据库快速定位候选行（避免全表扫描）
+- 明文 Key 只在**创建时返回一次**，后端仅存储 bcrypt 哈希
+- 后续列表展示只显示 `********************` 占位
+
+### 7.5 API Key 存储与查询
+
+API Key 在以下数据库中查找（按优先级）：
+
+1. 主库（`master_db`）
+2. 当前请求的租户库（若存在）
+
+这允许租户级 API Key 与平台级 API Key 共存。
+
 ---
 
 ## 8. 安全控制
@@ -306,3 +336,726 @@ API Key 面向系统集成、自动化任务或服务间访问，不应替代普
 - 再读 `docs/system/SYSTEM_MANAGEMENT.md`
 - 再读 `docs/tenant/TENANT_INITIALIZATION.md`
 - 最后进入 `backend/docs/auth/AUTH_BACKEND.md` 与 `frontend/docs/auth/AUTH_FRONTEND.md`
+
+---
+
+## 12. 安全加固建议
+
+基于系统安全评估，以下是针对认证模块的具体安全加固建议：
+
+### 12.1 高危问题修复 (P0)
+
+#### 12.1.1 JWT密钥管理改进
+
+**当前问题：**
+- JWT Secret使用全局变量存储，存在并发风险
+- 缺少密钥轮换机制
+- 密钥生成和存储不够安全
+
+**加固方案：**
+
+```go
+// 1. 实现密钥管理器
+// internal/shared/security/jwt_key_manager.go
+package security
+
+import (
+    "crypto/rand"
+    "sync"
+    "time"
+)
+
+type JWTKeyManager struct {
+    currentKey        []byte
+    previousKeys      [][]byte
+    keyVersion        int
+    rotationInterval  time.Duration
+    lastRotation      time.Time
+    mu               sync.RWMutex
+}
+
+func NewJWTKeyManager(rotationInterval time.Duration) *JWTKeyManager {
+    return &JWTKeyManager{
+        currentKey:        generateSecureKey(),
+        keyVersion:        1,
+        rotationInterval:  rotationInterval,
+        lastRotation:      time.Now(),
+    }
+}
+
+func generateSecureKey() []byte {
+    key := make([]byte, 64) // 512-bit key
+    if _, err := rand.Read(key); err != nil {
+        panic("failed to generate JWT key")
+    }
+    return key
+}
+
+func (km *JWTKeyManager) GetCurrentKey() []byte {
+    km.mu.RLock()
+    defer km.mu.RUnlock()
+    return km.currentKey
+}
+
+func (km *JWTKeyManager) GetCurrentVersion() int {
+    km.mu.RLock()
+    defer km.mu.RUnlock()
+    return km.keyVersion
+}
+
+func (km *JWTKeyManager) RotateKey() error {
+    km.mu.Lock()
+    defer km.mu.Unlock()
+    
+    // Store current key in previous keys
+    km.previousKeys = append(km.previousKeys, km.currentKey)
+    
+    // Generate new key
+    km.currentKey = generateSecureKey()
+    km.keyVersion++
+    km.lastRotation = time.Now()
+    
+    // Keep only last 5 keys
+    if len(km.previousKeys) > 5 {
+        km.previousKeys = km.previousKeys[1:]
+    }
+    
+    return nil
+}
+
+// 2. 在JWT中包含密钥版本
+type JWTClaims struct {
+    UserID    string `json:"user_id"`
+    TenantID  string `json:"tenant_id"`
+    KeyVersion int   `json:"key_version"` // 新增密钥版本
+    // 其他字段...
+}
+
+// 3. 支持多版本密钥验证
+func (km *JWTKeyManager) ValidateToken(tokenString string) (*JWTClaims, error) {
+    claims := &JWTClaims{}
+    
+    // 解析token获取密钥版本
+    parser := jwt.Parser{ValidMethods: []string{jwt.SigningMethodHS256.Name}}
+    token, err := parser.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+        // 根据密钥版本选择对应的密钥
+        if claims.KeyVersion == km.GetCurrentVersion() {
+            return km.GetCurrentKey(), nil
+        }
+        // 查找历史密钥
+        return km.GetKeyByVersion(claims.KeyVersion), nil
+    })
+    
+    if err != nil || !token.Valid {
+        return nil, errors.New("invalid token")
+    }
+    
+    return claims, nil
+}
+
+// 4. 定时轮换任务
+func StartKeyRotation(manager *JWTKeyManager) {
+    ticker := time.NewTicker(manager.rotationInterval)
+    go func() {
+        for range ticker.C {
+            if err := manager.RotateKey(); err != nil {
+                log.Printf("Key rotation failed: %v", err)
+            } else {
+                log.Printf("JWT key rotated successfully, version: %d", 
+                    manager.GetCurrentVersion())
+            }
+        }
+    }()
+}
+```
+
+**配置建议：**
+```yaml
+# config/config.yaml
+jwt:
+  expires_in: 7200                    # 2小时
+  key_rotation_interval: 168h         # 7天轮换一次
+  key_versions_to_keep: 5             # 保留5个历史版本
+```
+
+#### 12.1.2 生产环境默认管理员风险
+
+**当前问题：**
+- 开发环境默认管理员配置可能在生产环境误启用
+- 明文密码存储在配置文件中
+- 缺少生产环境保护机制
+
+**加固方案：**
+
+```go
+// 1. 完全移除生产环境的fallback admin
+// internal/modules/auth/auth_service.go
+func (s *authService) Login(ctx context.Context, req *dto.LoginRequest) (*dto.AuthResponse, error) {
+    // 生产环境完全禁用默认管理员
+    if s.config.Environment == "production" {
+        goto normalLogin
+    }
+    
+    // 只有非生产环境才检查默认管理员
+    if s.config.Environment == "development" || s.config.Environment == "test" {
+        if s.config.DefaultAdmin.Enabled {
+            if req.Username == s.config.DefaultAdmin.Username &&
+               req.Password == s.config.DefaultAdmin.Password {
+                return s.fallbackAdminLogin(ctx)
+            }
+        }
+    }
+    
+normalLogin:
+    // 正常登录逻辑...
+}
+
+// 2. 添加环境检查中间件
+// internal/shared/middleware/environment.go
+func EnvironmentCheck(config *config.Config) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        if config.Environment == "production" {
+            // 生产环境额外检查
+            if config.DefaultAdmin.Enabled {
+                // 发送告警
+                sendSecurityAlert("Default admin is enabled in production!")
+                
+                // 自动禁用
+                config.DefaultAdmin.Enabled = false
+                
+                // 记录安全事件
+                logSecurityEvent("production_default_admin_enabled")
+            }
+        }
+        c.Next()
+    }
+}
+
+// 3. 配置验证
+// internal/config/app_config.go
+func (c *Config) Validate() error {
+    if c.Environment == "production" {
+        if c.DefaultAdmin.Enabled {
+            return errors.New("default admin must not be enabled in production")
+        }
+        if c.JWT.ExpiresIn > 7200 {
+            return errors.New("JWT expiration too long for production")
+        }
+        if len(c.EncryptionKey) < 32 {
+            return errors.New("encryption key too short")
+        }
+        if !c.JWT.KeyRotationEnabled {
+            return errors.New("JWT key rotation must be enabled in production")
+        }
+    }
+    return nil
+}
+
+// 4. 启动时验证
+// cmd/server/main.go
+func main() {
+    config := config.Load()
+    
+    // 验证配置
+    if err := config.Validate(); err != nil {
+        log.Fatal("Configuration validation failed:", err)
+    }
+    
+    // 启动服务...
+}
+```
+
+#### 12.1.3 API Key权限控制增强
+
+**当前问题：**
+- API Key缺少独立的权限范围限制
+- 缺少速率限制和IP白名单
+- 权限边界不够清晰
+
+**加固方案：**
+
+```go
+// 1. 增强API Key模型
+// internal/modules/auth/auth_model.go
+type ApiKey struct {
+    ID              string         `json:"id"`
+    UserID          string         `json:"user_id"`
+    Name            string         `json:"name"`
+    Selector        string         `json:"selector"`
+    KeyHash         string         `json:"-"`              // bcrypt哈希
+    Scopes          []string       `json:"scopes"`          // 权限范围
+    IPWhitelist     []string       `json:"ip_whitelist"`    // IP白名单
+    RateLimit       int            `json:"rate_limit"`      // 速率限制（请求/分钟）
+    ExpiresAt       *time.Time     `json:"expires_at"`
+    LastUsedAt      *time.Time     `json:"last_used_at"`
+    CreatedAt       time.Time      `json:"created_at"`
+}
+
+// 2. 增强API Key验证
+// internal/modules/auth/api_key_service.go
+func (s *apiKeyService) ValidateAPIKey(ctx context.Context, keyString string, clientIP string) (*ApiKey, error) {
+    // 解析API Key
+    selector, secret, err := parseAPIKey(keyString)
+    if err != nil {
+        return nil, ErrInvalidAPIKey
+    }
+    
+    // 查找API Key
+    apiKey, err := s.apiKeyDAO.GetBySelector(ctx, selector)
+    if err != nil {
+        return nil, ErrInvalidAPIKey
+    }
+    
+    // 验证密钥
+    if err := bcrypt.CompareHashAndPassword([]byte(apiKey.KeyHash), []byte(secret)); err != nil {
+        return nil, ErrInvalidAPIKey
+    }
+    
+    // 检查有效期
+    if apiKey.ExpiresAt != nil && apiKey.ExpiresAt.Before(time.Now()) {
+        return nil, ErrAPIKeyExpired
+    }
+    
+    // 检查IP白名单
+    if len(apiKey.IPWhitelist) > 0 && !isIPAllowed(clientIP, apiKey.IPWhitelist) {
+        return nil, ErrAPIKeyIPNotAllowed
+    }
+    
+    // 检查速率限制
+    if apiKey.RateLimit > 0 {
+        if !s.rateLimiter.Allow(ctx, apiKey.ID, apiKey.RateLimit) {
+            return nil, ErrAPIKeyRateLimitExceeded
+        }
+    }
+    
+    // 更新最后使用时间
+    s.apiKeyDAO.UpdateLastUsed(ctx, apiKey.ID)
+    
+    return apiKey, nil
+}
+
+// 3. 速率限制器
+// internal/shared/security/rate_limiter.go
+type RateLimiter struct {
+    redis *redis.Client
+}
+
+func (rl *RateLimiter) Allow(ctx context.Context, key string, limit int) bool {
+    now := time.Now().Unix()
+    window := now / 60 // 当前时间窗口（分钟）
+    
+    redisKey := fmt.Sprintf("rate_limit:%s:%d", key, window)
+    
+    // 增加计数
+    count, err := rl.redis.Incr(ctx, redisKey).Result()
+    if err != nil {
+        return false
+    }
+    
+    // 设置过期时间
+    if count == 1 {
+        rl.redis.Expire(ctx, redisKey, 2*time.Minute)
+    }
+    
+    return count <= int64(limit)
+}
+
+// 4. API Key中间件增强
+// internal/shared/middleware/api_key_middleware.go
+func APIKeyAuth(apiKeyService *auth.ApiKeyService) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        // 提取API Key
+        keyString := extractAPIKey(c)
+        if keyString == "" {
+            c.JSON(401, gin.H{"error": "API Key required"})
+            c.Abort()
+            return
+        }
+        
+        // 获取客户端IP
+        clientIP := c.ClientIP()
+        
+        // 验证API Key
+        apiKey, err := apiKeyService.ValidateAPIKey(c.Request.Context(), keyString, clientIP)
+        if err != nil {
+            c.JSON(401, gin.H{"error": err.Error()})
+            c.Abort()
+            return
+        }
+        
+        // 注入用户信息和权限范围
+        c.Set("user_id", apiKey.UserID)
+        c.Set("api_key_id", apiKey.ID)
+        c.Set("api_key_scopes", apiKey.Scopes)
+        c.Set("api_key_auth", true) // 标记为API Key认证
+        
+        c.Next()
+    }
+}
+
+// 5. 权限检查增强
+// 在权限中间件中检查API Key的权限范围
+func RequirePermission(resource string, action string) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        userID := c.GetString("user_id")
+        
+        // 检查是否是API Key认证
+        if c.GetBool("api_key_auth") {
+            scopes := c.GetSlice("api_key_scopes")
+            
+            // 检查API Key的权限范围
+            requiredScope := fmt.Sprintf("%s:%s", resource, action)
+            if !contains(scopes, requiredScope) && !contains(scopes, "*") {
+                c.JSON(403, gin.H{"error": "API Key lacks required scope"})
+                c.Abort()
+                return
+            }
+        }
+        
+        // 正常的权限检查...
+        c.Next()
+    }
+}
+```
+
+### 12.2 中危问题修复 (P1)
+
+#### 12.2.1 会话并发控制
+
+**当前问题：**
+- 缺少最大并发会话数强制限制
+- 缺少会话清理机制
+
+**加固方案：**
+
+```go
+// 1. 会话管理器
+// internal/shared/security/session_manager.go
+type SessionManager struct {
+    redis      *redis.Client
+    maxSessions int
+}
+
+func (sm *SessionManager) CreateSession(ctx context.Context, userID string, session *Session) error {
+    // 检查当前会话数
+    currentSessions, err := sm.GetUserSessions(ctx, userID)
+    if err != nil {
+        return err
+    }
+    
+    if len(currentSessions) >= sm.maxSessions {
+        // 删除最旧的会话
+        oldestSession := findOldestSession(currentSessions)
+        sm.RevokeSession(ctx, userID, oldestSession.JTI)
+    }
+    
+    // 创建新会话
+    return sm.saveSession(ctx, userID, session)
+}
+
+func (sm *SessionManager) GetUserSessions(ctx context.Context, userID string) ([]*Session, error) {
+    pattern := fmt.Sprintf("auth:session:%s:*", userID)
+    keys, err := sm.redis.Keys(ctx, pattern).Result()
+    if err != nil {
+        return nil, err
+    }
+    
+    sessions := make([]*Session, 0, len(keys))
+    for _, key := range keys {
+        var session Session
+        if err := sm.redis.Get(ctx, key).Scan(&session); err == nil {
+            sessions = append(sessions, &session)
+        }
+    }
+    
+    return sessions, nil
+}
+
+// 2. 会话清理任务
+func (sm *SessionManager) StartCleanupTask() {
+    ticker := time.NewTicker(1 * time.Hour)
+    go func() {
+        for range ticker.C {
+            sm.cleanupExpiredSessions()
+        }
+    }()
+}
+
+func (sm *SessionManager) cleanupExpiredSessions() error {
+    ctx := context.Background()
+    
+    // 清理过期的Access Token会话
+    iter := sm.redis.Scan(ctx, 0, "auth:session:*", 100).Iterator()
+    for iter.Next(ctx) {
+        key := iter.Val()
+        
+        var session Session
+        if err := sm.redis.Get(ctx, key).Scan(&session); err != nil {
+            // 会话不存在或已过期，删除
+            sm.redis.Del(ctx, key)
+            continue
+        }
+        
+        if session.ExpiresAt.Before(time.Now()) {
+            sm.redis.Del(ctx, key)
+        }
+    }
+    
+    return nil
+}
+```
+
+#### 12.2.2 备份码加密存储
+
+**当前问题：**
+- 备份码明文序列化存储，可能泄露使用信息
+
+**加固方案：**
+
+```go
+// 1. 备份码加密存储
+// internal/modules/auth/two_factor_service.go
+type EncryptedBackupCodes struct {
+    EncryptedData string    `json:"encrypted_data"`
+    Nonce         string    `json:"nonce"`
+    CreatedAt     time.Time `json:"created_at"`
+}
+
+func (s *twoFactorService) GenerateBackupCodes(ctx context.Context, userID string) ([]string, error) {
+    // 生成10个备份码
+    codes := make([]string, 10)
+    for i := range codes {
+        codes[i] = generateBackupCode()
+    }
+    
+    // 加密存储
+    encrypted, err := s.encryptBackupCodes(codes)
+    if err != nil {
+        return nil, err
+    }
+    
+    // 保存到数据库
+    return codes, s.twoFactorDAO.SaveBackupCodes(ctx, userID, encrypted)
+}
+
+func (s *twoFactorService) encryptBackupCodes(codes []string) (*EncryptedBackupCodes, error) {
+    // 转换为JSON
+    data, err := json.Marshal(codes)
+    if err != nil {
+        return nil, err
+    }
+    
+    // 使用AES-GCM加密
+    key := s.getEncryptionKey()
+    nonce := make([]byte, 12)
+    if _, err := rand.Read(nonce); err != nil {
+        return nil, err
+    }
+    
+    ciphertext, err := aesgcm.Encrypt(data, key, nonce)
+    if err != nil {
+        return nil, err
+    }
+    
+    return &EncryptedBackupCodes{
+        EncryptedData: base64.StdEncoding.EncodeToString(ciphertext),
+        Nonce:         base64.StdEncoding.EncodeToString(nonce),
+        CreatedAt:     time.Now(),
+    }, nil
+}
+
+func (s *twoFactorService) decryptBackupCodes(encrypted *EncryptedBackupCodes) ([]string, error) {
+    // 解密
+    ciphertext, _ := base64.StdEncoding.DecodeString(encrypted.EncryptedData)
+    nonce, _ := base64.StdEncoding.DecodeString(encrypted.Nonce)
+    
+    key := s.getEncryptionKey()
+    plaintext, err := aesgcm.Decrypt(ciphertext, key, nonce)
+    if err != nil {
+        return nil, err
+    }
+    
+    // 解析JSON
+    var codes []string
+    if err := json.Unmarshal(plaintext, &codes); err != nil {
+        return nil, err
+    }
+    
+    return codes, nil
+}
+```
+
+### 12.3 安全监控和审计
+
+#### 12.3.1 安全事件监控
+
+**加固方案：**
+
+```go
+// 1. 安全事件定义
+// internal/shared/security/event.go
+type SecurityEvent struct {
+    ID          string                 `json:"id"`
+    EventType   string                 `json:"event_type"`   // login_failed, brute_force, etc.
+    UserID      string                 `json:"user_id,omitempty"`
+    IP          string                 `json:"ip"`
+    UserAgent   string                 `json:"user_agent"`
+    Severity    string                 `json:"severity"`     // low, medium, high, critical
+    Metadata    map[string]interface{} `json:"metadata"`
+    Timestamp   time.Time              `json:"timestamp"`
+}
+
+// 2. 安全监控服务
+// internal/shared/security/monitor.go
+type SecurityMonitor struct {
+    eventChan   chan SecurityEvent
+    alertSvc    AlertService
+    storage     EventStorage
+}
+
+func (sm *SecurityMonitor) Start() {
+    go sm.processEvents()
+}
+
+func (sm *SecurityMonitor) processEvents() {
+    for event := range sm.eventChan {
+        // 存储事件
+        sm.storage.Save(event)
+        
+        // 根据严重级别发送告警
+        switch event.Severity {
+        case "critical", "high":
+            sm.alertSvc.SendImmediateAlert(event)
+        case "medium":
+            sm.alertSvc.SendAggregatedAlert(event)
+        }
+        
+        // 触发相应措施
+        sm.triggerResponse(event)
+    }
+}
+
+func (sm *SecurityMonitor) triggerResponse(event SecurityEvent) {
+    switch event.EventType {
+    case "brute_force_detected":
+        // 自动封禁IP
+        sm.banIP(event.IP, 24*time.Hour)
+        
+    case "suspicious_location":
+        // 要求额外验证
+        sm.requireAdditionalVerification(event.UserID)
+        
+    case "api_key_abuse":
+        // 撤销API Key
+        sm.revokeAPIKey(event.Metadata["api_key_id"].(string))
+    }
+}
+
+// 3. 威胁检测规则
+// internal/shared/security/detector.go
+type ThreatDetector struct {
+    monitor *SecurityMonitor
+}
+
+func (td *ThreatDetector) DetectBruteForce(userID string, IP string) {
+    // 检查最近15分钟的失败次数
+    recentFailures := td.countRecentFailures(userID, IP, 15*time.Minute)
+    
+    if recentFailures >= 5 {
+        td.monitor.RecordEvent(SecurityEvent{
+            EventType: "brute_force_detected",
+            UserID:    userID,
+            IP:        IP,
+            Severity:  "high",
+            Metadata: map[string]interface{}{
+                "failures": recentFailures,
+            },
+        })
+    }
+}
+
+func (td *ThreatDetector) DetectImpossibleTravel(userID string, currentIP string) {
+    // 获取用户最近的登录位置
+    lastLogin := td.getLastLoginLocation(userID)
+    
+    // 计算距离和时间差
+    distance := calculateDistance(lastLogin.IP, currentIP)
+    timeDiff := time.Since(lastLogin.Time)
+    
+    // 如果距离很远但时间很短，判定为不可能的旅行
+    if distance > 1000 && timeDiff < 1*time.Hour {
+        td.monitor.RecordEvent(SecurityEvent{
+            EventType: "impossible_travel",
+            UserID:    userID,
+            IP:        currentIP,
+            Severity:  "high",
+            Metadata: map[string]interface{}{
+                "distance_km":  distance,
+                "time_hours":   timeDiff.Hours(),
+            },
+        })
+    }
+}
+```
+
+### 12.4 配置安全检查清单
+
+**生产环境部署前检查：**
+
+```yaml
+# 安全配置检查清单
+security_checklist:
+  production:
+    # 认证配置
+    - item: "默认管理员必须禁用"
+      config: "default_admin.enabled == false"
+      severity: "critical"
+      
+    - item: "JWT密钥轮换必须启用"
+      config: "jwt.key_rotation_enabled == true"
+      severity: "critical"
+      
+    - item: "JWT过期时间不超过2小时"
+      config: "jwt.expires_in <= 7200"
+      severity: "high"
+      
+    - item: "加密密钥长度至少32字节"
+      config: "len(encryption_key) >= 32"
+      severity: "critical"
+      
+    # 会话配置
+    - item: "最大并发会话数限制"
+      config: "security.max_concurrent_sessions > 0"
+      severity: "medium"
+      
+    - item: "会话超时配置合理"
+      config: "session.timeout > 0 && session.timeout <= 24h"
+      severity: "medium"
+      
+    # 2FA配置
+    - item: "管理员账户强制启用2FA"
+      config: "security.force_2fa_for_admin == true"
+      severity: "high"
+      
+    # API Key配置
+    - item: "API Key速率限制启用"
+      config: "api_key.rate_limit_enabled == true"
+      severity: "medium"
+      
+    # 监控配置
+    - item: "安全监控启用"
+      config: "security.monitoring_enabled == true"
+      severity: "high"
+      
+    - item: "安全告警配置"
+      config: "security.alerts_enabled == true"
+      severity: "medium"
+```
+
+---
+
+## 13. 文档边界说明
+
+本文档只描述认证安全的设计边界、核心风险控制点和跨模块协作方式，不维护阶段性整改清单或临时实施路线图。
+
+认证、会话、2FA、API Key 或安全审计链路发生架构级变化时，应同步更新本文档；局部接口、页面交互或测试用例变化，应优先落到对应专题文档或代码实现中。

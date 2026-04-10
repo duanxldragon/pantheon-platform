@@ -250,6 +250,11 @@ func (m *Manager) GetTenantDB(tenantID uuid.UUID) *gorm.DB {
 	return conn.db
 }
 
+// GetMasterDB returns the master database connection
+func (m *Manager) GetMasterDB() *gorm.DB {
+	return m.masterDB
+}
+
 // RemoveDB removes a tenant database connection (deprecated: use RemoveTenant)
 func (m *Manager) RemoveDB(tenantID uuid.UUID) {
 	m.mu.Lock()

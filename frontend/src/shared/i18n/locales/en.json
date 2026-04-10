@@ -1,3 +1,4 @@
 {
-  "_deprecated": "Deprecated: shared i18n English translations are now maintained in src/stores/languageStore.ts and src/shared/i18n/resources.ts."
+  "_deprecated": "Deprecated: shared i18n English translations are now maintained in src/stores/language_store.ts and src/shared/i18n/resources.ts."
 }
+

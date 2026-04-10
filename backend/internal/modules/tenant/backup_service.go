@@ -27,8 +27,8 @@ const (
 
 // TenantBackup stores tenant backup metadata.
 type TenantBackup struct {
-	ID        uuid.UUID    `json:"id" gorm:"type:char(36);primaryKey"`
-	TenantID  string       `json:"tenant_id" gorm:"type:char(36);notNull;index"`
+	ID        uuid.UUID    `json:"id" gorm:"size:36;primaryKey"`
+	TenantID  string       `json:"tenant_id" gorm:"size:36;notNull;index"`
 	FileName  string       `json:"file_name" gorm:"size:255;notNull"`
 	FilePath  string       `json:"file_path" gorm:"size:500;notNull"`
 	FileSize  int64        `json:"file_size" gorm:"default:0"`

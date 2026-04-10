@@ -1,3 +1,4 @@
+//nolint:unused
 package user
 
 import (
@@ -57,11 +58,7 @@ func isValidUsername(username string) bool {
 
 	// Check for valid characters (letters, numbers, dots, dashes, underscores)
 	validChars := regexp.MustCompile(`^[a-zA-Z0-9._\-]+$`)
-	if !validChars.MatchString(username) {
-		return false
-	}
-
-	return true
+	return validChars.MatchString(username)
 }
 
 // isValidRealName validates a real name
@@ -238,7 +235,7 @@ func calculatePasswordScore(password string) PasswordScore {
 
 // isValidUserRoleAssignment validates user role assignment
 func isValidUserRoleAssignment(roleIDs []string) bool {
-	if roleIDs == nil || len(roleIDs) == 0 {
+	if len(roleIDs) == 0 {
 		return false
 	}
 

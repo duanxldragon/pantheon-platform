@@ -28,25 +28,25 @@
 
 ## 主分层文件
 
-业务模块统一使用以下固定文件名：
+业务模块主分层文件统一使用以下固定命名：
 
-- `dao.go`
-- `dto.go`
-- `handler.go`
-- `model.go`
-- `router.go`
-- `service.go`
+- `<module>_dao.go`
+- `<module>_dto.go`
+- `<module>_handler.go`
+- `<module>_model.go`
+- `<module>_router.go`
+- `<module>_service.go`
 
 示例：
 
 ```text
 internal/modules/system/user/
-- dao.go
-- dto.go
-- handler.go
-- model.go
-- router.go
-- service.go
+- user_dao.go
+- user_dto.go
+- user_handler.go
+- user_model.go
+- user_router.go
+- user_service.go
 ```
 
 不要再引入这些平行命名：
@@ -60,6 +60,7 @@ internal/modules/system/user/
 - 聚合命名空间，例如 `internal/modules/system/`、`internal/modules/system/container/`，不需要强行补齐固定六层文件
 - 纯模型命名空间，例如 `internal/modules/system/model/`，可以只保留模型相关文件
 - 无持久化职责的运行态模块，例如 `internal/modules/system/monitor/`，可以省略 `dao.go` 或 `model.go`
+- 服务接口文件可使用 `auth_interface.go` 这类 `<subject>_<kind>.go` 命名
 - 历史兼容的元数据字段名可以保留，例如 `module_registry.go` 中的 `json:"repository"`，但这不代表代码层继续使用 `Repository` 命名
 
 ## 补充文件
@@ -207,8 +208,8 @@ internal/modules/system/user/
 ### `internal/modules/`
 
 - 一个业务子域一个目录
-- 新模块默认先落齐 `dao.go`、`dto.go`、`handler.go`、`model.go`、`router.go`、`service.go`
-- 当 `service.go` 过大时，再按子域拆成 `auth_service.go`、`session_service.go` 这类补充文件
+- 新模块默认先落齐 `<module>_dao.go`、`<module>_dto.go`、`<module>_handler.go`、`<module>_model.go`、`<module>_router.go`、`<module>_service.go`
+- 当主文件过大时，再按子域拆成 `session_service.go`、`api_key_service.go`、`user_validation.go` 这类补充文件
 
 ### `internal/shared/`
 
@@ -257,24 +258,23 @@ internal/modules/system/user/
 
 ```text
 internal/modules/example/
-- dao.go
-- dto.go
-- handler.go
-- model.go
-- router.go
-- service.go
+- example_dao.go
+- example_dto.go
+- example_handler.go
+- example_model.go
+- example_router.go
+- example_service.go
 ```
 
 ### 中型模块
 
 ```text
 internal/modules/auth/
-- dao.go
-- dto.go
-- handler.go
-- model.go
-- router.go
-- service.go
+- auth_dao.go
+- auth_dto.go
+- auth_handler.go
+- auth_model.go
+- auth_router.go
 - auth_service.go
 - session_service.go
 - api_key_service.go
@@ -340,7 +340,7 @@ go run ./cmd/tools/check-backend-naming
 当前后端已完成以下典型收敛：
 
 - `auth`、`tenant`、`notification` 已统一主分层文件名
-- `system` 相关子模块已统一补齐 `router.go`
+- `system` 相关子模块已统一补齐 `<module>_router.go`
 - 共享层已从 `shared_*`、`repository` 等历史命名收敛到能力化命名
 - `cmd/tools/internal/toolenv/tool_env.go` 已收敛为 `cmd/tools/internal/tool_env/tool_env.go`
 - `backend/scripts/demo/` 已统一为 `snake_case`

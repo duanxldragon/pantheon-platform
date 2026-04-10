@@ -16,18 +16,18 @@ var (
 	kebabCaseDirPattern  = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 	primaryLayerFiles = []string{
-		"dao.go",
-		"dto.go",
-		"handler.go",
-		"model.go",
-		"router.go",
-		"service.go",
+		"dao",
+		"dto",
+		"handler",
+		"model",
+		"router",
+		"service",
 	}
 
 	forbiddenFileNames = map[string]string{
-		"repository.go": "use dao.go",
-		"controller.go": "use handler.go or router.go",
-		"entity.go":     "use model.go",
+		"repository.go": "use <module>_dao.go",
+		"controller.go": "use <module>_handler.go or <module>_router.go",
+		"entity.go":     "use <module>_model.go",
 		"common.go":     "use a concrete <subject>_<kind>.go name",
 		"util.go":       "use a concrete capability-based name",
 		"helpers.go":    "use a concrete capability-based name",
@@ -40,11 +40,66 @@ var (
 	}
 
 	moduleRequiredFiles = map[string][]string{
-		"internal/modules/system/monitor": {"handler.go", "router.go", "service.go"},
+		"internal/modules/system/monitor": {"monitor_handler.go", "monitor_router.go", "monitor_service.go"},
+		"internal/modules/tenant/monitor": {"tenant_monitor.go"},
+		"internal/modules/ops/alerting":   {"alert_manager.go"},
 	}
 
 	allowedRepositoryContentFiles = map[string]struct{}{
 		"internal/shared/modules/module_registry.go": {},
+	}
+
+	allowedModuleSingleTokenFiles = map[string]map[string]struct{}{
+		"internal/modules/auth": {
+			"swagger.go": {},
+		},
+		"internal/modules/notification": {
+			"swagger.go": {},
+		},
+		"internal/modules/system/dept": {
+			"swagger.go": {},
+		},
+		"internal/modules/system/dict": {
+			"migration.go": {},
+			"swagger.go":   {},
+		},
+		"internal/modules/system/log": {
+			"swagger.go": {},
+		},
+		"internal/modules/system/menu": {
+			"swagger.go": {},
+		},
+		"internal/modules/system/monitor": {
+			"swagger.go": {},
+		},
+		"internal/modules/system/permission": {
+			"swagger.go": {},
+		},
+		"internal/modules/system/position": {
+			"swagger.go": {},
+		},
+		"internal/modules/system/role": {
+			"migration.go": {},
+			"swagger.go":   {},
+		},
+		"internal/modules/system/setting": {
+			"swagger.go": {},
+		},
+		"internal/modules/system/user": {
+			"swagger.go": {},
+		},
+		"internal/modules/tenant": {
+			"naming.go":  {},
+			"swagger.go": {},
+		},
+		"internal/modules/tenant/monitor": {
+			"collectors.go": {},
+			"evaluators.go": {},
+		},
+		"internal/modules/ops/alerting": {
+			"notifiers.go": {},
+			"rules.go":     {},
+		},
 	}
 )
 
@@ -235,9 +290,9 @@ func checkModuleDirectories(root string) ([]string, error) {
 			return nil
 		}
 
-		requiredFiles := primaryLayerFiles
-		if overridden, exists := moduleRequiredFiles[relPath]; exists {
-			requiredFiles = overridden
+		requiredFiles := moduleRequiredFiles[relPath]
+		if len(requiredFiles) == 0 {
+			requiredFiles = prefixedPrimaryLayerFiles(moduleBaseName(relPath))
 		}
 
 		for _, requiredFile := range requiredFiles {
@@ -248,6 +303,9 @@ func checkModuleDirectories(root string) ([]string, error) {
 
 		for _, fileName := range files {
 			if isPrimaryLayerFile(fileName) || strings.HasSuffix(fileName, "_test.go") {
+				continue
+			}
+			if isAllowedSingleTokenModuleFile(relPath, fileName) {
 				continue
 			}
 			if !strings.Contains(fileName, "_") {
@@ -348,12 +406,35 @@ func shouldSkipPath(relPath string, d fs.DirEntry) bool {
 }
 
 func isPrimaryLayerFile(name string) bool {
+	trimmed := strings.TrimSuffix(name, ".go")
 	for _, file := range primaryLayerFiles {
-		if file == name {
+		if trimmed == file || strings.HasSuffix(trimmed, "_"+file) {
 			return true
 		}
 	}
 	return false
+}
+
+func prefixedPrimaryLayerFiles(moduleName string) []string {
+	files := make([]string, 0, len(primaryLayerFiles))
+	for _, file := range primaryLayerFiles {
+		files = append(files, moduleName+"_"+file+".go")
+	}
+	return files
+}
+
+func moduleBaseName(relPath string) string {
+	parts := strings.Split(relPath, "/")
+	return parts[len(parts)-1]
+}
+
+func isAllowedSingleTokenModuleFile(relPath, fileName string) bool {
+	allowed, ok := allowedModuleSingleTokenFiles[relPath]
+	if !ok {
+		return false
+	}
+	_, exists := allowed[fileName]
+	return exists
 }
 
 func contains(items []string, target string) bool {

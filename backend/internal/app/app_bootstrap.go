@@ -131,6 +131,13 @@ func Start() {
 
 	// Ensure bootstrap data exists (tenant, role, admin) and is wired into Casbin.
 	bootstrapDefaultData(db, authzSvc, cfg)
+	reloadedAuthzSvc, err := authzService.NewAuthorizationService(db, "config/rbac_model.conf")
+	if err != nil {
+		log.Fatalf("failed to reload authorization service after bootstrap: %v", err)
+	}
+	reloadedAuthzSvc.SetRedisClient(redisClient)
+	authzSvc = reloadedAuthzSvc
+	middleware.GlobalAuthService = authzSvc
 
 	// Optionally run as migration-only and exit (used for production init logic).
 	if migrateOnly {
@@ -463,5 +470,8 @@ func bootstrapDefaultData(db *gorm.DB, authzSvc *authzService.AuthorizationServi
 	}
 	if cfg.DefaultAdmin.Enabled && admin.ID != uuid.Nil {
 		_ = authzSvc.SetRolesForUser(ctx, admin.ID.String(), []string{r.ID.String()})
+	}
+	if err := authzSvc.LoadPolicy(ctx); err != nil {
+		log.Printf("warning: failed to reload authorization policy after bootstrap: %v", err)
 	}
 }

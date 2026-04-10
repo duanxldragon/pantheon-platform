@@ -1,6 +1,6 @@
 import { Card } from './ui/card';
 import { Server, Box, Activity, AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
-import { useLanguageStore } from '../stores/languageStore';
+import { useLanguageStore } from '../stores/language_store';
 
 export function Dashboard() {
   const { t } = useLanguageStore();

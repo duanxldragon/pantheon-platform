@@ -91,3 +91,75 @@ func TestValidateRejectsWeakEnabledDefaultAdminPassword(t *testing.T) {
 		t.Fatalf("expected weak default admin password validation error, got %v", err)
 	}
 }
+
+func TestLoadSupportsLegacyMultiTenantAliasKeys(t *testing.T) {
+	tempDir := t.TempDir()
+	configContent := `environment: development
+multi_tenant:
+  enabled: false
+  default_tenant_id: legacy-tenant
+encryption_key: "12345678901234567890123456789012"
+default_admin:
+  enabled: false
+`
+
+	if err := os.WriteFile(filepath.Join(tempDir, "config.yaml"), []byte(configContent), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("change working directory: %v", err)
+	}
+	defer func() {
+		if chdirErr := os.Chdir(originalWD); chdirErr != nil {
+			t.Fatalf("restore working directory: %v", chdirErr)
+		}
+	}()
+
+	cfg := Load()
+
+	if cfg.EnableMultiTenant {
+		t.Fatalf("expected legacy multi_tenant.enabled=false to disable multi-tenant mode")
+	}
+
+	if cfg.DefaultTenantID != "legacy-tenant" {
+		t.Fatalf("expected default tenant id from legacy alias, got %q", cfg.DefaultTenantID)
+	}
+}
+
+func TestLoadDisablesRateLimitByDefaultOutsideProduction(t *testing.T) {
+	tempDir := t.TempDir()
+	configContent := `environment: development
+encryption_key: "12345678901234567890123456789012"
+default_admin:
+  enabled: false
+`
+
+	if err := os.WriteFile(filepath.Join(tempDir, "config.yaml"), []byte(configContent), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("change working directory: %v", err)
+	}
+	defer func() {
+		if chdirErr := os.Chdir(originalWD); chdirErr != nil {
+			t.Fatalf("restore working directory: %v", chdirErr)
+		}
+	}()
+
+	cfg := Load()
+	if cfg.Security.RateLimit.Enabled {
+		t.Fatalf("expected rate limit to default to disabled outside production when not explicitly configured")
+	}
+}

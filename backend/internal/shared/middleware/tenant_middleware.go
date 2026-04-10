@@ -39,20 +39,21 @@ func Tenant(dbManager *database.Manager, cfg *config.Config, checker TenantAcces
 		if tenantIDStr == "" {
 			if cfg.IsPrivateSingleTenantMode() && cfg.DefaultTenantID != "" {
 				tenantIDStr = cfg.DefaultTenantID
-			}
-			if !cfg.EnableMultiTenant {
-				c.Next()
+			} else {
+				if !cfg.EnableMultiTenant {
+					c.Next()
+					return
+				}
+				if ShouldSkipAuthorization(c.Request.URL.Path) {
+					c.Next()
+					return
+				}
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+					"code":    "TENANT_NOT_FOUND",
+					"message": "Tenant identification is required",
+				})
 				return
 			}
-			if ShouldSkipAuthorization(c.Request.URL.Path) {
-				c.Next()
-				return
-			}
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"code":    "TENANT_NOT_FOUND",
-				"message": "Tenant identification is required",
-			})
-			return
 		}
 
 		if authTenantID == "" && headerTenantID != "" && checker != nil {
@@ -88,9 +89,14 @@ func Tenant(dbManager *database.Manager, cfg *config.Config, checker TenantAcces
 		tenantDB := dbManager.GetTenantDB(tenantID)
 		if tenantDB == nil {
 			if cfg.DefaultTenantID != "" && tenantID.String() == cfg.DefaultTenantID {
+				// 单租户模式或默认租户：使用 masterDB
+				masterDB := dbManager.GetMasterDB()
+				c.Set("tenant_db", masterDB)
 				c.Set("tenant_id", tenantID.String())
+
 				ctx := c.Request.Context()
 				ctx = context.WithValue(ctx, "tenant_id", tenantID.String())
+				ctx = context.WithValue(ctx, "tenant_db", masterDB)
 				c.Request = c.Request.WithContext(ctx)
 				c.Next()
 				return

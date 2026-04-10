@@ -55,12 +55,12 @@ function Checkbox({
       <label
         htmlFor={checkboxId}
         className={cn(
-          "border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-xs border shadow-sm transition-colors hover:border-primary/80 peer-focus-visible:ring-[3px] peer-focus-visible:outline-hidden peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
-          checked && "bg-primary border-primary text-primary-foreground",
+          "border-input/80 bg-input-background text-primary-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex size-[1.15rem] shrink-0 cursor-pointer items-center justify-center rounded-[0.45rem] border shadow-[0_10px_24px_-18px_rgba(15,23,42,0.45)] transition-[border-color,background-color,box-shadow,transform] hover:border-primary/60 peer-focus-visible:ring-[3px] peer-focus-visible:outline-hidden peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
+          checked && "border-primary bg-primary shadow-[0_12px_26px_-18px_rgba(37,99,235,0.55)]",
           className,
         )}
       >
-        {checked && <Check className="size-3" />}
+        {checked && <Check className="size-3.5" />}
       </label>
     </div>
   );

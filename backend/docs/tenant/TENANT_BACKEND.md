@@ -15,15 +15,17 @@
 
 ### 租户主数据
 
-- 服务入口：`backend/internal/modules/tenant/service.go`
+- 服务入口：`backend/internal/modules/tenant/tenant_service.go`
 - 备份服务：`backend/internal/modules/tenant/backup_service.go`
 - 配额服务：`backend/internal/modules/tenant/quota_service.go`
-- HTTP 处理器：`backend/internal/modules/tenant/handler.go`
-- 路由注册：`backend/internal/modules/tenant/router.go`
-- DAO：`backend/internal/modules/tenant/dao.go`
-- 模型：`backend/internal/modules/tenant/model.go`
+- HTTP 处理器：`backend/internal/modules/tenant/tenant_handler.go`
+- 路由注册：`backend/internal/modules/tenant/tenant_router.go`
+- DAO：`backend/internal/modules/tenant/tenant_dao.go`
+- 模型：`backend/internal/modules/tenant/tenant_model.go`
 - 配额模型：`backend/internal/modules/tenant/quota_model.go`
-- DTO：`backend/internal/modules/tenant/dto.go`
+- DTO：`backend/internal/modules/tenant/tenant_dto.go`
+
+租户模块当前同时包含命名归一化能力：`backend/internal/modules/tenant/naming.go`
 
 ### 租户数据库接入
 

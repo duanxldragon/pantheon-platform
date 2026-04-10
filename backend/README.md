@@ -19,30 +19,25 @@
 2. `backend/BACKEND_GUIDE.md`
 3. `backend/docs/BACKEND_DOCS_INDEX.md`
 4. `backend/docs/BACKEND_NAMING_CONVENTIONS.md`
-5. `backend/docs/BACKEND_NORMALIZATION_PLAN.md`
-6. 再按模块进入：
+5. 再按模块进入：
    - `backend/docs/auth/AUTH_BACKEND.md`
    - `backend/docs/tenant/TENANT_BACKEND.md`
    - `backend/docs/system/SYSTEM_BACKEND.md`
-7. 需要工具链时再看 `backend/cmd/tools/README.md`
-8. 需要接口生成产物时再看 `backend/api/swagger/`
+6. 需要工具链时再看 `backend/cmd/tools/README.md`
+7. 需要接口生成产物时再看 `backend/api/swagger/`
 
 ## 当前统一规则
 
 后端当前统一遵循以下约定：
 
-- 主分层文件固定为 `dao.go`、`dto.go`、`handler.go`、`model.go`、`router.go`、`service.go`
-- 补充文件统一使用 `<subject>_<kind>.go`
+- 主分层文件统一使用 `<module>_<kind>.go`
+- 服务接口、补充能力和辅助实现继续使用 `<subject>_<kind>.go`
 - 命令入口继续保留 `main.go`
 - 共享基础设施优先使用“能力 + 类型”的命名方式
 
 唯一命名基线文档：
 
 - `backend/docs/BACKEND_NAMING_CONVENTIONS.md`
-
-批量执行计划文档：
-
-- `backend/docs/BACKEND_NORMALIZATION_PLAN.md`
 
 ## 快速定位
 
@@ -51,7 +46,7 @@
 - 启动链路、装配关系、基础设施：`backend/BACKEND_GUIDE.md`
 - 模块实现细节：`backend/docs/`
 - 文件命名和目录组织规则：`backend/docs/BACKEND_NAMING_CONVENTIONS.md`
-- 一次性规范化执行方式：`backend/docs/BACKEND_NORMALIZATION_PLAN.md`
+- 历史规范化与发布文档：`backend/docs/archive/`
 - 工具结构和用法：`backend/cmd/tools/README.md`
 
 ## 备注

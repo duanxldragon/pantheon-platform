@@ -1,9 +1,11 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { URL } = require('url');
 
 const port = Number(process.env.PORT || 5173);
 const rootDir = path.resolve(__dirname, '..', 'build');
+const backendOrigin = process.env.BACKEND_ORIGIN || 'http://127.0.0.1:8080';
 
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -27,8 +29,35 @@ function sendFile(filePath, res) {
   fs.createReadStream(filePath).pipe(res);
 }
 
+function proxyApiRequest(req, res) {
+  const targetUrl = new URL(req.url || '/', backendOrigin);
+  const proxyReq = http.request(
+    targetUrl,
+    {
+      method: req.method,
+      headers: req.headers,
+    },
+    (proxyRes) => {
+      res.writeHead(proxyRes.statusCode || 502, proxyRes.headers);
+      proxyRes.pipe(res);
+    },
+  );
+
+  proxyReq.on('error', (error) => {
+    res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ code: 502, message: 'Bad gateway', details: error.message }));
+  });
+
+  req.pipe(proxyReq);
+}
+
 const server = http.createServer((req, res) => {
   const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+  if (urlPath.startsWith('/api/')) {
+    proxyApiRequest(req, res);
+    return;
+  }
+
   const normalizedPath = urlPath === '/' ? '/index.html' : urlPath;
   const requestedPath = path.join(rootDir, normalizedPath);
 
@@ -60,4 +89,3 @@ const server = http.createServer((req, res) => {
 server.listen(port, () => {
   process.stdout.write(`Static server listening on http://localhost:${port}\n`);
 });
-

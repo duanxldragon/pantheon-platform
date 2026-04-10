@@ -9,7 +9,7 @@ import (
 
 // BaseModel 基础模型
 type BaseModel struct {
-	ID        uuid.UUID      `json:"id" gorm:"type:char(36);primary_key"`
+	ID        uuid.UUID      `json:"id" gorm:"size:36;primaryKey"`
 	CreatedAt time.Time      `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
 	DeletedAt gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`

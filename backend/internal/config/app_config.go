@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -278,10 +279,10 @@ func Load() *Config {
 		// Config file not found, use defaults and env vars
 	}
 
-	normalizeConfigAliases()
-
 	// Override with environment variables
 	viper.AutomaticEnv()
+
+	normalizeConfigAliases()
 
 	// Unmarshal config
 	var cfg Config
@@ -317,7 +318,7 @@ func setDefaults() {
 	viper.SetDefault("master_db.type", "mysql")
 	viper.SetDefault("master_db.host", "localhost")
 	viper.SetDefault("master_db.port", 3306)
-	viper.SetDefault("master_db.database", "pantheon")
+	viper.SetDefault("master_db.database", "pantheon_master")
 	viper.SetDefault("master_db.username", "root")
 	viper.SetDefault("master_db.password", "")
 	viper.SetDefault("master_db.ssl_mode", "disable")
@@ -418,6 +419,8 @@ func normalizeConfigAliases() {
 	copyIfEmpty("jwt_secret", "jwt.secret")
 	copyIfEmpty("jwt_expires_in", "jwt.expires_in")
 	copyIfEmpty("refresh_expiry", "jwt.refresh_expiry")
+	copyIfEmpty("enable_multi_tenant", "multi_tenant.enabled")
+	copyIfEmpty("default_tenant_id", "multi_tenant.default_tenant_id")
 	copyIfEmpty("encryption_key", "multi_tenant.encryption_key")
 
 	// Monitor DB aliases
@@ -441,6 +444,11 @@ func normalizeConfigAliases() {
 }
 
 func copyIfEmpty(targetKey, sourceKey string) {
+	if viper.InConfig(sourceKey) && !viper.InConfig(targetKey) {
+		viper.Set(targetKey, viper.Get(sourceKey))
+		return
+	}
+
 	if !viper.IsSet(targetKey) && viper.IsSet(sourceKey) {
 		viper.Set(targetKey, viper.Get(sourceKey))
 	}
@@ -486,7 +494,7 @@ func validate(cfg *Config) error {
 	}
 
 	if len(cfg.EncryptionKey) != 32 {
-		return fmt.Errorf("encryption key must be 32 bytes for AES-256-GCM")
+		return fmt.Errorf("encryption key must be 32 bytes, got %d: [%s]", len(cfg.EncryptionKey), cfg.EncryptionKey)
 	}
 
 	if strings.EqualFold(cfg.Environment, "production") && cfg.DefaultAdmin.Enabled {
@@ -534,6 +542,12 @@ func applyRuntimeSecurityDefaults(cfg *Config) {
 
 	if strings.EqualFold(cfg.Environment, "production") {
 		return
+	}
+
+	if !viper.InConfig("security.rate_limit.enabled") {
+		if _, exists := os.LookupEnv("PANTHEON_SECURITY_RATE_LIMIT_ENABLED"); !exists {
+			cfg.Security.RateLimit.Enabled = false
+		}
 	}
 
 	if strings.TrimSpace(cfg.JWTSecret) == "" {

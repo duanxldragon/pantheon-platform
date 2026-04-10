@@ -1,2 +1,5 @@
-export { tenantDatabaseApi } from './tenantDatabaseApi';
-export { tenantDatabaseApi as default } from './tenantDatabaseApi';
+export { tenantDatabaseApi } from './tenant_database_api';
+export { tenantDatabaseApi as default } from './tenant_database_api';
+
+
+

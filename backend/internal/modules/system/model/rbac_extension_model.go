@@ -26,7 +26,7 @@ func (CasbinRule) TableName() string {
 
 // UserRoleRelation 用户角色关联 (为了兼容性保留)
 type UserRoleRelation struct {
-	ID        uuid.UUID `json:"id" gorm:"type:char(36);primaryKey"`
+	ID        uuid.UUID `json:"id" gorm:"size:36;primaryKey"`
 	UserID    string    `json:"user_id" gorm:"size:36;index"`
 	RoleID    string    `json:"role_id" gorm:"size:36;index"`
 	IsPrimary bool      `json:"is_primary" gorm:"default:false"`
@@ -48,10 +48,10 @@ func (ur *UserRoleRelation) BeforeCreate(tx *gorm.DB) error {
 
 // FieldPermission 字段权限
 type FieldPermission struct {
-	ID          uuid.UUID `json:"id" gorm:"type:char(36);primaryKey"`
+	ID          uuid.UUID `json:"id" gorm:"size:36;primaryKey"`
 	RoleID      string    `json:"role_id" gorm:"size:36;index"`
 	Module      string    `json:"module" gorm:"size:50;index"`
-	Table       string    `json:"table_name" gorm:"size:100;index" gorm:"column:table_name"`
+	Table       string    `json:"table_name" gorm:"column:table_name;size:100;index"`
 	Field       string    `json:"field" gorm:"size:100;index"`
 	Permission  string    `json:"permission" gorm:"size:20"`
 	Description string    `json:"description" gorm:"size:500"`

@@ -2,7 +2,7 @@ import React, { useContext } from 'react';
 
 import { RTL_LANGUAGES, SUPPORTED_LANGUAGES, type LanguageCode, type Translations } from './types';
 import { TranslationContext, resolveTranslation, type TranslationContextType, type TranslationParams } from './core';
-import { useLanguageStore } from '../../stores/languageStore';
+import { useLanguageStore } from '../../stores/language_store';
 
 export const useTranslation = (): TranslationContextType => {
   const context = useContext(TranslationContext);
@@ -83,3 +83,4 @@ export const useFormatDate = () => {
     }
   };
 };
+

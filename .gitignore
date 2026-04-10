@@ -24,8 +24,10 @@ backend/bin/
 backend/coverage.out
 backend/coverage.html
 backend/pantheon-server
-backend/config.yaml
-backend/config.yaml.backup
+backend/config.yaml               # 实际配置文件（不提交）
+backend/config.yaml.backup       # 配置备份（不提交）
+backend/.env                     # 环境变量文件（不提交）
+backend/.env.local               # 本地环境变量（不提交）
 
 # Frontend generated files
 frontend/node_modules/
@@ -33,9 +35,11 @@ frontend/build/
 frontend/dist/
 frontend/.vite/
 frontend/build.log
+frontend/.env.local              # 本地环境变量（不提交）
 
 # Test artifacts
 *.test
 
 # Local agent workspace
 .codex/
+start-dev.ps1

@@ -1,1 +1,2 @@
-export { useProfilePreferenceSettings } from './useProfilePreferenceSettings';
+export { useProfilePreferenceSettings } from './use_profile_preference_settings';
+

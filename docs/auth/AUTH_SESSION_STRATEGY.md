@@ -205,6 +205,29 @@ sequenceDiagram
 2. `systemStore.initialize()`：刷新菜单、角色、系统数据；
 3. 必要时重新检查租户状态。
 
+### 9.1 当前实现入口
+
+当前前端已经把这条刷新链路收敛到统一入口：
+
+- 请求拦截与 `401` 处理：`frontend/src/shared/utils/api_client.ts`
+- refresh 成功后的统一承接：`refreshTenantContext()`
+- 认证信息重载：`reloadAuthorization()`
+- 租户状态复查：`checkTenantStatus()`
+- 系统级快照重建：`systemStore.initialize()`
+
+当前实际流程如下：
+
+1. 后端返回 `401 AUTH_VERSION_MISMATCH`
+2. `api_client` 调用 refresh 接口
+3. refresh 成功后执行 `authStore.refreshTenantContext()`
+4. `refreshTenantContext()` 内部依次执行：
+   - `reloadAuthorization()`
+   - `checkTenantStatus()`
+   - 若租户已就绪，再执行 `systemStore.initialize()`
+5. 前端清理并重建标签页与菜单快照
+
+这意味着文档中的“刷新当前用户 / 权限 / 系统数据 / 租户状态”不是分散在多个页面里完成，而是由认证链路统一收口。
+
 这样才能保证：
 
 - 顶部个人中心信息正确；

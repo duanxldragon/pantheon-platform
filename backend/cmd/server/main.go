@@ -6,6 +6,7 @@ import (
 
 // @title Pantheon Platform API
 // @version 1.0
+// @openapi3.0
 // @description Enterprise multi-tenant RBAC platform API.
 // @termsOfService http://swagger.io/terms/
 //

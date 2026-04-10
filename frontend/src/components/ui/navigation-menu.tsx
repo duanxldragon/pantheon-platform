@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as NavigationMenuPrimitive from "@radix-ui/react-navigation-menu";
-import { navigationMenuTriggerStyle } from "./navigationMenuTriggerStyle";
+import { navigationMenuTriggerStyle } from "./navigation_menu_trigger_style";
 import { cn } from "./utils";
 
 const ChevronDown = ({ className, ...props }: React.ComponentProps<"svg">) => (

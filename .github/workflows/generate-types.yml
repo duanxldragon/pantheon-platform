@@ -1,0 +1,108 @@
+name: Generate API Types
+
+on:
+  push:
+    paths:
+      - 'backend/internal/modules/**/*_dto.go'
+      - 'backend/internal/app/swagger.go'
+      - '.github/workflows/generate-types.yml'
+  workflow_dispatch:
+
+jobs:
+  generate-types:
+    name: Generate API Types
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+          cache-dependency-path: backend/go.sum
+
+      - name: Install Swagger
+        run: |
+          go install github.com/swaggo/swag/cmd/swag@latest
+
+      - name: Generate Swagger docs
+        run: |
+          cd backend
+          swag init -g cmd/server/main.go -o api/swagger --parseDependency --parseInternal || true
+        continue-on-error: true
+
+      - name: Start backend server
+        run: |
+          cd backend
+          go run cmd/server &
+          echo $! > backend.pid
+          sleep 15
+
+      - name: Wait for backend to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -s http://localhost:8080/health > /dev/null; then
+              echo "Backend is ready"
+              break
+            fi
+              echo "Waiting for backend... ($i/30)"
+              sleep 2
+          done
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci --legacy-peer-deps
+
+      - name: Install openapi-typescript
+        run: |
+          cd frontend
+          npm install --save-dev openapi-typescript --legacy-peer-deps
+
+      - name: Generate API types
+        id: generate
+        continue-on-error: true
+        run: |
+          cd frontend
+          npx openapi-typescript http://localhost:8080/swagger/doc.json -o src/api/types.ts
+
+      - name: Stop backend server
+        if: always()
+        run: |
+          cd backend
+          if [ -f backend.pid ]; then
+            kill $(cat backend.pid) || true
+            rm backend.pid
+          fi
+
+      - name: Check if generation succeeded
+        if: steps.generate.outcome == 'success'
+        run: |
+          echo "✓ API types generated successfully"
+          echo "Generated file: frontend/src/api/types.ts"
+
+      - name: Run type check
+        if: steps.generate.outcome == 'success'
+        run: |
+          cd frontend
+          npm run type-check
+
+      - name: Commit changes
+        if: steps.generate.outcome == 'success'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add frontend/src/api/types.ts
+          git diff --staged --quiet || echo "No changes to commit"
+          git commit -m "chore: auto-generate API types from backend [skip ci]" || echo "No changes committed"
+          git push

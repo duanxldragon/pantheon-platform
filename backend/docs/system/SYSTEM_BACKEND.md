@@ -8,7 +8,6 @@
 - `docs/system/SYSTEM_MANAGEMENT.md`
 - `docs/auth/AUTH_SESSION_STRATEGY.md`
 - `docs/tenant/TENANT_INITIALIZATION.md`
-- `backend/docs/system/SYSTEM_SWAGGER_COVERAGE.md`
 
 ---
 
@@ -41,9 +40,9 @@
 2. 通过认证中间件
 3. 通过租户中间件
 4. 进入授权中间件
-5. 分发到对应子模块 `handler`
-6. 在 `service` 中执行业务规则和事务
-7. 通过 `dao` 访问当前租户范围内的数据
+5. 分发到对应子模块 `*_handler.go`
+6. 在 `*_service.go` 中执行业务规则和事务
+7. 通过 `*_dao.go` 访问当前租户范围内的数据
 
 这意味着系统管理功能默认运行在“已认证、已绑定租户、已授权”的上下文中。
 
@@ -53,12 +52,12 @@
 
 大多数系统子模块统一采用：
 
-- `handler.go`：HTTP 入参和响应
-- `service.go`：业务规则、事务、跨对象协作
-- `dao.go`：数据库访问
-- `dto.go`：请求和响应结构
-- `model.go`：持久化模型
-- `router.go`：路由注册
+- `<module>_handler.go`：HTTP 入参和响应
+- `<module>_service.go`：业务规则、事务、跨对象协作
+- `<module>_dao.go`：数据库访问
+- `<module>_dto.go`：请求和响应结构
+- `<module>_model.go`：持久化模型
+- `<module>_router.go`：路由注册
 
 当前已稳定对齐这一结构的目录包括：
 
@@ -72,7 +71,7 @@
 - `log/`
 - `setting/`
 
-`monitor/` 保持轻量，仅保留必要的 `handler/service/router`。
+`monitor/` 保持轻量，仅保留必要的 `monitor_handler.go`、`monitor_service.go`、`monitor_router.go`。
 
 ---
 
@@ -104,8 +103,8 @@
 
 关键文件：
 
-- `backend/internal/modules/system/user/service.go`
-- `backend/internal/modules/system/role/service.go`
+- `backend/internal/modules/system/user/user_service.go`
+- `backend/internal/modules/system/role/role_service.go`
 - `backend/internal/shared/authorization/casbin_service.go`
 
 当用户角色发生变化时，后端需要同时处理：
@@ -118,9 +117,9 @@
 
 关键文件：
 
-- `backend/internal/modules/system/role/service.go`
-- `backend/internal/modules/system/permission/service.go`
-- `backend/internal/modules/system/menu/service.go`
+- `backend/internal/modules/system/role/role_service.go`
+- `backend/internal/modules/system/permission/permission_service.go`
+- `backend/internal/modules/system/menu/menu_service.go`
 - `backend/internal/shared/authorization/casbin_service.go`
 
 角色权限和菜单变更不仅影响配置表，还会影响：
@@ -134,8 +133,8 @@
 
 关键文件：
 
-- `backend/internal/modules/system/dept/service.go`
-- `backend/internal/modules/system/position/service.go`
+- `backend/internal/modules/system/dept/dept_service.go`
+- `backend/internal/modules/system/position/position_service.go`
 
 部门和岗位变更主要影响：
 

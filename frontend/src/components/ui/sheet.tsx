@@ -48,7 +48,7 @@ const SheetOverlay = React.forwardRef<
 SheetOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const sheetVariants = cva(
-  "fixed z-[150] gap-4 overflow-hidden border-slate-200/80 bg-white text-slate-950 shadow-2xl transition ease-in-out dark:border-slate-800/80 dark:bg-slate-950 dark:text-slate-50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+  "fixed z-[150] gap-4 overflow-hidden border-slate-200/80 bg-gradient-to-br from-white via-white to-slate-50/85 text-slate-950 shadow-[0_32px_80px_-40px_rgba(15,23,42,0.45)] ring-1 ring-white/60 transition ease-in-out dark:border-slate-800/80 dark:bg-slate-950 dark:text-slate-50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
   {
     variants: {
       side: {
@@ -82,7 +82,7 @@ const SheetContent = React.forwardRef<
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:size-4">
+      <DialogPrimitive.Close className="ring-offset-background focus:ring-ring absolute top-4 right-4 rounded-xl border border-slate-200/80 bg-white/90 p-2 text-slate-500 opacity-90 shadow-sm transition-all hover:-translate-y-0.5 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none dark:border-slate-800/80 dark:bg-slate-900/90 dark:text-slate-300 [&_svg]:size-4">
         <X />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
@@ -122,7 +122,7 @@ const SheetTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn("text-foreground text-lg font-semibold", className)}
+    className={cn("text-foreground text-lg font-semibold tracking-[0.01em]", className)}
     {...props}
   />
 ));

@@ -1,4 +1,4 @@
 // 页面模板导出
-export { ListPageTemplate } from './ListPageTemplate';
-export { DetailPageTemplate } from './DetailPageTemplate';
-export { FormPageTemplate } from './FormPageTemplate';
+export { ListPageTemplate } from './list_page_template';
+export { DetailPageTemplate } from './detail_page_template';
+export { FormPageTemplate } from './form_page_template';

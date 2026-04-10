@@ -1,1 +1,2 @@
-export { TenantManagement } from './TenantManagement';
+export { TenantManagement } from './tenant_management';
+

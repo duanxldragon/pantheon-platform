@@ -1,4 +1,4 @@
-﻿# 认证模块前端实现
+# 认证模块前端实现
 
 ## 定位
 
@@ -14,17 +14,20 @@
 
 ### 登录与状态管理
 
-- 登录页：`frontend/src/modules/auth/views/Login.tsx`
-- 认证 Store：`frontend/src/modules/auth/store/authStore.ts`
-- 认证 API：`frontend/src/modules/auth/api/authApi.ts`
-- API 客户端：`frontend/src/shared/utils/apiClient.ts`
-- 刷新拦截器：`frontend/src/shared/utils/apiInterceptor.ts`
+- 登录页：`frontend/src/modules/auth/views/login/index.tsx`
+- 认证 Store：`frontend/src/modules/auth/store/auth_store.ts`
+- 认证 API：`frontend/src/modules/auth/api/auth_api.ts`
+- API 客户端：`frontend/src/shared/utils/api_client.ts`
+- 刷新协调入口：`frontend/src/shared/utils/api_client.ts`
+- 顶栏退出入口：`frontend/src/components/top_bar.tsx`
 - 应用入口：`frontend/src/App.tsx`
 
 ### 个人中心与安全设置
 
-- 个人资料：`frontend/src/modules/auth/profile/views/PersonalInfo.tsx`
-- 安全设置：`frontend/src/modules/auth/profile/views/SecuritySettings.tsx`
+- 个人中心路由页：`frontend/src/modules/auth/profile/profile_center/index.tsx`
+- 账户设置路由页：`frontend/src/modules/auth/profile/account_settings/index.tsx`
+- 个人资料：`frontend/src/modules/auth/profile/views/personal_info/index.tsx`
+- 安全设置：`frontend/src/modules/auth/profile/views/security_settings/index.tsx`
 
 ---
 
@@ -55,6 +58,12 @@
 - 是否启用 2FA。
 
 因此登录页的展示不是纯静态页面，而是跟平台配置联动。
+
+当前登录页还额外做了两层体验收口：
+
+- 多租户模式下默认收起租户编码输入，只有需要时再展开；
+- 当后端识别到租户编码时，会在登录页给出租户预览反馈。
+- 登录页现在也把“记住账号信息”显式接到界面：启用后会保留用户名，并在租户登录模式下同步保留租户代码；关闭后会一并清空本地记忆项，避免 Hook 已支持但页面无入口的状态割裂。
 
 ### 2. 用户名密码登录
 
@@ -110,7 +119,7 @@
 
 - 初始化 `systemStore`；
 - 让 `SidebarNew` 重新按菜单渲染导航；
-- 让 `ViewManager` 按最新菜单与视图配置挂载页面。
+- 让动态视图运行时按最新菜单与视图配置挂载页面。
 
 这就是“角色-权限-菜单变更后，当前登录用户界面自动更新”的前端承接点。
 
@@ -120,7 +129,7 @@
 
 ### 1. 刷新入口
 
-`frontend/src/shared/utils/apiInterceptor.ts` 负责全局 refresh 协调，特点包括：
+`frontend/src/shared/utils/api_client.ts` 负责全局 refresh 协调，特点包括：
 
 - 串行化 token 刷新，避免并发重复 refresh；
 - refresh 成功后更新 `authStore` 中 token；
@@ -137,6 +146,16 @@
 - 给出“登录已过期，请重新登录”的统一提示。
 
 这部分与 `docs/auth/AUTH_SESSION_STRATEGY.md` 中定义的软刷新 / 强制失效策略一一对应。
+
+### 3. 主动退出
+
+当前主动退出不再依赖独立“退出页”，而是由顶栏统一发起：
+
+1. 用户在 `TopBar` 中点击退出；
+2. 前端先弹出确认对话框，提示保存当前工作；
+3. 确认后调用 `authStore.logout()`；
+4. 清空认证态、系统缓存与标签页；
+5. 由路由守卫把用户带回 `/login`。
 
 ---
 
@@ -169,7 +188,43 @@
 - API Key 管理；
 - 登录安全感知。
 
+其中 API Key 管理当前还补了统一确认链路：
+
+- 删除密钥前会先弹出平台级确认弹窗；
+- 删除成功后立即从列表移除；
+- 这样可以避免高风险安全操作继续依赖浏览器原生确认框。
+
+2FA 与会话管理当前也已经收口到真实前端链路：
+
+- 关闭 2FA 不再使用浏览器 `prompt`，而是改为平台对话框输入当前密码；
+- 会话管理页不再展示本地 mock 数据，而是直接调用 `/v1/auth/sessions`；
+- 单个会话终止走 `kickSession(jti)`，并通过统一确认弹窗承接高风险操作；
+- “终止其他会话” 当前采用前端遍历非当前会话逐个撤销的方式，保持与现有后端接口能力一致。
+
 因此“个人中心”是系统管理的入口，“安全能力”是认证模块的实现。
+
+个人资料页中的基础资料与头像更新当前采用“本地即时更新 + 服务端权威回刷”模式：
+
+- 页面先调用 `authApi.updateProfile()` 完成保存；
+- 再执行 `authStore.refreshCurrentUser()` 回刷当前用户主档；
+- 顶栏用户摘要、个人中心卡片与资料表单因此保持一致；
+- 这样可以避免只依赖前端本地合并，导致遗漏后端归一化字段或最新登录态摘要。
+
+当前 Router 已明确拆分两类入口：
+
+- `/profile`：个人中心总览；
+- `/profile/settings`：账户设置与会话、安全、隐私等专题能力。
+
+登录历史页当前也补齐了搜索闭环：
+
+- 当用户输入 IP、地点、浏览器、系统或消息关键字时，前端会跨登录历史分页做聚合拉取后再过滤；
+- 不再只在“当前页结果”内做本地搜索，避免搜索命中范围和分页总数相互矛盾；
+- 清空关键字后再恢复后端原始分页节奏。
+
+个人偏好相关页面当前也统一了保存态提示：
+
+- `frontend/src/modules/auth/profile/views/privacy_settings/index.tsx` 现在会区分“未保存变更”和“已同步”状态，保存按钮只在实际发生变更时可点击；
+- `frontend/src/modules/auth/profile/views/api_key_management/index.tsx` 在取消创建新密钥时会清空临时名称输入，避免再次打开创建态时继续带出上一轮未提交的草稿。
 
 ---
 

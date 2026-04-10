@@ -17,8 +17,8 @@ const (
 
 // TenantQuota stores quota limits and usage for a tenant.
 type TenantQuota struct {
-	ID           uuid.UUID `json:"id" gorm:"type:char(36);primaryKey" example:"550e8400-e29b-41d4-a716-446655440111"`
-	TenantID     string    `json:"tenant_id" gorm:"type:char(36);notNull;index" example:"550e8400-e29b-41d4-a716-446655440000"`
+	ID           uuid.UUID `json:"id" gorm:"size:36;primaryKey" example:"550e8400-e29b-41d4-a716-446655440111"`
+	TenantID     string    `json:"tenant_id" gorm:"size:36;notNull;index" example:"550e8400-e29b-41d4-a716-446655440000"`
 	QuotaType    QuotaType `json:"quota_type" gorm:"size:50;notNull" example:"users"`
 	MaxValue     int64     `json:"max_value" gorm:"notNull" example:"200"`
 	CurrentValue int64     `json:"current_value" gorm:"default:0" example:"28"`
@@ -34,8 +34,8 @@ func (TenantQuota) TableName() string {
 
 // QuotaUsageLog records changes to tenant quota usage.
 type QuotaUsageLog struct {
-	ID          uuid.UUID `json:"id" gorm:"type:char(36);primaryKey"`
-	TenantID    string    `json:"tenant_id" gorm:"type:char(36);notNull;index"`
+	ID          uuid.UUID `json:"id" gorm:"size:36;primaryKey"`
+	TenantID    string    `json:"tenant_id" gorm:"size:36;notNull;index"`
 	QuotaType   QuotaType `json:"quota_type" gorm:"size:50;notNull"`
 	Action      string    `json:"action" gorm:"size:50;notNull"` // 'create', 'delete', 'increase', 'decrease'
 	ChangeValue int64     `json:"change_value" gorm:"notNull"`

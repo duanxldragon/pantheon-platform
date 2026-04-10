@@ -407,4 +407,5 @@ export interface PermissionFormData {
   module: string;
   menuId?: ID;
   description?: string;
+  status?: 'active' | 'inactive';
 }

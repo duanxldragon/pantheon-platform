@@ -1,3 +1,4 @@
 {
-  "_deprecated": "已弃用：共享 i18n 的中文翻译现统一维护在 src/stores/languageStore.ts 与 src/shared/i18n/resources.ts。"
+  "_deprecated": "已弃用：共享 i18n 的中文翻译现统一维护在 src/stores/language_store.ts 与 src/shared/i18n/resources.ts。"
 }
+

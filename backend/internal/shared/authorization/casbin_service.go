@@ -58,6 +58,7 @@ var (
 
 const authStateTTL = 8 * 24 * time.Hour
 
+//nolint:unused
 type AuthorizationService struct {
 	masterDB        *gorm.DB
 	masterEnforcer  *casbin.Enforcer
@@ -67,6 +68,7 @@ type AuthorizationService struct {
 	mu              sync.RWMutex
 }
 
+//nolint:unused
 type tenantEnforcerEntry struct {
 	db       *gorm.DB
 	enforcer *casbin.Enforcer

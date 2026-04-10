@@ -3,7 +3,7 @@ import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Activity, AlertCircle, CheckCircle, Clock, Terminal } from 'lucide-react';
 import { Button } from './ui/button';
-import { useLanguageStore } from '../stores/languageStore';
+import { useLanguageStore } from '../stores/language_store';
 
 export function Operations() {
   const { t } = useLanguageStore();

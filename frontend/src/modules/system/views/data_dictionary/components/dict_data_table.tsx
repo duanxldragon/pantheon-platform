@@ -1,0 +1,229 @@
+import React from 'react';
+import { Badge } from '../../../../../components/ui/badge';
+import { Switch } from '../../../../../components/ui/switch';
+import { 
+  Eye,
+  Edit, 
+  Trash2, 
+  MoreHorizontal,
+  Type,
+  Code2,
+  ListOrdered,
+  FileText
+} from 'lucide-react';
+import { 
+  EnhancedDataTable, 
+  Column 
+} from '../../../../../shared/components/ui/enhanced_data_table';
+import { ActionButtons } from '../../../../../shared/components/ui/action_buttons';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '../../../../../components/ui/dropdown-menu';
+import { Button } from '../../../../../components/ui/button';
+import { useLanguageStore } from '../../../../../stores/language_store';
+import { getDataDictionaryCopy } from '../data_dictionary_copy';
+
+export interface DictItem {
+  id: string;
+  dictLabel: string;
+  dictValue: string;
+  sort: number;
+  status: string;
+  remark?: string;
+  cssClass?: string;
+}
+
+interface DictDataTableProps {
+  data: DictItem[];
+  loading?: boolean;
+  onAction: (action: string, item: DictItem) => void;
+  onStatusChange: (item: DictItem, enabled: boolean) => void;
+  canUpdate?: boolean;
+  canDelete?: boolean;
+}
+
+export const DictDataTable: React.FC<DictDataTableProps> = ({
+  data,
+  loading,
+  onAction,
+  onStatusChange,
+  canUpdate = true,
+  canDelete = true,
+}) => {
+  const { language } = useLanguageStore();
+  const copy = getDataDictionaryCopy(language).table;
+
+  const columns: Column<DictItem>[] = [
+    {
+      key: 'dictLabel',
+      label: copy.columns.label,
+      width: '200px',
+      render: (item) => (
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-emerald-100/80 bg-emerald-50 shadow-sm shadow-emerald-100/50">
+            <Type className="w-4 h-4 text-emerald-500" />
+          </div>
+          <span className="font-bold text-slate-900">{item.dictLabel}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'dictValue',
+      label: copy.columns.value,
+      width: '180px',
+      render: (item) => (
+        <div className="flex items-center gap-2">
+          <Code2 className="w-3.5 h-3.5 text-slate-400" />
+          <span className="rounded-full border border-blue-100/80 bg-blue-50/80 px-2.5 py-1 font-mono text-xs text-blue-600 shadow-sm shadow-blue-100/40">
+            {item.dictValue}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'style',
+      label: copy.columns.style,
+      width: '120px',
+      render: (item) => (
+        item.cssClass ? (
+          <Badge variant="outline" className={`rounded-full px-2.5 py-1 text-[10px] shadow-sm ${item.cssClass}`}>
+            {item.cssClass}
+          </Badge>
+        ) : (
+          <span className="text-slate-300 text-xs">-</span>
+        )
+      ),
+    },
+    {
+      key: 'sort',
+      label: copy.columns.sort,
+      width: '100px',
+      align: 'center',
+      render: (item) => (
+        <div className="inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200/80 bg-slate-50/90 px-2.5 py-1 text-slate-500 shadow-sm shadow-slate-200/40">
+          <ListOrdered className="w-3 h-3 opacity-50" />
+          <span className="font-mono text-xs">{item.sort}</span>
+        </div>
+      )
+    },
+    {
+      key: 'status',
+      label: copy.columns.status,
+      width: '100px',
+      align: 'center',
+      render: (item) => (
+        <Switch
+          checked={item.status === 'active'}
+          onCheckedChange={(checked) => onStatusChange(item, checked)}
+          disabled={!canUpdate}
+          className="scale-90 data-[state=checked]:bg-emerald-500"
+        />
+      ),
+    },
+    {
+      key: 'remark',
+      label: copy.columns.remark,
+      width: '220px',
+      render: (item) => (
+        <div className="flex items-start gap-1.5 text-slate-500/75">
+          <FileText className="w-3 h-3 mt-1 flex-shrink-0" />
+          <span className="text-xs truncate max-w-[180px]">{item.remark || '-'}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      label: copy.columns.actions,
+      width: '120px',
+      align: 'right',
+      render: (item) => (
+        <div className="flex items-center justify-end gap-2">
+          <ActionButtons 
+            actions={[
+              {
+                icon: <Eye className="w-4 h-4" />,
+                label: copy.actions.detail,
+                onClick: () => onAction('detail', item),
+                variant: 'mono',
+              },
+              ...(canUpdate
+                ? [
+                    {
+                      icon: <Edit className="w-4 h-4" />,
+                      label: copy.actions.edit,
+                      onClick: () => onAction('edit', item),
+                      variant: 'mono' as const,
+                    },
+                  ]
+                : []),
+            ]} 
+            surface="ghost"
+          />
+          {canUpdate || canDelete ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-xl border border-slate-200/70 bg-white/90 text-slate-400 shadow-sm shadow-slate-200/50 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-700"
+                >
+                  <MoreHorizontal className="w-4 h-4 text-slate-400" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44 rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 shadow-xl shadow-slate-200/60">
+                <DropdownMenuItem className="rounded-xl focus:bg-slate-100" onClick={() => onAction('detail', item)}>
+                  <Eye className="w-4 h-4 mr-2 text-slate-500" />
+                  {copy.actions.detail}
+                </DropdownMenuItem>
+                {canUpdate ? (
+                  <DropdownMenuItem className="rounded-xl focus:bg-slate-100" onClick={() => onAction('edit', item)}>
+                    <Edit className="w-4 h-4 mr-2 text-amber-500" />
+                    {copy.actions.editItem}
+                  </DropdownMenuItem>
+                ) : null}
+                {canDelete ? (
+                  <DropdownMenuItem className="rounded-xl text-rose-600 focus:bg-rose-50 focus:text-rose-700" onClick={() => onAction('delete', item)}>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {copy.actions.delete}
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="flex-1 overflow-hidden flex flex-col">
+      <EnhancedDataTable
+        columns={columns}
+        data={data}
+        rowKey={(item) => item.id}
+        className="border-none shadow-none"
+      />
+      {data.length === 0 && !loading && (
+        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-2">
+          <div className="p-4 bg-slate-50 rounded-full">
+            <Code2 className="w-8 h-8 opacity-20" />
+          </div>
+          <p className="text-sm italic">{copy.emptyHint}</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+
+
+
+
+
+
+
+

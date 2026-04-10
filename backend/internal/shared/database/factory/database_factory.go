@@ -125,7 +125,9 @@ func TestConnection(dbType, dsn string) (*ConnectionTestResult, error) {
 			Error:   err.Error(),
 		}, err
 	}
-	defer Close(db)
+	defer func() {
+		_ = Close(db)
+	}()
 
 	if err := Ping(db); err != nil {
 		return &ConnectionTestResult{

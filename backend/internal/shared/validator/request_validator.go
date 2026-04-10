@@ -25,10 +25,10 @@ type RequiredRule struct {
 
 func (r RequiredRule) Validate(value interface{}) error {
 	if value == nil {
-		return fmt.Errorf(r.Message)
+		return fmt.Errorf("%s", r.Message)
 	}
 	if s, ok := value.(string); ok && strings.TrimSpace(s) == "" {
-		return fmt.Errorf(r.Message)
+		return fmt.Errorf("%s", r.Message)
 	}
 	return nil
 }
@@ -52,7 +52,7 @@ func (r MinLengthRule) Validate(value interface{}) error {
 		return nil
 	}
 	if len(s) < r.Min {
-		return fmt.Errorf(r.Message)
+		return fmt.Errorf("%s", r.Message)
 	}
 	return nil
 }
@@ -76,7 +76,7 @@ func (r MaxLengthRule) Validate(value interface{}) error {
 		return nil
 	}
 	if len(s) > r.Max {
-		return fmt.Errorf(r.Message)
+		return fmt.Errorf("%s", r.Message)
 	}
 	return nil
 }
@@ -100,7 +100,7 @@ func (r EmailRule) Validate(value interface{}) error {
 	}
 	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 	if !emailRegex.MatchString(s) {
-		return fmt.Errorf(r.Message)
+		return fmt.Errorf("%s", r.Message)
 	}
 	return nil
 }
@@ -124,7 +124,7 @@ func (r PhoneRule) Validate(value interface{}) error {
 	}
 	phoneRegex := regexp.MustCompile(`^1[3-9]\d{9}$`)
 	if !phoneRegex.MatchString(s) {
-		return fmt.Errorf(r.Message)
+		return fmt.Errorf("%s", r.Message)
 	}
 	return nil
 }
@@ -148,7 +148,7 @@ func (r InRule) Validate(value interface{}) error {
 			return nil
 		}
 	}
-	return fmt.Errorf(r.Message)
+	return fmt.Errorf("%s", r.Message)
 }
 
 func In(values []interface{}, message ...string) Rule {
@@ -172,7 +172,7 @@ func (r NumericRule) Validate(value interface{}) error {
 			return nil
 		}
 		if _, err := strconv.ParseFloat(v, 64); err != nil {
-			return fmt.Errorf(r.Message)
+			return fmt.Errorf("%s", r.Message)
 		}
 		return nil
 	default:
@@ -468,7 +468,7 @@ func ValidateRegex(value interface{}, pattern, message string) error {
 		return fmt.Errorf("invalid pattern")
 	}
 	if !regex.MatchString(str) {
-		return fmt.Errorf(message)
+		return fmt.Errorf("%s", message)
 	}
 	return nil
 }

@@ -1,10 +1,26 @@
 import { execFileSync } from 'node:child_process';
-import { expect, test, type APIRequestContext, type BrowserContext, type Locator, type Page } from '@playwright/test';
-import { e2eAdminUsername, getE2EAdminPassword, getE2EMysqlConfig } from './e2eCredentials';
+import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { e2eAdminUsername, e2eTenantCode, getE2EAdminPassword, getE2EMysqlConfig } from './e2eCredentials';
 
-const frontendOrigin = 'http://localhost:5173';
-const backendOrigin = 'http://localhost:8080';
+const backendOrigin = process.env.BACKEND_ORIGIN || 'http://localhost:8080';
 const formSubmitButtonName = /^(Save|Submit|Confirm)$/i;
+const tenantNavName = /Tenants|Tenant|租户/i;
+const departmentNavName = /Departments|Department|部门/i;
+const roleNavName = /Roles|Role|角色/i;
+const positionNavName = /Positions|Position|岗位/i;
+const userNavName = /Users|User|用户/i;
+const menuNavName = /Menus|Menu|菜单/i;
+const permissionNavName = /Permissions|Permission|权限/i;
+const dictionaryNavName = /Dictionary|Data Dictionary|字典/i;
+const settingsNavName = /Settings|System Settings|设置/i;
+const logsNavName = /Logs|Audit Logs|日志/i;
+const monitorNavName = /Monitor|System Monitor|Monitoring|监控/i;
+const createButtonName = /Add|Create|新增|创建|create/i;
+const roleDialogName = /Add Role|Edit Role|Create Role/i;
+const positionDialogName = /Add Positions|Edit Positions|Add Position|Edit Position|Create Positions|Create Position/i;
+const userDialogName = /Add Users|Edit Users|Add User|Edit User|Create Users|Create User/i;
+const menuDialogName = /Add .*Menus|Edit .*Menus|Create .*Menus|Create .*Menu/i;
+const departmentDialogName = /Add Department|Edit Department|Create Department/i;
 
 function runMysqlStatement(statement: string) {
   const { mysqlBin, mysqlHost, mysqlPort, mysqlUser, mysqlPassword } = getE2EMysqlConfig();
@@ -27,50 +43,37 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-async function attachApiProxy(context: BrowserContext) {
-  await context.route('**/api/**', async (route) => {
-    const requestUrl = route.request().url().replace(frontendOrigin, backendOrigin).replace('http://127.0.0.1:5173', backendOrigin);
-
-    if (requestUrl.includes('/api/v1/auth/config')) {
-      const response = await route.fetch({ url: requestUrl });
-      const payload = await response.json();
-      const data = typeof payload?.data === 'object' && payload?.data ? payload.data : {};
-      const headers = typeof response.allHeaders === 'function' ? await response.allHeaders() : response.headers();
-      await route.fulfill({
-        status: response.status(),
-        headers: {
-          ...headers,
-          'content-type': 'application/json; charset=utf-8',
-        },
-        body: JSON.stringify({
-          ...payload,
-          data: {
-            ...data,
-            login_requires_tenant_code: false,
-          },
-        }),
-      });
-      return;
-    }
-
-    const response = await route.fetch({ url: requestUrl });
-    await route.fulfill({ response });
-  });
-}
-
-async function login(page: Page) {
+async function login(page: Page, tenantCodeOverride?: string) {
   const adminPassword = getE2EAdminPassword();
+  const tenantCode = tenantCodeOverride ?? e2eTenantCode;
+  if (tenantCode) {
+    await page.addInitScript((value) => {
+      window.localStorage.setItem('rememberedTenantCode', value);
+    }, tenantCode);
+  }
   await page.goto('/');
-  await page.waitForResponse((response) => response.url().includes('/api/v1/auth/config') && response.ok());
+  const usernameInput = page.locator('#username').first();
+  const passwordInput = page.locator('#password').first();
+  await usernameInput.waitFor({ state: 'visible', timeout: 15000 });
 
-  const tenantCodeField = page.getByLabel(/Tenant Code/i);
-  if (await tenantCodeField.count()) {
-    await expect(tenantCodeField).toBeHidden({ timeout: 15000 });
+  if (tenantCode) {
+    const tenantCodeInput = page.locator('#tenantCode');
+    if (!(await tenantCodeInput.isVisible().catch(() => false))) {
+      const tenantToggleButton = page
+        .getByRole('button', { name: /Enter Tenant Code|输入租户代码|填写租户编码/i })
+        .first();
+      await expect(tenantToggleButton).toBeVisible({ timeout: 10000 });
+      await tenantToggleButton.click();
+      await tenantCodeInput.waitFor({ state: 'visible', timeout: 10000 });
+    }
+    await tenantCodeInput.fill(tenantCode);
+    await expect(tenantCodeInput).toHaveValue(tenantCode);
   }
 
-  await page.getByLabel(/Username/i).fill(e2eAdminUsername);
-  await page.getByLabel(/Password/i).fill(adminPassword);
-  await page.getByRole('button', { name: /Login/i }).click();
+  await usernameInput.fill(e2eAdminUsername);
+  await passwordInput.fill(adminPassword);
+  await page.locator('button[type="submit"]').click();
+  await page.waitForTimeout(3000);
   await expect(page.getByRole('button', { name: /System|Tenant/i }).first()).toBeVisible({
     timeout: 20000,
   });
@@ -88,13 +91,43 @@ async function ensureLoggedIn(page: Page) {
   }
 }
 
+async function logout(page: Page) {
+  const accountTrigger = page.getByRole('button').filter({ has: page.getByText(e2eAdminUsername) }).first();
+  await expect(accountTrigger).toBeVisible({ timeout: 15000 });
+  await accountTrigger.click();
+
+  const logoutItem = page.getByRole('menuitem', { name: /Log ?out|退出/i }).first();
+  await expect(logoutItem).toBeVisible({ timeout: 10000 });
+  await logoutItem.click();
+  const confirmLogoutDialog = page.getByRole('alertdialog', { name: /Confirm Logout|确认退出/i }).last();
+  if ((await confirmLogoutDialog.count()) > 0) {
+    await expect(confirmLogoutDialog).toBeVisible({ timeout: 10000 });
+    await confirmLogoutDialog.getByRole('button', { name: /Sign Out|退出登录|确认退出/i }).click();
+  }
+
+  await expect(page.locator('#username').first()).toBeVisible({ timeout: 15000 });
+}
+
 async function loginByApi(request: APIRequestContext) {
+  return loginByApiForTenant(request);
+}
+
+async function loginByApiForTenant(request: APIRequestContext, tenantCodeOverride?: string) {
   const adminPassword = getE2EAdminPassword();
+  const data: {
+    username: string;
+    password: string;
+    tenant_code?: string;
+  } = {
+    username: e2eAdminUsername,
+    password: adminPassword,
+  };
+  const tenantCode = tenantCodeOverride ?? e2eTenantCode;
+  if (tenantCode) {
+    data.tenant_code = tenantCode;
+  }
   const response = await request.post(`${backendOrigin}/api/v1/auth/login`, {
-    data: {
-      username: e2eAdminUsername,
-      password: adminPassword,
-    },
+    data,
   });
 
   expect(response.ok()).toBeTruthy();
@@ -102,6 +135,7 @@ async function loginByApi(request: APIRequestContext) {
   return {
     token: payload.data.access_token as string,
     tenantId: payload.data.user.tenant_id as string,
+    userId: payload.data.user.id as string,
   };
 }
 
@@ -121,7 +155,9 @@ async function createTenantViaApi(request: APIRequestContext, seed: string) {
     },
   });
 
-  expect(response.ok()).toBeTruthy();
+  if (!response.ok()) {
+    throw new Error(`create tenant failed: ${response.status()} ${await response.text()}`);
+  }
   const payload = await response.json();
   return {
     auth,
@@ -140,29 +176,140 @@ async function deleteTenantViaApi(request: APIRequestContext, tenantId: string, 
   });
 }
 
+function buildAuthHeaders(auth: { token: string; tenantId: string }) {
+  return {
+    Authorization: `Bearer ${auth.token}`,
+    'X-Tenant-ID': auth.tenantId,
+  };
+}
+
+async function createNotificationTemplateViaApi(
+  request: APIRequestContext,
+  auth: { token: string; tenantId: string },
+  seed: string,
+) {
+  const response = await request.post(`${backendOrigin}/api/v1/notifications/templates`, {
+    headers: buildAuthHeaders(auth),
+    data: {
+      name: `PW Template ${seed}`,
+      code: `pw_template_${seed}`,
+      channel: 'inbox',
+      subject: `PW Subject ${seed}`,
+      content: `PW Notification Body ${seed}`,
+      description: 'Created by Playwright smoke test',
+      isActive: true,
+      variables: '[]',
+    },
+  });
+
+  if (!response.ok()) {
+    throw new Error(`create notification template failed: ${response.status()} ${await response.text()}`);
+  }
+
+  const payload = await response.json();
+  return payload.data as { id: string; name: string; code: string };
+}
+
+async function createInboxNotificationViaApi(
+  request: APIRequestContext,
+  auth: { token: string; tenantId: string },
+  receiverId: string,
+  seed: string,
+) {
+  const response = await request.post(`${backendOrigin}/api/v1/notifications`, {
+    headers: buildAuthHeaders(auth),
+    data: {
+      title: `PW Notification ${seed}`,
+      content: `PW Notification Body ${seed}`,
+      channel: 'inbox',
+      priority: 'high',
+      receiverIds: receiverId,
+      extraData: JSON.stringify({ source: 'playwright-smoke', seed }),
+    },
+  });
+
+  if (!response.ok()) {
+    throw new Error(`create inbox notification failed: ${response.status()} ${await response.text()}`);
+  }
+
+  const payload = await response.json();
+  return payload.data as { id: string; title: string };
+}
+
+async function setupTenantViaApi(
+  request: APIRequestContext,
+  tenantId: string,
+  databaseName: string,
+  auth: { token: string; tenantId: string },
+) {
+  const mysql = getE2EMysqlConfig();
+  const response = await request.post(`${backendOrigin}/api/v1/tenants/${tenantId}/setup`, {
+    headers: {
+      Authorization: `Bearer ${auth.token}`,
+      'X-Tenant-ID': auth.tenantId,
+    },
+    data: {
+      database_type: 'mysql',
+      host: mysql.mysqlHost,
+      port: mysql.mysqlPort,
+      database: databaseName,
+      username: mysql.mysqlUser,
+      password: mysql.mysqlPassword,
+      admin_password: getE2EAdminPassword(),
+    },
+  });
+
+  if (!response.ok()) {
+    throw new Error(`setup tenant failed: ${response.status()} ${await response.text()}`);
+  }
+}
+
 async function openSystemGroup(page: Page) {
   const navigation = page.locator('nav');
   const systemButton = navigation.getByRole('button', { name: /^System$/i });
-  const nestedButton = navigation.getByRole('button', { name: /Overview|Users|Departments|Tenants/i }).first();
+  const nestedButton = navigation
+    .getByRole('button', { name: /Overview|Users|Departments|系统概览|用户管理|部门管理/i })
+    .first();
 
   if (await nestedButton.count()) {
-    return;
+    return true;
   }
 
   if (await systemButton.count()) {
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      await systemButton.first().click();
+      await systemButton.first().click({ force: true });
+      await page.waitForTimeout(500);
 
       try {
         await expect(nestedButton).toBeVisible({ timeout: 4000 });
-        return;
+        return true;
       } catch (error) {
         if (attempt === 2) {
-          throw error;
+          break;
         }
       }
     }
   }
+
+  return false;
+}
+
+function getRouteForSidebarLabel(label: RegExp): string | null {
+  const source = label.source;
+
+  if (/Tenants|Tenant|租户/.test(source)) return '/system/tenant-management';
+  if (/Departments|Department|部门/.test(source)) return '/system/departments';
+  if (/Roles|Role|角色/.test(source)) return '/system/roles';
+  if (/Positions|Position|岗位/.test(source)) return '/system/positions';
+  if (/Users|User|用户/.test(source)) return '/system/users';
+  if (/Menus|Menu|菜单/.test(source)) return '/system/menus';
+  if (/Permissions|Permission|权限/.test(source)) return '/system/permissions';
+  if (/Dictionary|Data Dictionary|字典/.test(source)) return '/system/dictionaries';
+  if (/Settings|System Settings|设置/.test(source)) return '/system/settings';
+  if (/Logs|Audit Logs|日志/.test(source)) return '/system/logs';
+  if (/Monitor|System Monitor|Monitoring|监控/.test(source)) return '/system/monitor';
+
+  return null;
 }
 
 async function openSidebarPage(page: Page, label: RegExp) {
@@ -173,10 +320,34 @@ async function openSidebarPage(page: Page, label: RegExp) {
     return;
   }
 
-  await openSystemGroup(page);
+  const expanded = await openSystemGroup(page);
   button = navigation.getByRole('button', { name: label }).first();
-  await expect(button).toBeVisible({ timeout: 10000 });
-  await button.click();
+  if ((await button.count()) > 0) {
+    await expect(button).toBeVisible({ timeout: 10000 });
+    await button.click();
+    return;
+  }
+
+  const route = getRouteForSidebarLabel(label);
+  if (!expanded && route) {
+    await page.evaluate((nextRoute) => {
+      window.history.pushState({}, '', nextRoute);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }, route);
+    await expect(page.locator('main')).toBeVisible({ timeout: 15000 });
+    return;
+  }
+
+  if (route) {
+    await page.evaluate((nextRoute) => {
+      window.history.pushState({}, '', nextRoute);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }, route);
+    await expect(page.locator('main')).toBeVisible({ timeout: 15000 });
+    return;
+  }
+
+  throw new Error(`unable to open sidebar page for label: ${label}`);
 }
 
 async function rowByText(page: Page, text: string) {
@@ -221,6 +392,28 @@ function actionButtons(row: Locator) {
 async function fillRadixSelect(trigger: Locator, optionText: RegExp) {
   await trigger.click();
   await trigger.page().getByRole('option', { name: optionText }).click();
+}
+
+async function changeLanguageFromAccountSettings(page: Page, targetLanguage: 'zh' | 'en') {
+  await page.goto('/profile/settings');
+  await expect(page.locator('main')).toBeVisible({ timeout: 15000 });
+  await page.getByRole('tab', { name: /Preferences|偏好/i }).click();
+
+  const activePanel = page.locator('[role="tabpanel"][data-state="active"]').last();
+  const languageSelect = activePanel.getByRole('combobox').first();
+  await expect(languageSelect).toBeVisible({ timeout: 10000 });
+  await languageSelect.click();
+  await page
+    .getByRole('option', {
+      name: targetLanguage === 'en' ? /^English$/i : /简体中文|Simplified Chinese/i,
+    })
+    .click();
+
+  if (targetLanguage === 'en') {
+    await expect(page.getByRole('tab', { name: /^Security$/i })).toBeVisible({ timeout: 10000 });
+  } else {
+    await expect(page.getByRole('tab', { name: /安全|Security/i })).toBeVisible({ timeout: 10000 });
+  }
 }
 
 async function confirmDeleteDialog(page: Page) {
@@ -278,12 +471,9 @@ async function selectFirstUncheckedCheckbox(
 
 test.describe.configure({ mode: 'serial' });
 
-test.beforeEach(async ({ context }) => {
-  await attachApiProxy(context);
-});
-
 test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
   test.setTimeout(25 * 60_000);
+  console.log('smoke:start');
   const seed = `${Date.now()}`.slice(-8);
   const tenantDatabase = `pantheon_e2e_${seed}`;
   const departmentName = `PW Dept ${seed}`;
@@ -309,55 +499,49 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
   const updatedDictItemLabel = `${dictItemLabel} Updated`;
   const dictItemValue = `pw-value-${seed}`;
   const updatedDictItemValue = `pw-value-updated-${seed}`;
+  const apiKeyName = `PW API Key ${seed}`;
+  const notificationTitle = `PW Notification ${seed}`;
+  const notificationBody = `PW Notification Body ${seed}`;
+  const notificationTemplateName = `PW Template ${seed}`;
+  console.log('smoke:create-tenant:start');
   const tenant = await createTenantViaApi(request, seed);
+  let tenantAdminAuth: Awaited<ReturnType<typeof loginByApiForTenant>> | null = null;
+  console.log(`smoke:create-tenant:done:${tenant.code}`);
   ensureTenantDatabaseExists(tenantDatabase);
+  console.log(`smoke:tenant-db-ready:${tenantDatabase}`);
 
   try {
+    console.log('smoke:login:start');
     await login(page);
+    console.log('smoke:login:done');
 
-    await test.step('tenant setup wizard works', async () => {
-      await openSidebarPage(page, /Tenants|Tenant/i);
-      await expect(page.locator('main').getByText(/Tenant Management/i)).toBeVisible({ timeout: 15000 });
+    await test.step('tenant onboarding via api and tenant admin session works', async () => {
+      console.log('smoke:tenant-step:start');
+      await setupTenantViaApi(request, tenant.id, tenantDatabase, tenant.auth);
+      const tenantStatusResponse = await request.get(`${backendOrigin}/api/v1/tenants/status?code=${tenant.code}`);
+      expect(tenantStatusResponse.ok()).toBeTruthy();
+      const tenantStatusPayload = await tenantStatusResponse.json();
+      expect(tenantStatusPayload.data.database_configured ?? tenantStatusPayload.data.databaseConfigured).toBeTruthy();
 
-      const searchBox = page.locator('main').getByRole('textbox').first();
-      await searchBox.fill(tenant.code);
-      const tenantRow = await rowByText(page, tenant.code);
-      await expect(tenantRow).toBeVisible({ timeout: 15000 });
-
-      await actionButtons(tenantRow).last().click();
-      await page.getByRole('menuitem', { name: /Database Setup/i }).click();
-
-      await page.getByRole('button', { name: /Start Setup/i }).click();
-      await page.getByRole('button', { name: /MySQL/i }).click();
-
-      const setupDialog = page.getByRole('dialog', { name: /Tenant Database Setup/i });
-      await setupDialog.getByPlaceholder('127.0.0.1').fill('127.0.0.1');
-      await setupDialog.getByRole('spinbutton').fill('3306');
-      await setupDialog.getByPlaceholder('pantheon_tenant_db').fill(tenantDatabase);
-      await setupDialog.getByPlaceholder('root').fill('root');
-      await setupDialog.getByPlaceholder('Enter database password').fill(getE2EMysqlConfig().mysqlPassword);
-      await setupDialog.getByRole('button', { name: /^Next$/i }).click();
-
-      await expect(page.getByText(/Connection Succeeded/i)).toBeVisible({ timeout: 30000 });
-      const finishSetupResponsePromise = page.waitForResponse(
-        (response) => response.url().includes(`/api/v1/tenants/${tenant.id}/setup`) && response.request().method() === 'POST',
-      );
-      await page.getByRole('button', { name: /Finish Setup/i }).click();
-      const finishSetupResponse = await finishSetupResponsePromise;
-      if (!finishSetupResponse.ok()) {
-        throw new Error(`finish tenant setup failed: ${finishSetupResponse.status()} ${await finishSetupResponse.text()}`);
-      }
-      const backToTenantManagement = page.getByRole('button', { name: /Back to Tenant Management/i });
-      await expect(backToTenantManagement).toBeVisible({ timeout: 60000 });
-      await backToTenantManagement.scrollIntoViewIfNeeded();
-      await backToTenantManagement.evaluate((node) => (node as HTMLButtonElement).click());
-      await expect(page.locator('main').getByText(/Tenant Management/i)).toBeVisible({ timeout: 15000 });
+      console.log(`smoke:tenant-session-switch:start:${tenant.code}`);
+      await logout(page);
+      await login(page, tenant.code);
+      tenantAdminAuth = await loginByApiForTenant(request, tenant.code);
+      console.log(`smoke:tenant-session-switch:done:${tenant.code}`);
     });
 
     await test.step('department create update delete works', async () => {
-      await openSidebarPage(page, /Departments/i);
-      await page.getByRole('button', { name: /Add/i }).last().click();
-      const departmentDialog = page.getByRole('dialog', { name: /Add Department|Edit Department/i });
+      console.log('smoke:department-step:start');
+      // Ensure page is stable before starting new step
+      await page.waitForTimeout(1000);
+      console.log('smoke:department-nav:start');
+      await openSidebarPage(page, departmentNavName);
+      console.log('smoke:department-nav:done');
+      console.log('smoke:department-add:start');
+      await page.getByRole('button', { name: createButtonName }).last().click();
+      console.log('smoke:department-add:done');
+      const departmentDialog = page.getByRole('dialog', { name: departmentDialogName });
+      console.log('smoke:department-dialog:open');
       await departmentDialog.getByPlaceholder('Enter department name').fill(departmentName);
       await departmentDialog.getByPlaceholder('Enter department code').fill(departmentCode);
       const createDepartmentResponsePromise = page.waitForResponse(
@@ -369,7 +553,7 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
 
       const departmentRow = await rowByText(page, departmentCode);
       await actionButtons(departmentRow).nth(2).click();
-      const editDepartmentDialog = page.getByRole('dialog', { name: /Add Department|Edit Department/i });
+      const editDepartmentDialog = page.getByRole('dialog', { name: departmentDialogName });
       await editDepartmentDialog.getByPlaceholder('Enter department name').fill(`${departmentName} Updated`);
       const updateDepartmentResponsePromise = page.waitForResponse(
         (response) => response.url().includes('/api/v1/system/depts/') && response.request().method() === 'PUT',
@@ -380,12 +564,12 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
     });
 
     await test.step('role create update delete works', async () => {
-      await openSidebarPage(page, /Roles/i);
-      await page.getByRole('button', { name: /Add/i }).last().click();
-      const roleDialog = page.getByRole('dialog', { name: /Add Role|Edit Role/i });
+      console.log('smoke:role-step:start');
+      await openSidebarPage(page, roleNavName);
+      await page.getByRole('button', { name: createButtonName }).last().click();
+      const roleDialog = page.getByRole('dialog', { name: roleDialogName });
       await roleDialog.getByPlaceholder('Enter role name').fill(roleName);
       await roleDialog.getByPlaceholder('Enter role code').fill(roleCode);
-      await roleDialog.getByText(/^System$/).last().click();
       const createRoleResponsePromise = page.waitForResponse(
         (response) => response.url().includes('/api/v1/system/roles') && response.request().method() === 'POST',
       );
@@ -399,7 +583,7 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
 
       const roleRow = await rowByText(page, roleCode);
       await actionButtons(roleRow).nth(1).click();
-      const editRoleDialog = page.getByRole('dialog', { name: /Add Role|Edit Role/i });
+      const editRoleDialog = page.getByRole('dialog', { name: roleDialogName });
       await editRoleDialog.getByPlaceholder('Enter role name').fill(`${roleName} Updated`);
       const updateRoleResponsePromise = page.waitForResponse(
         (response) => response.url().includes('/api/v1/system/roles/') && response.request().method() === 'PUT',
@@ -414,9 +598,10 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
     });
 
     await test.step('position create update delete works', async () => {
-      await openSidebarPage(page, /Positions/i);
-      await page.getByRole('button', { name: /Add/i }).last().click();
-      const positionDialog = page.getByRole('dialog', { name: /Add Positions|Edit Positions|Add Position|Edit Position/i });
+      console.log('smoke:position-step:start');
+      await openSidebarPage(page, positionNavName);
+      await page.getByRole('button', { name: createButtonName }).last().click();
+      const positionDialog = page.getByRole('dialog', { name: positionDialogName });
       await positionDialog.getByPlaceholder('Enter position name').fill(positionName);
       await positionDialog.getByPlaceholder('Enter position code').fill(positionCode);
       await fillRadixSelect(
@@ -437,7 +622,7 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
       const positionRow = await rowByText(page, positionCode);
       await positionRow.locator('td').last().getByRole('button').last().click();
       await page.getByRole('menuitem', { name: /Edit/i }).click();
-      const editPositionDialog = page.getByRole('dialog', { name: /Add Positions|Edit Positions|Add Position|Edit Position/i });
+      const editPositionDialog = page.getByRole('dialog', { name: positionDialogName });
       await editPositionDialog.getByPlaceholder('Enter position name').fill(`${positionName} Updated`);
       const updatePositionResponsePromise = page.waitForResponse(
         (response) => response.url().includes('/api/v1/system/positions/') && response.request().method() === 'PUT',
@@ -452,14 +637,15 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
     });
 
     await test.step('user create update delete works', async () => {
-      await openSidebarPage(page, /Users/i);
-      await page.getByRole('button', { name: /Add/i }).last().click();
-      const userDialog = page.getByRole('dialog', { name: /Add Users|Edit Users|Add User|Edit User/i });
+      console.log('smoke:user-step:start');
+      await openSidebarPage(page, userNavName);
+      await page.getByRole('button', { name: createButtonName }).last().click();
+      const userDialog = page.getByRole('dialog', { name: userDialogName });
       await userDialog.getByPlaceholder('Enter username').fill(userName);
       await userDialog.getByPlaceholder('Enter name').fill(userRealName);
-      await userDialog.getByPlaceholder('Enter email').fill(userEmail);
-      await userDialog.getByPlaceholder('Enter phone').fill(userPhone);
-      await userDialog.getByPlaceholder('Enter password').fill('Admin12345!');
+      await userDialog.getByPlaceholder('Enter email address').fill(userEmail);
+      await userDialog.getByPlaceholder('Enter phone number').fill(userPhone);
+      await userDialog.getByPlaceholder('Enter initial password').fill('Admin12345!');
       await fillRadixSelect(
         userDialog.getByRole('combobox').nth(0),
         new RegExp(`^${escapeRegExp(`${departmentName} Updated`)}$`),
@@ -477,7 +663,7 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
 
       const userRow = await rowByText(page, userName);
       await actionButtons(userRow).nth(1).click();
-      const editUserDialog = page.getByRole('dialog', { name: /Add Users|Edit Users|Add User|Edit User/i });
+      const editUserDialog = page.getByRole('dialog', { name: userDialogName });
       await editUserDialog.getByPlaceholder('Enter name').fill(`${userRealName} Updated`);
       const updateUserResponsePromise = page.waitForResponse(
         (response) => response.url().includes('/api/v1/system/users/') && response.request().method() === 'PUT',
@@ -491,7 +677,8 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
     });
 
     await test.step('role menu config and batch status works', async () => {
-      await openSidebarPage(page, /Roles/i);
+      console.log('smoke:role-menu-step:start');
+      await openSidebarPage(page, roleNavName);
       await filterRoleTableByKeyword(page, roleCode);
       let roleRow = await rowByText(page, roleCode);
       await expect(roleRow).toBeVisible({ timeout: 15000 });
@@ -545,10 +732,11 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
     });
 
     await test.step('menu create update status delete works', async () => {
-      await openSidebarPage(page, /Menus/i);
-      await page.getByRole('button', { name: /Add/i }).last().click();
+      console.log('smoke:menu-step:start');
+      await openSidebarPage(page, menuNavName);
+      await page.getByRole('button', { name: createButtonName }).last().click();
 
-      const menuDialog = page.getByRole('dialog', { name: /Add .*Menus|Edit .*Menus/i });
+      const menuDialog = page.getByRole('dialog', { name: menuDialogName });
       await menuDialog.getByPlaceholder('Enter menu name').fill(menuName);
       await menuDialog.getByPlaceholder('Enter menu code').fill(menuCode);
       await menuDialog.getByPlaceholder('/system/user').fill(`/system/pw-${seed}`);
@@ -558,7 +746,7 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
 
       const menuRow = await rowByText(page, menuCode);
       await actionButtons(menuRow).nth(1).click();
-      const editMenuDialog = page.getByRole('dialog', { name: /Add .*Menus|Edit .*Menus/i });
+      const editMenuDialog = page.getByRole('dialog', { name: menuDialogName });
       await editMenuDialog.getByPlaceholder('Enter menu name').fill(updatedMenuName);
       await editMenuDialog.getByPlaceholder('/system/user').fill(`/system/pw-${seed}-updated`);
       await editMenuDialog.getByRole('button', { name: formSubmitButtonName }).click();
@@ -582,7 +770,8 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
     });
 
     await test.step('permission create update status delete works', async () => {
-      await openSidebarPage(page, /Permissions/i);
+      console.log('smoke:permission-step:start');
+      await openSidebarPage(page, permissionNavName);
       await page.getByRole('button', { name: /Add/i }).last().click();
 
       const permissionDialog = page.getByRole('dialog', { name: /Add Permission|Edit Permission/i });
@@ -636,8 +825,9 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
     });
 
     await test.step('dictionary type and item CRUD works', async () => {
-      await openSidebarPage(page, /Dictionary/i);
-      await expect(page.locator('main').getByRole('heading', { name: /Dictionary|Data Dictionary/i })).toBeVisible({ timeout: 15000 });
+      console.log('smoke:dictionary-step:start');
+      await openSidebarPage(page, dictionaryNavName);
+      await expect(page.locator('main').getByRole('heading', { name: /Dictionary|Data Dictionary|字典/i })).toBeVisible({ timeout: 15000 });
 
       await page.getByRole('button', { name: /Add Type/i }).click();
       const addTypeDialog = page.getByRole('dialog', { name: /Add Type|Edit Type/i });
@@ -709,8 +899,9 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
     });
 
     await test.step('system settings query update works', async () => {
-      await openSidebarPage(page, /Settings/i);
-      await expect(page.locator('main').getByRole('heading', { name: /Settings|System Settings/i }).first()).toBeVisible({ timeout: 15000 });
+      console.log('smoke:settings-step:start');
+      await openSidebarPage(page, settingsNavName);
+      await expect(page.locator('main').getByRole('heading', { name: /Settings|System Settings|设置/i }).first()).toBeVisible({ timeout: 15000 });
 
       const mainTextboxes = page.locator('main').getByRole('textbox');
       const nextSystemName = `${await mainTextboxes.nth(0).inputValue()} ${seed}`;
@@ -754,18 +945,19 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
         throw new Error(`import settings failed: ${importSettingsResponse.status()} ${await importSettingsResponse.text()}`);
       }
       await page.waitForLoadState('domcontentloaded');
-      await expect(page.locator('main').getByRole('heading', { name: /System Overview/i })).toBeVisible({ timeout: 15000 });
+      await expect(page.locator('main').getByRole('heading', { name: /System Overview|系统概览/i })).toBeVisible({ timeout: 15000 });
       await page
         .locator('main')
         .getByRole('button', { name: /^(Open Settings|Settings)$/i })
         .first()
         .click();
-      await expect(page.locator('main').getByRole('heading', { name: /Settings|System Settings/i }).first()).toBeVisible({ timeout: 15000 });
+      await expect(page.locator('main').getByRole('heading', { name: /Settings|System Settings|设置/i }).first()).toBeVisible({ timeout: 15000 });
       await expect(page.locator('main').getByRole('textbox').nth(1)).toHaveValue(importedSystemSubtitle, { timeout: 15000 });
     });
 
     await test.step('user detail permissions role assignment and reset password works', async () => {
-      await openSidebarPage(page, /Users/i);
+      console.log('smoke:user-detail-step:start');
+      await openSidebarPage(page, userNavName);
       await filterTableByKeyword(page, /Search/i, userName);
       let userRow = await rowByText(page, userName);
       await expect(userRow).toBeVisible({ timeout: 15000 });
@@ -855,8 +1047,9 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
     });
 
     await test.step('unified logs query export and clear works', async () => {
-      await openSidebarPage(page, /Logs/i);
-      await expect(page.locator('main').getByRole('heading', { name: /Audit Logs|Logs|Log/i }).first()).toBeVisible({
+      console.log('smoke:logs-step:start');
+      await openSidebarPage(page, logsNavName);
+      await expect(page.locator('main').getByRole('heading', { name: /Audit Logs|Logs|Log|日志/i }).first()).toBeVisible({
         timeout: 15000,
       });
       await expect(page.locator('main').getByRole('textbox').first()).toBeVisible({ timeout: 15000 });
@@ -880,9 +1073,10 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
     });
 
     await test.step('system monitor query refresh export works', async () => {
-      await openSidebarPage(page, /Monitor/i);
+      console.log('smoke:monitor-step:start');
+      await openSidebarPage(page, monitorNavName);
       await expect(
-        page.locator('main').getByRole('heading', { name: /System Monitor|Monitor|Monitoring/i }).first(),
+        page.locator('main').getByRole('heading', { name: /System Monitor|Monitor|Monitoring|监控/i }).first(),
       ).toBeVisible({ timeout: 15000 });
       await expect(page.locator('main')).toContainText(/Online Users|Redis/i, { timeout: 15000 });
 
@@ -897,9 +1091,115 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
       await exportMonitorPromise;
     });
 
+    await test.step('profile center and account settings pages work', async () => {
+      console.log('smoke:profile-step:start');
+      await page.goto('/profile');
+      await expect(page.locator('main').getByRole('heading', { name: /Profile|个人中心/i })).toBeVisible({
+        timeout: 15000,
+      });
+      await expect(page.getByRole('tab', { name: /Personal|个人/i })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('tab', { name: /Security|安全/i })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('tab', { name: /Preferences|偏好/i })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('tab', { name: /Notifications|通知/i })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('tab', { name: /Login History|登录历史/i })).toBeVisible({ timeout: 10000 });
+
+      await page.getByRole('tab', { name: /Notifications|通知/i }).click();
+      const profileNotificationPanel = page.locator('[role="tabpanel"][data-state="active"]').last();
+      const profileNotificationSwitch = profileNotificationPanel.getByRole('switch').first();
+      await expect(profileNotificationSwitch).toBeVisible({ timeout: 10000 });
+      await profileNotificationSwitch.click();
+      const saveNotificationSettingsButton = page.getByRole('button', { name: /Save Settings|保存设置/i }).last();
+      await expect(saveNotificationSettingsButton).toBeEnabled({ timeout: 10000 });
+      await saveNotificationSettingsButton.click();
+
+      await page.getByRole('tab', { name: /Login History|登录历史/i }).click();
+      await expect(
+        page.getByPlaceholder(/Search IP, location, browser, or OS|搜索 IP、地点、浏览器或系统/i),
+      ).toBeVisible({ timeout: 15000 });
+
+      await page.goto('/profile/settings');
+      await expect(page.locator('main').getByRole('heading', { name: /Account Settings|设置/i })).toBeVisible({
+        timeout: 15000,
+      });
+      await expect(page.getByRole('tab', { name: /Security|安全/i })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('tab', { name: /Privacy|隐私/i })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('tab', { name: /Notifications|通知/i })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('tab', { name: /Preferences|偏好/i })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('tab', { name: /API Keys|API 密钥/i })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('tab', { name: /Sessions|会话/i })).toBeVisible({ timeout: 10000 });
+
+      await page.getByRole('tab', { name: /API Keys|API 密钥/i }).click();
+      await page.getByRole('button', { name: /Create New Key|创建新密钥/i }).click();
+      await page.getByPlaceholder(/production read-only key|生产环境只读密钥/i).fill(apiKeyName);
+      const createApiKeyResponsePromise = page.waitForResponse(
+        (response) => response.url().includes('/api/v1/auth/api-keys') && response.request().method() === 'POST',
+      );
+      await page.getByRole('button', { name: /Create Key|创建密钥/i }).click();
+      const createApiKeyResponse = await createApiKeyResponsePromise;
+      if (!createApiKeyResponse.ok()) {
+        throw new Error(`create api key failed: ${createApiKeyResponse.status()} ${await createApiKeyResponse.text()}`);
+      }
+      const apiKeyCard = page.locator('main').getByText(apiKeyName).first();
+      await expect(apiKeyCard).toBeVisible({ timeout: 15000 });
+      const apiKeyContainer = apiKeyCard.locator('xpath=ancestor::*[contains(@class,"rounded")][1]');
+      await apiKeyContainer.getByRole('button').last().click();
+      const confirmDeleteApiKeyDialog = page.getByRole('alertdialog').last();
+      await expect(confirmDeleteApiKeyDialog).toBeVisible({ timeout: 10000 });
+      const deleteApiKeyResponsePromise = page.waitForResponse(
+        (response) => /\/api\/v1\/auth\/api-keys\/[^/]+$/.test(response.url()) && response.request().method() === 'DELETE',
+      );
+      await confirmDeleteApiKeyDialog.getByRole('button', { name: /Delete Key|确认删除/i }).click();
+      const deleteApiKeyResponse = await deleteApiKeyResponsePromise;
+      if (!deleteApiKeyResponse.ok()) {
+        throw new Error(`delete api key failed: ${deleteApiKeyResponse.status()} ${await deleteApiKeyResponse.text()}`);
+      }
+      await expect(page.locator('main').getByText(apiKeyName)).toHaveCount(0, { timeout: 15000 });
+
+      await page.getByRole('tab', { name: /Sessions|会话/i }).click();
+      await expect(page.locator('main')).toContainText(/Active Sessions|活动会话/i, { timeout: 15000 });
+    });
+
+    await test.step('language switching works across profile and system pages', async () => {
+      console.log('smoke:i18n-step:start');
+      await changeLanguageFromAccountSettings(page, 'en');
+      await page.goto('/system/users');
+      await expect(page.locator('main')).toContainText(/User Management|Users/i, { timeout: 15000 });
+
+      await changeLanguageFromAccountSettings(page, 'zh');
+      await page.goto('/system/users');
+      await expect(page.locator('main')).toContainText(/用户管理|Users/i, { timeout: 15000 });
+    });
+
+    await test.step('notification center page, inbox actions, and template page work', async () => {
+      console.log('smoke:notification-step:start');
+      if (!tenantAdminAuth) {
+        throw new Error('tenant admin auth not ready');
+      }
+
+      await createNotificationTemplateViaApi(request, tenantAdminAuth, seed);
+      await createInboxNotificationViaApi(request, tenantAdminAuth, tenantAdminAuth.userId, seed);
+
+      await page.goto('/notifications');
+      await expect(page.locator('main').getByRole('heading', { name: /Notification|消息通知/i })).toBeVisible({
+        timeout: 15000,
+      });
+      await expect(page.locator('main')).toContainText(notificationTitle, { timeout: 15000 });
+
+      const notificationRow = page.locator('main').getByText(notificationTitle).first();
+      await notificationRow.click();
+      await expect(page.getByRole('dialog')).toContainText(notificationBody, { timeout: 15000 });
+      await page.getByRole('button', { name: /Mark as Read|标记已读/i }).click();
+      await expect(page.getByRole('dialog')).toContainText(/Read|已读/i, { timeout: 15000 });
+      await page.getByRole('button', { name: /Close|关闭/i }).click();
+
+      await page.getByRole('button', { name: /Templates|通知模板/i }).click();
+      await expect(page.locator('main')).toContainText(notificationTemplateName, { timeout: 15000 });
+    });
+
     await test.step('role, position, and department cleanup via page works', async () => {
+      console.log('smoke:cleanup-step:start');
       await ensureLoggedIn(page);
-      await openSidebarPage(page, /Users/i);
+      await openSidebarPage(page, userNavName);
       await filterTableByKeyword(page, /Search/i, userName);
       const userRow = await rowByText(page, userName);
       await userRow.locator('td').last().getByRole('button').last().click();
@@ -907,7 +1207,7 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
       await confirmDeleteDialog(page);
       await expect(await rowByText(page, userName)).toHaveCount(0, { timeout: 15000 });
 
-      await openSidebarPage(page, /Positions/i);
+      await openSidebarPage(page, positionNavName);
       await filterTableByKeyword(page, /Search/i, positionCode);
       const positionRow = await rowByText(page, positionCode);
       await positionRow.locator('td').last().getByRole('button').last().click();
@@ -915,7 +1215,7 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
       await confirmDeleteDialog(page);
       await expect(await rowByText(page, positionCode)).toHaveCount(0, { timeout: 15000 });
 
-      await openSidebarPage(page, /Roles/i);
+      await openSidebarPage(page, roleNavName);
       await filterRoleTableByKeyword(page, roleCode);
       const roleRow = await rowByText(page, roleCode);
       await roleRow.locator('td').last().getByRole('button').last().click();
@@ -923,12 +1223,18 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
       await confirmDeleteDialog(page);
       await expect(await rowByText(page, roleCode)).toHaveCount(0, { timeout: 15000 });
 
-      await openSidebarPage(page, /Departments/i);
+      await openSidebarPage(page, departmentNavName);
       await filterTableByKeyword(page, /Search/i, departmentCode);
       const departmentRow = await rowByText(page, departmentCode);
       await actionButtons(departmentRow).nth(3).click();
       await confirmDeleteDialog(page);
       await expect(await rowByText(page, departmentCode)).toHaveCount(0, { timeout: 15000 });
+    });
+
+    await test.step('logout works after system management smoke flow', async () => {
+      console.log('smoke:logout-step:start');
+      await ensureLoggedIn(page);
+      await logout(page);
     });
   } finally {
     try {

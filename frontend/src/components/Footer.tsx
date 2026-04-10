@@ -1,10 +1,8 @@
-import { useThemeStore } from '../stores/themeStore';
-import { useLanguageStore } from '../stores/languageStore';
+import { useLanguageStore } from '../stores/language_store';
 import { Server, Activity, HardDrive, Wifi } from 'lucide-react';
 import { Badge } from './ui/badge';
 
 export function Footer() {
-  const { theme } = useThemeStore();
   const { t } = useLanguageStore();
 
   const systemStatus = {
@@ -15,20 +13,13 @@ export function Footer() {
 
   const getStatusBadge = (status: string) => {
     if (status === 'normal') {
-      return <Badge className="bg-green-100 text-green-700 text-xs">{t.footer.normal}</Badge>;
+      return <Badge className="bg-success/10 text-success text-xs border-success/20">{t.footer.normal}</Badge>;
     }
-    return <Badge className="bg-red-100 text-red-700 text-xs">{t.footer.error}</Badge>;
+    return <Badge className="bg-destructive/10 text-destructive text-xs border-destructive/20">{t.footer.error}</Badge>;
   };
 
   return (
-    <footer
-      className="h-10 border-t flex items-center justify-between px-6 text-xs transition-colors duration-200"
-      style={{
-        backgroundColor: theme.colors.surface,
-        borderColor: theme.colors.border,
-        color: theme.colors.textSecondary,
-      }}
-    >
+    <footer className="h-10 border-t flex items-center justify-between px-6 text-xs transition-colors duration-200 bg-card border-border text-muted-foreground">
       {/* 左侧：版权信息 */}
       <div className="flex items-center gap-4">
         <span>&copy; 2025 {t.footer.copyright}</span>
@@ -56,8 +47,8 @@ export function Footer() {
 
       {/* 右侧：在线状态 */}
       <div className="flex items-center gap-2">
-        <Wifi className="w-3 h-3 text-green-500" />
-        <span style={{ color: theme.colors.text }}>{t.footer.systemStatus}</span>
+        <Wifi className="w-3 h-3 text-success" />
+        <span className="text-foreground">{t.footer.systemStatus}</span>
       </div>
     </footer>
   );
