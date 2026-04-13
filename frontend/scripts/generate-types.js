@@ -170,7 +170,7 @@ async function generateTypes(backendRunning) {
     swaggerPath = path.join(frontendDir, 'public/swagger.json');
     openapiPath = path.join(frontendDir, 'temp-openapi.json');
 
-    if (!require('fs').existsFileSync(swaggerPath)) {
+    if (!require('fs').existsSync(swaggerPath)) {
       log(colors.red, '✗ 找不到 swagger.json 文件');
       log(colors.yellow, '请先复制 swagger 文件:');
       log(colors.blue, '  copy backend\\api\\swagger\\doc.json frontend\\public\\swagger.json');

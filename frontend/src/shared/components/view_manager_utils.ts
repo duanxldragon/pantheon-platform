@@ -10,8 +10,26 @@ import {
 
 export const ALWAYS_ACCESSIBLE_VIEW_IDS = new Set(['profile-center', 'account-settings']);
 
+function flattenMenus(menus: Menu[]): Menu[] {
+  return menus.flatMap((menu) => [menu, ...flattenMenus(menu.children || [])]);
+}
+
+type BreadcrumbMenu = {
+  id: string | number;
+  name: string;
+  title?: string;
+  path?: string;
+  component?: string;
+  parentId?: string | number | null;
+  children?: BreadcrumbMenu[];
+};
+
+function flattenBreadcrumbMenus(menus: BreadcrumbMenu[]): BreadcrumbMenu[] {
+  return menus.flatMap((menu) => [menu, ...flattenBreadcrumbMenus(menu.children || [])]);
+}
+
 export function findMatchedMenu(viewId: string, menus: Menu[]): Menu | undefined {
-  return menus.find(
+  return flattenMenus(menus).find(
     (menu) => String(menu.id) === String(viewId) || inferMenuViewId(menu) === viewId,
   );
 }
@@ -69,19 +87,20 @@ export function canAccessView(
 
 export function buildMenuBreadcrumb(
   menuId: string | number,
-  menus: Array<{ id: string | number; name: string; title?: string; path?: string; component?: string; parentId?: string | number | null }>,
+  menus: BreadcrumbMenu[],
   language: string,
   t: AppTranslations,
 ): string[] {
+  const flatMenus = flattenBreadcrumbMenus(menus);
   const trail: string[] = [];
-  let current = menus.find((item) => String(item.id) === String(menuId));
+  let current = flatMenus.find((item) => String(item.id) === String(menuId));
 
   while (current) {
     trail.unshift(getMenuLabel(current, language, t));
     if (current.parentId === undefined || current.parentId === null || current.parentId === '') {
       break;
     }
-    current = menus.find((item) => String(item.id) === String(current?.parentId));
+    current = flatMenus.find((item) => String(item.id) === String(current?.parentId));
   }
 
   return trail;

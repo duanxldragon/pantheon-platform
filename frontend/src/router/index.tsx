@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
-import type { RouteObject } from 'react-router-dom';
+import type { NonIndexRouteObject, RouteObject } from 'react-router-dom';
 import { routes } from './routes';
 import { useAuthStore } from '../modules/auth/store/auth_store';
 
@@ -25,16 +25,44 @@ function RouteGuard({ children }: { children: ReactNode }) {
 
 // 创建受保护的路由配置
 function createProtectedRoutes(): RouteObject[] {
-  return routes.map((route) => {
-    if (route.path === '/' || route.path === '/system') {
+  const wrapRoute = (route: RouteObject): RouteObject => {
+    if ('index' in route && route.index) {
+      if (!route.element) {
+        return route;
+      }
+
       return {
         ...route,
-        children: route.children?.map((childRoute) => ({
-          ...childRoute,
-          element: <RouteGuard>{childRoute.element as ReactElement}</RouteGuard>,
-        })),
-      } as RouteObject;
+        element: <RouteGuard>{route.element as ReactElement}</RouteGuard>,
+      };
     }
+
+    const nonIndexRoute = route as NonIndexRouteObject;
+    const nextChildren = nonIndexRoute.children?.map(wrapRoute);
+
+    if (!nonIndexRoute.element) {
+      return {
+        ...nonIndexRoute,
+        children: nextChildren,
+      };
+    }
+
+    return {
+      ...nonIndexRoute,
+      element: <RouteGuard>{nonIndexRoute.element as ReactElement}</RouteGuard>,
+      children: nextChildren,
+    };
+  };
+
+  return routes.map((route) => {
+    if (!('index' in route && route.index) && route.path === '/') {
+      const nonIndexRoute = route as NonIndexRouteObject;
+      return {
+        ...nonIndexRoute,
+        children: nonIndexRoute.children?.map(wrapRoute),
+      };
+    }
+
     return route;
   });
 }

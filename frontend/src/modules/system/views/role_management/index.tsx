@@ -216,7 +216,7 @@ export function RoleManagement() {
           toast.success(roleMessages.updateSuccess);
           setDialogOpen('edit', false);
         } else {
-          await api.createRole(data);
+          await api.createRole({ ...data, type: 'custom' });
           toast.success(roleMessages.createSuccess);
           setDialogOpen('add', false);
         }

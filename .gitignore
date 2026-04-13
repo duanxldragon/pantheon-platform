@@ -39,7 +39,10 @@ frontend/.env.local              # 本地环境变量（不提交）
 
 # Test artifacts
 *.test
+frontend/test-results/
+frontend/tests/*.backup*
 
 # Local agent workspace
 .codex/
+.tmp-dev/
 start-dev.ps1
