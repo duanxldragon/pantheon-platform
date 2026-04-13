@@ -168,6 +168,7 @@ npm run dev
 - 开发者指南：`docs/development/DEVELOPER_GUIDE.md`
 - 工程开发流程：`docs/governance/ENGINEERING_WORKFLOW.md`
 - AI 协作指南：`docs/governance/AI_COLLABORATION_GUIDE.md`
+- GitHub 协作与分支保护：`docs/governance/GITHUB_REPOSITORY_GUIDE.md`、`docs/governance/GITHUB_BRANCH_PROTECTION_CHECKLIST.md`
 
 常用命令：
 

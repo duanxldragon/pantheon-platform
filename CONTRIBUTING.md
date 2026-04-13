@@ -70,6 +70,7 @@
 参考：
 
 - `docs/governance/GITHUB_REPOSITORY_GUIDE.md`
+- `docs/governance/GITHUB_BRANCH_PROTECTION_CHECKLIST.md`
 
 推荐的 GitHub PR 推进顺序：
 

@@ -40,6 +40,7 @@
 - [Team 模式协作指南](governance/TEAM_MODE_GUIDE.md)
 - [Git 提交规范](governance/GIT_COMMIT_GUIDE.md)
 - [GitHub 仓库治理建议](governance/GITHUB_REPOSITORY_GUIDE.md)
+- [GitHub 分支保护落地清单](governance/GITHUB_BRANCH_PROTECTION_CHECKLIST.md)
 - [文档编码与换行规范](governance/ENCODING_AND_LINE_ENDINGS.md)
 
 ## 专项规范与专题指南
@@ -100,6 +101,5 @@
 - `backend/docs/`：后端专题实现
 - `frontend/docs/`：前端专题实现
 - `backend/api/swagger/`：接口生成产物
-
 
 

@@ -3,6 +3,10 @@
 > 这份文档用于规范 Pantheon Platform 在 GitHub 上的协作方式。  
 > 目标是让仓库具备稳定的提交流程、PR 入口和基础保护规则。
 
+如果你是仓库管理员，想直接在 GitHub Settings 中落地这些规则，请同时看：
+
+- `docs/governance/GITHUB_BRANCH_PROTECTION_CHECKLIST.md`
+
 ## 1. 建议启用的模板
 
 仓库当前建议启用：
@@ -18,6 +22,7 @@
 - `.github/ISSUE_TEMPLATE/feature_request.md`
 - `.github/ISSUE_TEMPLATE/ai_task_brief.md`
 - `.github/pull_request_template.md`
+- `.github/CODEOWNERS`
 
 ## 2. 建议的分支保护
 

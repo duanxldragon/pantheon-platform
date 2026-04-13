@@ -1,0 +1,17 @@
+# Default owner
+* @duanxldragon
+
+# Repository governance
+/.github/ @duanxldragon
+/AGENTS.md @duanxldragon
+/README.md @duanxldragon
+/CONTRIBUTING.md @duanxldragon
+
+# Platform governance docs
+/docs/ @duanxldragon
+
+# Backend
+/backend/ @duanxldragon
+
+# Frontend
+/frontend/ @duanxldragon
