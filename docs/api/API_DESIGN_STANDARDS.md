@@ -28,6 +28,18 @@
 - 错误响应使用统一格式
 - 支持国际化错误信息
 
+### 1.4 命名现状与收敛原则
+
+当前仓库仍处于“后端线缆协议以 `snake_case` 为主、前端应用层以 `camelCase` 为主”的协作阶段。
+
+统一约束如下：
+
+- 后端 DTO / JSON Tag / Swagger 以当前接口真实协议为准；
+- 前端页面、组件、store、hook、类型定义统一使用 `camelCase`；
+- 前端 API 客户端负责必要的字段转换与兼容；
+- 同一个 API 版本内不要静默把既有协议从 `snake_case` 改成 `camelCase`；
+- 新增或重构接口时，必须在文档和 Swagger 中明确写清楚字段协议。
+
 ---
 
 ## 2. URL设计规范
@@ -167,7 +179,7 @@ Content-Type: multipart/form-data
 
 ### 4.2 请求体命名规范
 
-**使用驼峰命名：**
+**应用层统一使用驼峰命名：**
 ```json
 {
   "username": "john",
@@ -476,7 +488,7 @@ if len(items) > MAX_BATCH_SIZE {
 
 ### 8.1 分页参数
 
-**请求参数：**
+**当前兼容现状：**
 ```http
 GET /api/v1/system/users?page=1&page_size=20
 ```
@@ -497,9 +509,10 @@ interface PaginationParamsCamelCase {
 ```
 
 **说明：**
-- 推荐使用 `page` / `page_size` 格式 (蛇形命名)
-- 同时支持 `pageNumber` / `pageSize` 格式 (驼峰命名) 以保持向后兼容
-- 两种格式在功能上完全等价，服务器会自动识别并处理
+- 既有后端接口多数仍以 `page` / `page_size` 为主；
+- 部分模块已经兼容 `pageNumber` / `pageSize`；
+- 前端内部调用统一优先使用 `camelCase` 参数对象，再由 API 层适配；
+- 新增接口必须明确写清楚实际接受的参数格式，不要靠猜测。
 
 ### 8.2 分页响应
 

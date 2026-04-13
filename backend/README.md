@@ -46,7 +46,6 @@
 - 启动链路、装配关系、基础设施：`backend/BACKEND_GUIDE.md`
 - 模块实现细节：`backend/docs/`
 - 文件命名和目录组织规则：`backend/docs/BACKEND_NAMING_CONVENTIONS.md`
-- 历史规范化与发布文档：`backend/docs/archive/`
 - 工具结构和用法：`backend/cmd/tools/README.md`
 
 ## 备注

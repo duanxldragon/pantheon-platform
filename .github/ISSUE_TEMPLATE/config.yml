@@ -1,5 +1,11 @@
-﻿blank_issues_enabled: true
+blank_issues_enabled: true
 contact_links:
   - name: Project Docs
-    url: https://github.com/duanxldragon/pantheon-platform/blob/main/README.md
-    about: Read the project overview and document index before opening an issue.
+    url: https://github.com/duanxldragon/pantheon-platform/blob/main/docs/DOCS_INDEX.md
+    about: Read the active platform documentation index before opening an issue.
+  - name: Engineering Workflow
+    url: https://github.com/duanxldragon/pantheon-platform/blob/main/docs/governance/ENGINEERING_WORKFLOW.md
+    about: Review the standard engineering workflow, review, and testing expectations.
+  - name: AI Collaboration Guide
+    url: https://github.com/duanxldragon/pantheon-platform/blob/main/docs/governance/AI_COLLABORATION_GUIDE.md
+    about: Use the AI collaboration guide and task brief template for structured AI-assisted work.

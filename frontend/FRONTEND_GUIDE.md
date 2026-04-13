@@ -150,7 +150,7 @@ frontend/src/
 - **已登录但租户未初始化**：路由到 `/tenant-setup`，显示 `TenantSetupWizard` 组件；
 - **已登录且租户就绪**：路由到主业务路由，显示正式业务壳层（`MainLayout`）和对应业务页面。
 
-这也是平台前端初始化最关键的设计点之一。更多架构变更细节请参考 `docs/ARCHITECTURE_MIGRATION_2026.md`。
+这也是平台前端初始化最关键的设计点之一。当前架构与实现边界统一以 `docs/design/SYSTEM_ARCHITECTURE.md` 为准。
 
 ---
 

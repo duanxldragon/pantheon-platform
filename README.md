@@ -159,6 +159,16 @@ npm ci
 npm run dev
 ```
 
+## 协作入口
+
+如果你要继续开发、提 PR、补文档或使用 AI 工具协作，建议先看：
+
+- 贡献与协作入口：`CONTRIBUTING.md`
+- 平台文档总索引：`docs/DOCS_INDEX.md`
+- 开发者指南：`docs/development/DEVELOPER_GUIDE.md`
+- 工程开发流程：`docs/governance/ENGINEERING_WORKFLOW.md`
+- AI 协作指南：`docs/governance/AI_COLLABORATION_GUIDE.md`
+
 常用命令：
 
 ```bash

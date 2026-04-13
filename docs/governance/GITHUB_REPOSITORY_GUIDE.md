@@ -9,12 +9,14 @@
 
 - Bug Issue 模板
 - Feature Request 模板
+- AI Task Brief 模板
 - Pull Request 模板
 
 它们已经放在：
 
 - `.github/ISSUE_TEMPLATE/bug_report.md`
 - `.github/ISSUE_TEMPLATE/feature_request.md`
+- `.github/ISSUE_TEMPLATE/ai_task_brief.md`
 - `.github/pull_request_template.md`
 
 ## 2. 建议的分支保护
@@ -74,9 +76,12 @@
 
 - 缺陷、回归、线上异常走 Bug 模板
 - 新功能、增强建议走 Feature Request 模板
+- 需要 AI 辅助执行、分析、补文档或设计测试时，优先走 AI Task Brief 模板
 - 纯提问、讨论、临时沟通可以不强制使用模板
 
 ## 7. 与文档和 Codex 的关系
 
+- 协作入口建议统一从 `CONTRIBUTING.md` 开始
 - 仓库协作流程以 `README.md`、`docs/` 和 `AGENTS.md` 为准
+- AI 协作建议以 `docs/governance/AI_COLLABORATION_GUIDE.md` 为准
 - 如果 CI、分支策略、提交流程变化，要同步更新这份文档

@@ -7,6 +7,7 @@
 
 - [项目入口](../../README.md)
 - [平台文档中心](../../docs/DOCS_INDEX.md)
+- [工程开发流程](../../docs/governance/ENGINEERING_WORKFLOW.md)
 - [前端实现总览](../FRONTEND_GUIDE.md)
 
 ## 前端专题
@@ -14,6 +15,7 @@
 ### 通用入口
 
 - [前端 DESIGN.md 稳定设计描述](../DESIGN.md)
+- [前端代码规范](FRONTEND_CODE_STANDARDS.md)
 - [前端命名规范](FRONTEND_NAMING_CONVENTIONS.md)
 - [动态视图运行时说明](DYNAMIC_VIEW_RUNTIME.md)
 
@@ -46,6 +48,7 @@
 1. `../../README.md`
 2. `../../docs/DOCS_INDEX.md`
 3. `../FRONTEND_GUIDE.md`
+4. `FRONTEND_CODE_STANDARDS.md`
 
 适合场景：
 
@@ -101,6 +104,7 @@
 ## 文档边界
 
 - `frontend/FRONTEND_GUIDE.md`：前端工程总览
+- `frontend/docs/FRONTEND_CODE_STANDARDS.md`：前端实现约束、运行时边界、测试与自查基线
 - `frontend/DESIGN.md`：给前端与 AI 代理使用的稳定视觉描述
 - `frontend/docs/DYNAMIC_VIEW_RUNTIME.md`：动态视图、菜单、标签页、权限协作
 - `frontend/docs/system/SYSTEM_INITIALIZATION_LAYERS.md`：登录后初始化、refresh 重建、系统快照分层
