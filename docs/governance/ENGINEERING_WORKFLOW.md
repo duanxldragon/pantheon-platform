@@ -120,6 +120,14 @@
 - `docs/governance/CODE_REVIEW_GUIDE.md`
 - `docs/governance/SYSTEM_CHECKLIST.md`
 
+进入 GitHub PR 阶段时建议继续细化为：
+
+1. 先开 Draft PR，先对齐范围、风险、主链路；
+2. 自查通过后再请求正式 review；
+3. review comment 必须区分“必须修改 / 建议修改 / 可后续处理”；
+4. 需要补测试、补文档或补截图时，直接在同一 PR 收口；
+5. 合并前再次确认 required checks、回滚方案和发布影响。
+
 ### 3.7 分层测试
 
 测试执行顺序建议：

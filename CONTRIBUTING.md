@@ -71,6 +71,16 @@
 
 - `docs/governance/GITHUB_REPOSITORY_GUIDE.md`
 
+推荐的 GitHub PR 推进顺序：
+
+1. 从 `main` 拉出主题分支；
+2. 本地完成最小可审阅改动并自查；
+3. 尽早创建 Draft PR，对齐范围、风险和 review 焦点；
+4. 补齐测试、文档、截图或日志后转为 Ready for review；
+5. 等待 required checks 与 review 通过；
+6. 使用约定的 merge 策略合并；
+7. 合并后补发布说明、回滚信息或后续任务。
+
 ## 7. AI 工具最佳实践
 
 如果你使用 AI 工具，优先使用结构化输入，不要只给模糊描述。
@@ -103,6 +113,8 @@ PR 默认应说明：
 - 为什么这样改；
 - 做了哪些验证；
 - 还剩哪些风险或后续建议。
+
+建议直接按 `.github/pull_request_template.md` 填写，不要省略验证和风险部分。
 
 ## 9. 文档维护
 

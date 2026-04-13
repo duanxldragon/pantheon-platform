@@ -3,6 +3,9 @@ contact_links:
   - name: Project Docs
     url: https://github.com/duanxldragon/pantheon-platform/blob/main/docs/DOCS_INDEX.md
     about: Read the active platform documentation index before opening an issue.
+  - name: GitHub Repository Guide
+    url: https://github.com/duanxldragon/pantheon-platform/blob/main/docs/governance/GITHUB_REPOSITORY_GUIDE.md
+    about: Review the branch protection, PR flow, and required check recommendations before opening collaboration tasks.
   - name: Engineering Workflow
     url: https://github.com/duanxldragon/pantheon-platform/blob/main/docs/governance/ENGINEERING_WORKFLOW.md
     about: Review the standard engineering workflow, review, and testing expectations.
