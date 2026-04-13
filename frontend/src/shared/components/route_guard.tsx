@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useAuthStore } from '../../modules/auth/store/auth_store';
 import { useLanguageStore } from '../../stores/language_store';
 import { systemNotification } from '../utils/notification';
+import { resolveRouteGuardDecision } from './access_control_utils';
 
 interface RouteGuardProps {
   children: ReactNode;
@@ -24,42 +25,27 @@ export function RouteGuard({
   const hasRole = useAuthStore((state) => state.hasRole);
   const user = useAuthStore((state) => state.user);
   const t = useLanguageStore((state) => state.t);
+  const decision = resolveRouteGuardDecision({
+    isAuthenticated,
+    hasUser: Boolean(user),
+    requiredPermissions,
+    requiredRoles,
+    hasPermission,
+    hasRole,
+    messages: {
+      pleaseLogin: t.common.pleaseLogin,
+      permissionDenied: t.common.permissionDenied,
+      roleDenied: t.common.roleDenied,
+    },
+  });
 
-  if (!isAuthenticated || !user) {
+  if (decision.status !== 'allow') {
     if (onUnauthorized) {
       onUnauthorized();
-    } else {
-      systemNotification.error(t.common.pleaseLogin);
+    } else if (decision.message) {
+      systemNotification.error(decision.message);
     }
-    return fallback || <div>{t.common.pleaseLogin}</div>;
-  }
-
-  if (requiredPermissions) {
-    const permissions = Array.isArray(requiredPermissions) ? requiredPermissions : [requiredPermissions];
-    const hasRequiredPermission = permissions.some((permission) => hasPermission(permission));
-
-    if (!hasRequiredPermission) {
-      if (onUnauthorized) {
-        onUnauthorized();
-      } else {
-        systemNotification.error(t.common.permissionDenied);
-      }
-      return fallback || <div>{t.common.permissionDenied}</div>;
-    }
-  }
-
-  if (requiredRoles) {
-    const roles = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles];
-    const hasRequiredRole = roles.some((role) => hasRole(role));
-
-    if (!hasRequiredRole) {
-      if (onUnauthorized) {
-        onUnauthorized();
-      } else {
-        systemNotification.error(t.common.roleDenied);
-      }
-      return fallback || <div>{t.common.roleDenied}</div>;
-    }
+    return fallback || <div>{decision.message}</div>;
   }
 
   return <>{children}</>;

@@ -72,7 +72,10 @@ export interface ApiKeyItem {
   name: string;
   keyPreview: string;
   permissions: string;
+  allowedIps?: string[];
+  rateLimit: number;
   createdAt: string;
+  expiresAt?: string;
   lastUsed?: string;
 }
 
@@ -84,6 +87,9 @@ export interface ApiKeyResponse {
   name: string;
   key: string;
   permissions: string;
+  allowedIps?: string[];
+  rateLimit: number;
+  expiresAt?: string;
   lastUsed?: string;
   createdAt: string;
 }
@@ -178,10 +184,10 @@ export const authApi = {
 
   listApiKeys: () => http.get<{ items: ApiKeyItem[] }>('/v1/auth/api-keys'),
 
-  createApiKey: (data: { name: string; permissions?: string }) =>
+  createApiKey: (data: { name: string; permissions?: string; allowedIps?: string[]; rateLimit?: number; expiresAt?: string }) =>
     http.post<ApiKeyResponse>('/v1/auth/api-keys', data),
 
-  updateApiKey: (id: string, data: { name?: string; permissions?: string }) =>
+  updateApiKey: (id: string, data: { name?: string; permissions?: string; allowedIps?: string[]; rateLimit?: number; expiresAt?: string }) =>
     http.put(`/v1/auth/api-keys/${id}`, data),
 
   deleteApiKey: (id: string) => http.delete(`/v1/auth/api-keys/${id}`),
@@ -194,5 +200,3 @@ export const authApi = {
     });
   },
 };
-
-

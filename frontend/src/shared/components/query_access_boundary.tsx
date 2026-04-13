@@ -9,6 +9,7 @@ import { useLanguageStore } from '../../stores/language_store';
 import { useUIStore } from '../../stores/ui_store';
 import { getViewBreadcrumbPath, getViewConfig, getViewLabel } from '../constants/views_config';
 import { systemNotification } from '../utils/notification';
+import { resolveQueryAccessFallback } from './access_control_utils';
 
 interface QueryAccessBoundaryProps {
   viewId: string;
@@ -58,25 +59,11 @@ export function QueryAccessBoundary({
   const canQuery = hasPermission(queryPermission);
 
   const fallback = useMemo(() => {
-    const nextTab = tabs.find(
-      (tab) => tab.id !== viewId && canAccessFallbackView(tab.id, hasPermission, hasRole),
+    return resolveQueryAccessFallback(
+      tabs,
+      viewId,
+      (candidateViewId) => canAccessFallbackView(candidateViewId, hasPermission, hasRole),
     );
-    if (nextTab) {
-      return { id: nextTab.id, existingTabs: tabs.filter((tab) => tab.id !== viewId) };
-    }
-
-    const dashboardId = 'system-dashboard';
-    if (canAccessFallbackView(dashboardId, hasPermission, hasRole)) {
-      return {
-        id: dashboardId,
-        existingTabs: tabs.filter((tab) => tab.id !== viewId),
-      };
-    }
-
-    return {
-      id: 'profile-center',
-      existingTabs: tabs.filter((tab) => tab.id !== viewId),
-    };
   }, [hasPermission, hasRole, tabs, viewId]);
 
   useEffect(() => {

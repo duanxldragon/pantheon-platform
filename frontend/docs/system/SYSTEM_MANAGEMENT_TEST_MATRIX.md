@@ -6,7 +6,7 @@
 
 - 平台级业务边界：看 `../../../docs/system/SYSTEM_MANAGEMENT.md`
 - 前端实现入口：看 `./SYSTEM_FRONTEND.md`
-- 实际自动化脚本：看 `../../tests/system-management-functional.spec.ts`
+- 实际自动化脚本：看 `../../tests/official/system-management-functional.spec.ts`
 
 ---
 
@@ -19,7 +19,7 @@
 
 本轮实际执行过的命令：
 
-- `cd frontend && cmd /c npx playwright test tests/system-management-functional.spec.ts --project=chromium`
+- `cd frontend && cmd /c npm run test:e2e:system`
 - `cd frontend && cmd /c npm run build`
 - `cd backend && $env:GOCACHE=(Resolve-Path .gocache); go test ./internal/modules/system/...`
 
@@ -65,7 +65,7 @@
 
 ### 2.3 端点 → 页面 → 覆盖对照
 
-下表基于当前前端 `system/api` 调用层与 `tests/system-management-functional.spec.ts` 整理。
+下表基于当前前端 `system/api` 调用层与 `tests/official/system-management-functional.spec.ts` 整理。
 
 | 端点 | 前端页面/入口 | 当前状态 |
 | :--- | :--- | :--- |

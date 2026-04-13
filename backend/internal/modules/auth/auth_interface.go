@@ -24,11 +24,11 @@ type AuthService interface {
 	ListActiveSessions(ctx context.Context, userID, currentJTI string) (*ActiveSessionsResponse, error)
 	KickSession(ctx context.Context, userID, jti string) error
 	ParseTokenClaims(tokenString string) (*middleware.Claims, error)
-	CreateApiKey(ctx context.Context, userID, name, permissions string) (*ApiKeyResponse, error)
+	CreateApiKey(ctx context.Context, userID, name, permissions string, allowedIPs []string, rateLimit int, expiresAt string) (*ApiKeyResponse, error)
 	ListApiKeys(ctx context.Context, userID string) (*ApiKeyListResponse, error)
 	DeleteApiKey(ctx context.Context, userID, keyID string) error
-	UpdateApiKey(ctx context.Context, userID, keyID, name, permissions string) error
-	ValidateApiKey(ctx context.Context, apiKey string) (string, error)
+	UpdateApiKey(ctx context.Context, userID, keyID, name, permissions string, allowedIPs []string, rateLimit int, expiresAt string) error
+	ValidateApiKey(ctx context.Context, apiKey string) (*APIKeyAuthResult, error)
 	GetLoginAttemptsSummary(ctx context.Context, username, tenantCode string) (*LoginAttemptSummary, error)
 	UnlockAccount(ctx context.Context, username, tenantCode string) error
 	GetTwoFactorAuthStatus(ctx context.Context, userID, tenantID string) (*TwoFactorAuthResponse, error)

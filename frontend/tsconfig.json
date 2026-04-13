@@ -20,5 +20,5 @@
     },
     "types": ["vite/client", "node", "react", "react-dom"]
   },
-  "include": ["src", "vite.config.mjs", "vitest.config.ts", "playwright.config.ts"]
+  "include": ["src", "vite.config.mjs", "vitest.config.mjs", "playwright.config.ts"]
 }

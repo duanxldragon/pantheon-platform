@@ -3,10 +3,10 @@ import { defineConfig, devices } from '@playwright/test';
 const frontendPort = Number(process.env.PLAYWRIGHT_PORT || process.env.PORT || 5173);
 
 export default defineConfig({
-  testDir: './tests/official',
+  testDir: './tests/manual',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'list',
   webServer: {

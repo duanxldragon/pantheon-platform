@@ -54,6 +54,9 @@ type ApiKey struct {
 	Name        string     `json:"name" gorm:"size:100;notNull"`
 	Key         string     `json:"key" gorm:"size:100;notNull;index"`
 	Permissions string     `json:"permissions" gorm:"type:varchar(255);notNull;default:'read,write'"`
+	AllowedIPs  string     `json:"allowed_ips,omitempty" gorm:"type:text"`
+	RateLimit   int        `json:"rate_limit" gorm:"notNull;default:60"`
+	ExpiresAt   *time.Time `json:"expires_at,omitempty" gorm:"index"`
 	LastUsed    *time.Time `json:"last_used,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`

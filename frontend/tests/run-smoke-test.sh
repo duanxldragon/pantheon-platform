@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# System Management Smoke Test Runner
-# This script runs the tenant setup + system management functional smoke test
+# Official System Management E2E Runner
+# This script runs the official tenant setup + system management smoke suite.
 
 set -e
 
 echo "========================================="
-echo "Starting System Management Smoke Test"
+echo "Starting Official System Management E2E"
 echo "========================================="
 echo ""
 
@@ -47,11 +47,11 @@ mkdir -p frontend/test-results/smoke
 
 # Run the test
 cd frontend
-npx playwright test tests/system-management-functional.spec.ts --project=chromium
+npm run test:e2e:system
 
 echo ""
 echo -e "${GREEN}=========================================${NC}"
-echo -e "${GREEN}Smoke Test Completed${NC}"
+echo -e "${GREEN}Official E2E Completed${NC}"
 echo -e "${GREEN}=========================================${NC}"
 echo ""
 echo "Screenshots and results saved in: frontend/test-results/smoke/"

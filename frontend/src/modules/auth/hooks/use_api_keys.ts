@@ -8,6 +8,10 @@ export type ManagedApiKey = ApiKeyItem & {
   keyValue?: string;
 };
 
+const defaultApiKeyLifetimeMs = 90 * 24 * 60 * 60 * 1000;
+const defaultApiKeyRateLimit = 60;
+const defaultApiKeyPermissions = 'read';
+
 function mapCreatedApiKey(data: ApiKeyResponse): ManagedApiKey {
   return {
     id: data.id,
@@ -15,7 +19,10 @@ function mapCreatedApiKey(data: ApiKeyResponse): ManagedApiKey {
     keyPreview: data.key,
     keyValue: data.key,
     permissions: data.permissions,
+    allowedIps: data.allowedIps,
+    rateLimit: data.rateLimit,
     createdAt: data.createdAt,
+    expiresAt: data.expiresAt,
     lastUsed: data.lastUsed,
   };
 }
@@ -27,6 +34,9 @@ export function useApiKeys() {
   const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
+  const [newPermissions, setNewPermissions] = useState(defaultApiKeyPermissions);
+  const [newAllowedIps, setNewAllowedIps] = useState('');
+  const [newRateLimit, setNewRateLimit] = useState(String(defaultApiKeyRateLimit));
   const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
   const [apiKeys, setApiKeys] = useState<ManagedApiKey[]>([]);
 
@@ -79,12 +89,29 @@ export function useApiKeys() {
       systemNotification.error(zh ? '请输入密钥名称' : 'Please enter a key name');
       return;
     }
+    const trimmedPermissions = newPermissions.trim();
+    if (!trimmedPermissions) {
+      systemNotification.error(zh ? '请输入权限范围' : 'Please enter API key permissions');
+      return;
+    }
+
+    const parsedRateLimit = Number.parseInt(newRateLimit, 10);
+    if (!Number.isFinite(parsedRateLimit) || parsedRateLimit <= 0) {
+      systemNotification.error(zh ? '请输入有效的每分钟限流值' : 'Please enter a valid per-minute rate limit');
+      return;
+    }
 
     try {
       setLoading(true);
       const resp = await authApi.createApiKey({
         name: trimmedName,
-        permissions: 'read,write',
+        permissions: trimmedPermissions,
+        allowedIps: newAllowedIps
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean),
+        rateLimit: parsedRateLimit,
+        expiresAt: new Date(Date.now() + defaultApiKeyLifetimeMs).toISOString(),
       });
 
       const created = mapCreatedApiKey(resp.data);
@@ -92,6 +119,9 @@ export function useApiKeys() {
       setVisibleKeys((current) => ({ ...current, [created.id]: true }));
       setCreating(false);
       setNewKeyName('');
+      setNewPermissions(defaultApiKeyPermissions);
+      setNewAllowedIps('');
+      setNewRateLimit(String(defaultApiKeyRateLimit));
       systemNotification.success(
         zh ? 'API 密钥创建成功' : 'API key created',
         zh ? '完整密钥仅展示一次，请立即复制并妥善保存' : 'The full key is shown only once, please save it now',
@@ -110,6 +140,12 @@ export function useApiKeys() {
     loading,
     newKeyName,
     setNewKeyName,
+    newPermissions,
+    setNewPermissions,
+    newAllowedIps,
+    setNewAllowedIps,
+    newRateLimit,
+    setNewRateLimit,
     visibleKeys,
     apiKeys,
     loadApiKeys,
@@ -119,6 +155,3 @@ export function useApiKeys() {
     createKey,
   };
 }
-
-
-

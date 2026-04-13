@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
-import { e2eAdminUsername, e2eTenantCode, getE2EAdminPassword, getE2EMysqlConfig } from './e2eCredentials';
+import { e2eAdminUsername, e2eTenantCode, getE2EAdminPassword, getE2EMysqlConfig } from '../e2eCredentials';
 
 const backendOrigin = process.env.BACKEND_ORIGIN || 'http://localhost:8080';
 const formSubmitButtonName = /^(Save|Submit|Confirm)$/i;
@@ -1348,7 +1348,6 @@ test('checks tenant setup and admin CRUD pages', async ({ page, request }) => {
     }
   }
 });
-
 
 
 

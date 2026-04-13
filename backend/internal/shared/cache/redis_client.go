@@ -80,6 +80,14 @@ func NewRedisClient(cfg config.RedisConfig, environment string) (*RedisClient, e
 	return &RedisClient{client: client, mode: "remote"}, nil
 }
 
+// NewInMemoryRedisClient creates a redis client backed by in-memory storage.
+func NewInMemoryRedisClient() *RedisClient {
+	return &RedisClient{
+		memory: newMemoryStore(),
+		mode:   "memory",
+	}
+}
+
 // GetClient returns the underlying redis client.
 func (r *RedisClient) GetClient() *redis.Client {
 	return r.client

@@ -3,9 +3,9 @@ package auth
 import (
 	"context"
 	"errors"
-	"log"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"log"
 	"pantheon-platform/backend/internal/shared/response"
 	"strconv"
 	"strings"
@@ -342,7 +342,7 @@ func (h *AuthHandler) CreateApiKey(c *gin.Context) {
 		return
 	}
 
-	result, err := h.authService.CreateApiKey(c.Request.Context(), userID, req.Name, req.Permissions)
+	result, err := h.authService.CreateApiKey(c.Request.Context(), userID, req.Name, req.Permissions, req.AllowedIPs, req.RateLimit, req.ExpiresAt)
 	if err != nil {
 		response.InternalError(c, "CREATE_API_KEY_FAILED", err.Error())
 		return
@@ -410,7 +410,7 @@ func (h *AuthHandler) UpdateApiKey(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.UpdateApiKey(c.Request.Context(), userID, keyID, req.Name, req.Permissions); err != nil {
+	if err := h.authService.UpdateApiKey(c.Request.Context(), userID, keyID, req.Name, req.Permissions, req.AllowedIPs, req.RateLimit, req.ExpiresAt); err != nil {
 		response.InternalError(c, "UPDATE_API_KEY_FAILED", err.Error())
 		return
 	}

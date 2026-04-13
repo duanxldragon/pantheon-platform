@@ -21,6 +21,12 @@ func ErrorToTranslationKey(err error) string {
 		return "auth.error.account_locked"
 	case ErrApiKeyNotFound:
 		return "auth.error.api_key_not_found"
+	case ErrAPIKeyExpired:
+		return "auth.error.api_key_expired"
+	case ErrAPIKeyIPNotAllowed:
+		return "auth.error.api_key_ip_not_allowed"
+	case ErrAPIKeyRateLimited:
+		return "auth.error.api_key_rate_limited"
 	default:
 		// Return the error message as-is for other errors
 		return err.Error()

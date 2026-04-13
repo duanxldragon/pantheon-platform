@@ -7,11 +7,18 @@
 
 - 测试框架：`Playwright`
 - 主要目录：`frontend/tests/`
-- 主回归用例：`frontend/tests/system-management-functional.spec.ts`
-- 冒烟用例：
-  - `frontend/tests/comprehensive-smoke-test.spec.ts`
-  - `frontend/tests/comprehensive-system-smoke.spec.ts`
-  - `frontend/tests/platform-admin-fix.spec.ts`
+- 默认正式套件：`frontend/tests/official/`
+- 手工调试套件：`frontend/tests/manual/`
+- 当前正式回归用例：
+  - `frontend/tests/official/system-management-functional.spec.ts`
+  - `frontend/tests/official/api-key-security.spec.ts`
+
+当前约定：
+
+- `npm run test:e2e` 只执行正式套件；
+- 调试/排障脚本不进入默认回归；
+- 过时或替代后的试验脚本在确认无引用后直接删除，避免长期堆积。
+- 正式 CI 当前拆为系统主流程与 API Key 安全两个专项 workflow。
 
 ## 2. E2E 目标
 
@@ -68,10 +75,15 @@ E2E 重点验证：
 
 ### 3.5 个人安全能力
 
-建议逐步纳入：
+- 当前已纳入：
+
+- API Key 作用域限制；
+- API Key IP 白名单；
+- API Key 速率限制。
+
+建议继续纳入：
 
 - 会话管理；
-- API Key 管理；
 - 登录历史；
 - 2FA 开关；
 - 当前用户资料刷新。
@@ -113,17 +125,25 @@ E2E 重点验证：
 
 ```bash
 cd frontend
-npx playwright test
-npx playwright test tests/system-management-functional.spec.ts --project=chromium
+npm run test:e2e
+npm run test:e2e:system
+npm run test:e2e:api-key
 npm run build
+```
+
+如需手工排障：
+
+```bash
+cd frontend
+npm run test:e2e:manual
 ```
 
 ## 8. 当前缺口
 
-当前 E2E 更强覆盖系统管理主流程，仍建议继续补：
+当前 E2E 已形成“系统主流程 + API Key 安全专项”双基线，仍建议继续补：
 
 - 2FA 全链路；
-- 会话管理与 API Key 全链路；
+- 会话管理全链路；
 - 通知中心；
 - 权限拒绝矩阵；
 - 多租户切换与租户停用联动；

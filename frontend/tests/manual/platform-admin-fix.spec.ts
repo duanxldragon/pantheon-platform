@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { getE2EAdminPassword } from './e2eCredentials';
+import { getE2EAdminPassword } from '../e2eCredentials';
 
 const frontendOrigin = 'http://localhost:5173';
 const backendOrigin = 'http://localhost:8080';

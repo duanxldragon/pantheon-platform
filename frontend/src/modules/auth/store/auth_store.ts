@@ -10,6 +10,7 @@ import type { ID } from '../../system/types';
 import tenantDatabaseApi from '../../tenant/api/tenant_database_api';
 import type { TenantInfo, TenantSetupStatus } from '../../tenant/types';
 import { authApi, type LoginResponse, type PublicAuthConfig, type User as ApiUser } from '../api/auth_api';
+import { matchPermissionPattern } from '../utils/permission_matcher';
 
 export interface UserInfo {
   id: ID;
@@ -84,8 +85,6 @@ const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION = 30 * 60 * 1000;
 const EMPTY_UUID = '00000000-0000-0000-0000-000000000000';
 
-type PermissionTuple = { obj: string; act: string };
-
 const isZh = () => useLanguageStore.getState().language === 'zh';
 
 function text(zh: string, en: string): string {
@@ -102,57 +101,6 @@ function buildAccountLockedMessage(remainingMinutes: number): string {
     `账号已锁定，请在 ${remainingMinutes} 分钟后重试。`,
     `Account is locked. Try again in ${remainingMinutes} minute(s).`,
   );
-}
-
-function splitPermission(permission: string): PermissionTuple {
-  const raw = String(permission || '').trim();
-  const idx = raw.lastIndexOf(':');
-  if (idx <= 0 || idx === raw.length - 1) {
-    return { obj: raw, act: '' };
-  }
-  return { obj: raw.slice(0, idx), act: raw.slice(idx + 1) };
-}
-
-function escapeRegExp(input: string): string {
-  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function matchPath(pattern: string, path: string): boolean {
-  const p = String(pattern || '').trim();
-  const t = String(path || '').trim();
-  if (!p) return false;
-  if (p === '*' || p === '/*') return true;
-
-  const segments = p.split('/').map((seg) => {
-    if (!seg) return '';
-    if (seg === '*') return '.*';
-    if (seg.startsWith(':')) return '[^/]+';
-    return escapeRegExp(seg).replace(/\\\*/g, '.*');
-  });
-
-  const re = new RegExp(`^${segments.join('/')}$`);
-  return re.test(t);
-}
-
-function matchPermissionPattern(userPerm: string, requiredPerm: string): boolean {
-  if (!userPerm || !requiredPerm) return false;
-  if (
-    userPerm === '*:*:*' ||
-    requiredPerm === '*:*:*' ||
-    userPerm === '/api/v1/*:*' ||
-    userPerm === '/api/v1/*'
-  ) {
-    return true;
-  }
-
-  const u = splitPermission(userPerm);
-  const r = splitPermission(requiredPerm);
-  const uAct = (u.act || '').toLowerCase();
-  const rAct = (r.act || '').toLowerCase();
-  if (!matchPath(u.obj, r.obj)) return false;
-  if (uAct === '*' || rAct === '*') return true;
-  if (!uAct || !rAct) return userPerm === requiredPerm;
-  return uAct === rAct;
 }
 
 function buildUserInfo(apiUser: ApiUser, tenantCode?: string, currentUser?: UserInfo | null): UserInfo {
@@ -716,7 +664,6 @@ export const useAuthStore = create<AuthState>()(
     { name: 'AuthStore' },
   ),
 );
-
 
 
 

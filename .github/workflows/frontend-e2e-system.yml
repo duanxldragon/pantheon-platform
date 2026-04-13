@@ -1,0 +1,221 @@
+name: Frontend E2E System
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - '.github/workflows/frontend-e2e-system.yml'
+      - 'backend/internal/app/**'
+      - 'backend/internal/modules/auth/**'
+      - 'backend/internal/modules/system/**'
+      - 'backend/internal/modules/tenant/**'
+      - 'backend/internal/modules/notification/**'
+      - 'backend/internal/shared/**'
+      - 'frontend/src/**'
+      - 'frontend/tests/official/system-management-functional.spec.ts'
+      - 'frontend/tests/e2eCredentials.ts'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - 'frontend/playwright.config.ts'
+      - 'docs/testing/**'
+      - 'frontend/docs/system/SYSTEM_MANAGEMENT_TEST_MATRIX.md'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - '.github/workflows/frontend-e2e-system.yml'
+      - 'backend/internal/app/**'
+      - 'backend/internal/modules/auth/**'
+      - 'backend/internal/modules/system/**'
+      - 'backend/internal/modules/tenant/**'
+      - 'backend/internal/modules/notification/**'
+      - 'backend/internal/shared/**'
+      - 'frontend/src/**'
+      - 'frontend/tests/official/system-management-functional.spec.ts'
+      - 'frontend/tests/e2eCredentials.ts'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - 'frontend/playwright.config.ts'
+      - 'docs/testing/**'
+      - 'frontend/docs/system/SYSTEM_MANAGEMENT_TEST_MATRIX.md'
+  workflow_dispatch:
+
+jobs:
+  system-e2e:
+    name: System Management E2E
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: pantheon-root-password
+          MYSQL_DATABASE: pantheon_master
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -ppantheon-root-password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install MySQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: go mod download
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: ./frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Create CI backend config
+        shell: bash
+        run: |
+          cat > backend/config.yaml <<'EOF'
+          environment: development
+          port: 8080
+          read_timeout: 30
+          write_timeout: 30
+          auto_migrate: true
+          migrate_only: false
+          enable_multi_tenant: true
+          default_tenant_id: "00000000-0000-0000-0000-000000000000"
+          deployment:
+            mode: private
+            tenant_strategy: dedicated
+          master_db:
+            type: mysql
+            host: 127.0.0.1
+            port: 3306
+            database: pantheon_master
+            username: root
+            password: pantheon-root-password
+          redis:
+            enabled: "false"
+          jwt_secret: "pantheon-ci-jwt-secret-2026-fixed-value-123456"
+          jwt_expires_in: 3600
+          refresh_expiry: 604800
+          encryption_key: "pantheon-ci-encryption-key-32!!!"
+          default_admin:
+            enabled: true
+            username: admin
+            password: "Admin@Pantheon2026"
+            email: admin@example.com
+            real_name: System Admin
+          cors:
+            allowed_origins:
+              - http://localhost:5173
+            allowed_methods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowed_headers:
+              - Origin
+              - Content-Type
+              - Authorization
+              - X-Tenant-ID
+              - X-API-Key
+            allow_credentials: true
+          security:
+            enable_2fa: true
+            max_concurrent_sessions: 0
+            rate_limit:
+              enabled: false
+          swagger:
+            enabled: false
+          EOF
+
+      - name: Wait for MySQL health
+        run: |
+          for i in {1..60}; do
+            if mysqladmin ping -h 127.0.0.1 -uroot -ppantheon-root-password --silent; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MySQL failed to become ready"
+          exit 1
+
+      - name: Start backend server
+        working-directory: ./backend
+        run: |
+          nohup go run ./cmd/server > ../backend-system-e2e.log 2>&1 &
+          echo $! > ../backend-system-e2e.pid
+
+      - name: Wait for backend health
+        shell: bash
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:8080/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Backend failed to start"
+          cat backend-system-e2e.log
+          exit 1
+
+      - name: Run system management E2E
+        working-directory: ./frontend
+        env:
+          E2E_ADMIN_PASSWORD: Admin@Pantheon2026
+          E2E_MYSQL_HOST: 127.0.0.1
+          E2E_MYSQL_PORT: '3306'
+          E2E_MYSQL_USER: root
+          E2E_MYSQL_PASSWORD: pantheon-root-password
+          MYSQL_BIN: /usr/bin/mysql
+          BACKEND_ORIGIN: http://127.0.0.1:8080
+          PLAYWRIGHT_PORT: 4173
+        run: npm run test:e2e:system
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-system-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore
+
+      - name: Upload backend log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-system-e2e-log
+          path: backend-system-e2e.log
+          if-no-files-found: ignore
+
+      - name: Stop backend server
+        if: always()
+        shell: bash
+        run: |
+          if [ -f backend-system-e2e.pid ]; then
+            kill "$(cat backend-system-e2e.pid)" || true
+          fi

@@ -1,10 +1,10 @@
-# Comprehensive System Smoke Test Runner for Windows
-# This script runs the comprehensive smoke test for the system management module
+# Official System Management E2E Runner for Windows
+# This script runs the official system management smoke suite.
 
 $ErrorActionPreference = "Stop"
 
 Write-Host "=========================================" -ForegroundColor Cyan
-Write-Host "Starting Comprehensive System Smoke Test" -ForegroundColor Cyan
+Write-Host "Starting Official System Management E2E" -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -42,10 +42,10 @@ New-Item -ItemType Directory -Force -Path "frontend/test-results/smoke" | Out-Nu
 # Run the test
 Push-Location frontend
 try {
-    npx playwright test tests/system-management-functional.spec.ts --project=chromium
+    npm run test:e2e:system
     Write-Host ""
     Write-Host "=========================================" -ForegroundColor Green
-    Write-Host "Smoke Test Completed" -ForegroundColor Green
+    Write-Host "Official E2E Completed" -ForegroundColor Green
     Write-Host "=========================================" -ForegroundColor Green
     Write-Host ""
     Write-Host "Screenshots and results saved in: frontend/test-results/smoke/"

@@ -240,7 +240,7 @@ func Start() {
 		engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
 
-	authMiddleware := middleware.Auth(redisClient)
+	authMiddleware := auth.NewUnifiedAuthMiddleware(redisClient, authSvc)
 	tenantMiddleware := middleware.Tenant(dbManager, cfg, tenantSvc)
 
 	authRouter.RegisterRoutes(engine, authMiddleware)

@@ -40,6 +40,8 @@
 - `Frontend CI / Lint`
 - `Frontend CI / Test`
 - `Frontend CI / Build`
+- `Frontend E2E System / System Management E2E`
+- `Frontend E2E API Key / API Key Security E2E`
 - `Text Hygiene / Check Encoding And Line Endings`
 
 如果后续新增更细的 job，可以按实际 job 名调整。

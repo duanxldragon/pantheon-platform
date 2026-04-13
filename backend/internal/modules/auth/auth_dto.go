@@ -68,13 +68,19 @@ type PasswordResetResponse struct {
 }
 
 type CreateApiKeyRequest struct {
-	Name        string `json:"name" binding:"required" example:"CI Integration Key"`
-	Permissions string `json:"permissions" binding:"required" example:"system:user:list,system:user:create"`
+	Name        string   `json:"name" binding:"required" example:"CI Integration Key"`
+	Permissions string   `json:"permissions" binding:"required" example:"system:user:list,system:user:create"`
+	AllowedIPs  []string `json:"allowed_ips,omitempty" example:"10.0.0.10,192.168.1.0/24"`
+	RateLimit   int      `json:"rate_limit,omitempty" example:"60"`
+	ExpiresAt   string   `json:"expires_at,omitempty" example:"2026-07-01T00:00:00Z"`
 }
 
 type UpdateApiKeyRequest struct {
-	Name        string `json:"name" example:"CI Integration Key"`
-	Permissions string `json:"permissions" example:"system:user:list,system:user:create"`
+	Name        string   `json:"name" example:"CI Integration Key"`
+	Permissions string   `json:"permissions" example:"system:user:list,system:user:create"`
+	AllowedIPs  []string `json:"allowed_ips,omitempty" example:"10.0.0.10,192.168.1.0/24"`
+	RateLimit   int      `json:"rate_limit,omitempty" example:"60"`
+	ExpiresAt   string   `json:"expires_at,omitempty" example:"2026-07-01T00:00:00Z"`
 }
 
 type DeleteApiKeyRequest struct {
@@ -92,22 +98,37 @@ type ApiKeyListResponse struct {
 }
 
 type ApiKeyItem struct {
-	ID          string `json:"id" example:"api-key-1"`
-	Name        string `json:"name" example:"CI Integration Key"`
-	KeyPreview  string `json:"key_preview" example:"pk_live_****abcd"`
-	Permissions string `json:"permissions" example:"system:user:list,system:user:create"`
-	CreatedAt   string `json:"created_at" example:"2026-03-30T10:00:00Z"`
-	LastUsed    string `json:"last_used,omitempty" example:"2026-03-30T12:00:00Z"`
+	ID          string   `json:"id" example:"api-key-1"`
+	Name        string   `json:"name" example:"CI Integration Key"`
+	KeyPreview  string   `json:"key_preview" example:"pk_live_****abcd"`
+	Permissions string   `json:"permissions" example:"system:user:list,system:user:create"`
+	AllowedIPs  []string `json:"allowed_ips,omitempty" example:"10.0.0.10,192.168.1.0/24"`
+	RateLimit   int      `json:"rate_limit" example:"60"`
+	CreatedAt   string   `json:"created_at" example:"2026-03-30T10:00:00Z"`
+	ExpiresAt   string   `json:"expires_at,omitempty" example:"2026-07-01T00:00:00Z"`
+	LastUsed    string   `json:"last_used,omitempty" example:"2026-03-30T12:00:00Z"`
 }
 
 type ApiKeyResponse struct {
-	ID          string `json:"id" example:"api-key-1"`
-	UserID      string `json:"user_id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Name        string `json:"name" example:"CI Integration Key"`
-	Key         string `json:"key" example:"pk_live_xxx"`
-	Permissions string `json:"permissions" example:"system:user:list,system:user:create"`
-	LastUsed    string `json:"last_used,omitempty" example:"2026-03-30T12:00:00Z"`
-	CreatedAt   string `json:"created_at" example:"2026-03-30T10:00:00Z"`
+	ID          string   `json:"id" example:"api-key-1"`
+	UserID      string   `json:"user_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Name        string   `json:"name" example:"CI Integration Key"`
+	Key         string   `json:"key" example:"pk_live_xxx"`
+	Permissions string   `json:"permissions" example:"system:user:list,system:user:create"`
+	AllowedIPs  []string `json:"allowed_ips,omitempty" example:"10.0.0.10,192.168.1.0/24"`
+	RateLimit   int      `json:"rate_limit" example:"60"`
+	ExpiresAt   string   `json:"expires_at,omitempty" example:"2026-07-01T00:00:00Z"`
+	LastUsed    string   `json:"last_used,omitempty" example:"2026-03-30T12:00:00Z"`
+	CreatedAt   string   `json:"created_at" example:"2026-03-30T10:00:00Z"`
+}
+
+type APIKeyAuthResult struct {
+	KeyID       string
+	UserID      string
+	Permissions []string
+	AllowedIPs  []string
+	RateLimit   int
+	AuthType    string
 }
 
 type ValidatePasswordRequest struct {

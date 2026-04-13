@@ -208,6 +208,18 @@ API Key 面向系统集成、自动化任务或服务间访问，不应替代普
 - 高风险 API Key 操作应审计；
 - 建议与权限系统联动，而不是绕过授权体系。
 
+### 7.2.1 当前已落地的最小安全控制
+
+当前实现已经具备以下控制：
+
+- API Key 只在创建时返回一次明文；
+- 后端只存储哈希，不存储明文；
+- 支持到期时间控制，默认生命周期为 90 天；
+- 支持按 Key 维度配置来源 IP allowlist；
+- 支持按 Key 维度配置每分钟速率限制；
+- 支持把 `permissions` 作为运行时 scope 使用，当前兼容 `read` / `write` 与 `路径:方法` 两类格式；
+- 记录最近使用时间，便于审计和排障。
+
 ### 7.3 权限边界（重要）
 
 API Key 认证后的权限边界与其归属用户一致：
@@ -565,158 +577,19 @@ func main() {
 }
 ```
 
-#### 12.1.3 API Key权限控制增强
+#### 12.1.3 API Key 权限控制增强
 
-**当前问题：**
-- API Key缺少独立的权限范围限制
-- 缺少速率限制和IP白名单
-- 权限边界不够清晰
+**当前状态：**
 
-**加固方案：**
+- 已接入统一鉴权入口，可用 `Bearer` 与 `X-API-Key` 两种方式访问受保护接口；
+- 已具备到期时间、来源 IP allowlist、每分钟速率限制、最近使用时间更新；
+- 仍然沿用“归属用户权限边界”，还没有做独立 scope 模型。
 
-```go
-// 1. 增强API Key模型
-// internal/modules/auth/auth_model.go
-type ApiKey struct {
-    ID              string         `json:"id"`
-    UserID          string         `json:"user_id"`
-    Name            string         `json:"name"`
-    Selector        string         `json:"selector"`
-    KeyHash         string         `json:"-"`              // bcrypt哈希
-    Scopes          []string       `json:"scopes"`          // 权限范围
-    IPWhitelist     []string       `json:"ip_whitelist"`    // IP白名单
-    RateLimit       int            `json:"rate_limit"`      // 速率限制（请求/分钟）
-    ExpiresAt       *time.Time     `json:"expires_at"`
-    LastUsedAt      *time.Time     `json:"last_used_at"`
-    CreatedAt       time.Time      `json:"created_at"`
-}
+**下一步建议：**
 
-// 2. 增强API Key验证
-// internal/modules/auth/api_key_service.go
-func (s *apiKeyService) ValidateAPIKey(ctx context.Context, keyString string, clientIP string) (*ApiKey, error) {
-    // 解析API Key
-    selector, secret, err := parseAPIKey(keyString)
-    if err != nil {
-        return nil, ErrInvalidAPIKey
-    }
-    
-    // 查找API Key
-    apiKey, err := s.apiKeyDAO.GetBySelector(ctx, selector)
-    if err != nil {
-        return nil, ErrInvalidAPIKey
-    }
-    
-    // 验证密钥
-    if err := bcrypt.CompareHashAndPassword([]byte(apiKey.KeyHash), []byte(secret)); err != nil {
-        return nil, ErrInvalidAPIKey
-    }
-    
-    // 检查有效期
-    if apiKey.ExpiresAt != nil && apiKey.ExpiresAt.Before(time.Now()) {
-        return nil, ErrAPIKeyExpired
-    }
-    
-    // 检查IP白名单
-    if len(apiKey.IPWhitelist) > 0 && !isIPAllowed(clientIP, apiKey.IPWhitelist) {
-        return nil, ErrAPIKeyIPNotAllowed
-    }
-    
-    // 检查速率限制
-    if apiKey.RateLimit > 0 {
-        if !s.rateLimiter.Allow(ctx, apiKey.ID, apiKey.RateLimit) {
-            return nil, ErrAPIKeyRateLimitExceeded
-        }
-    }
-    
-    // 更新最后使用时间
-    s.apiKeyDAO.UpdateLastUsed(ctx, apiKey.ID)
-    
-    return apiKey, nil
-}
-
-// 3. 速率限制器
-// internal/shared/security/rate_limiter.go
-type RateLimiter struct {
-    redis *redis.Client
-}
-
-func (rl *RateLimiter) Allow(ctx context.Context, key string, limit int) bool {
-    now := time.Now().Unix()
-    window := now / 60 // 当前时间窗口（分钟）
-    
-    redisKey := fmt.Sprintf("rate_limit:%s:%d", key, window)
-    
-    // 增加计数
-    count, err := rl.redis.Incr(ctx, redisKey).Result()
-    if err != nil {
-        return false
-    }
-    
-    // 设置过期时间
-    if count == 1 {
-        rl.redis.Expire(ctx, redisKey, 2*time.Minute)
-    }
-    
-    return count <= int64(limit)
-}
-
-// 4. API Key中间件增强
-// internal/shared/middleware/api_key_middleware.go
-func APIKeyAuth(apiKeyService *auth.ApiKeyService) gin.HandlerFunc {
-    return func(c *gin.Context) {
-        // 提取API Key
-        keyString := extractAPIKey(c)
-        if keyString == "" {
-            c.JSON(401, gin.H{"error": "API Key required"})
-            c.Abort()
-            return
-        }
-        
-        // 获取客户端IP
-        clientIP := c.ClientIP()
-        
-        // 验证API Key
-        apiKey, err := apiKeyService.ValidateAPIKey(c.Request.Context(), keyString, clientIP)
-        if err != nil {
-            c.JSON(401, gin.H{"error": err.Error()})
-            c.Abort()
-            return
-        }
-        
-        // 注入用户信息和权限范围
-        c.Set("user_id", apiKey.UserID)
-        c.Set("api_key_id", apiKey.ID)
-        c.Set("api_key_scopes", apiKey.Scopes)
-        c.Set("api_key_auth", true) // 标记为API Key认证
-        
-        c.Next()
-    }
-}
-
-// 5. 权限检查增强
-// 在权限中间件中检查API Key的权限范围
-func RequirePermission(resource string, action string) gin.HandlerFunc {
-    return func(c *gin.Context) {
-        userID := c.GetString("user_id")
-        
-        // 检查是否是API Key认证
-        if c.GetBool("api_key_auth") {
-            scopes := c.GetSlice("api_key_scopes")
-            
-            // 检查API Key的权限范围
-            requiredScope := fmt.Sprintf("%s:%s", resource, action)
-            if !contains(scopes, requiredScope) && !contains(scopes, "*") {
-                c.JSON(403, gin.H{"error": "API Key lacks required scope"})
-                c.Abort()
-                return
-            }
-        }
-        
-        // 正常的权限检查...
-        c.Next()
-    }
-}
-```
+- 如果要支持更细粒度集成权限，再补“API Key 独立 scope -> 路由 / 动作矩阵 -> 拒绝策略”；
+- 把 API Key 正式 E2E 与 CI 门禁接上，避免安全链路回归；
+- 将高风险 API Key 事件（创建、删除、来源 IP 拒绝、速率限制命中）进一步收敛到统一审计视图。
 
 ### 12.2 中危问题修复 (P1)
 

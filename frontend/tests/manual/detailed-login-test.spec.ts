@@ -1,5 +1,5 @@
 import { test } from '@playwright/test';
-import { getE2EAdminPassword } from './e2eCredentials';
+import { getE2EAdminPassword } from '../e2eCredentials';
 
 test('detailed login test with console monitoring', async ({ page }) => {
   const adminPassword = getE2EAdminPassword();

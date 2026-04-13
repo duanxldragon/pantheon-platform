@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import { useLanguageStore } from './language_store';
 
 export interface Tab {
@@ -33,6 +33,18 @@ interface UIState {
 // 存储版本号，用于清除旧的持久化数据
 const STORAGE_VERSION = 4; // 更新版本号以重置存储
 const DEFAULT_TAB_ID = 'system-dashboard';
+const noopStorage = {
+  getItem: () => null,
+  setItem: () => {},
+  removeItem: () => {},
+};
+
+function getUIStorage() {
+  if (typeof localStorage === 'undefined') {
+    return noopStorage;
+  }
+  return localStorage;
+}
 
 function createDefaultTab(): Tab {
   return {
@@ -130,6 +142,7 @@ export const useUIStore = create<UIState>()(
     }),
     {
       name: 'ui-storage',
+      storage: createJSONStorage(() => getUIStorage()),
       version: STORAGE_VERSION,
       migrate: (persistedState: unknown, version: number) => {
         // 如果版本不匹配，重置为默认状态

@@ -197,7 +197,7 @@ try {
       }
     }
 
-    & $npxBin playwright test tests/system-management-functional.spec.ts --project=chromium
+    & $npmBin run test:e2e:system
   } finally {
     Pop-Location
   }

@@ -6,6 +6,7 @@ import { Button } from '../../../../../components/ui/button';
 import { Card } from '../../../../../components/ui/card';
 import { Input } from '../../../../../components/ui/input';
 import { Label } from '../../../../../components/ui/label';
+import { Textarea } from '../../../../../components/ui/textarea';
 import { ConfirmDialog } from '../../../../../shared/components/ui/confirm_dialog';
 import { useLanguageStore } from '../../../../../stores/language_store';
 import { useThemeStore } from '../../../../../stores/theme_store';
@@ -31,14 +32,26 @@ export function ApiKeyManagement() {
     securityDesc: zh
       ? 'API 密钥仅在创建时展示完整内容，请立即复制并妥善保存；如怀疑泄露，请及时删除并重新生成。'
       : 'A full API key is only shown once when created. Copy and store it securely.',
+    expiryHint: zh ? '默认有效期 90 天，可在后续接口能力中继续收紧。' : 'New keys expire after 90 days by default.',
+    allowlistHint: zh ? '可选，使用英文逗号分隔 IP 或 CIDR。留空表示不限制来源。' : 'Optional. Use commas to separate IPs or CIDRs. Leave empty to allow any source.',
     keyName: zh ? '密钥名称' : 'Key Name',
     keyNamePlaceholder: zh ? '例如：生产环境只读密钥' : 'For example: production read-only key',
+    permissions: zh ? '权限范围' : 'Permissions',
+    permissionsPlaceholder: zh ? '例如：read 或 /api/v1/system/users:get' : 'For example: read or /api/v1/system/users:get',
+    permissionsHint: zh
+      ? '支持 read / write，或使用 /api/v1/system/users:get 这类精确接口范围。'
+      : 'Supports read / write, or explicit scopes like /api/v1/system/users:get.',
+    allowedIps: zh ? '允许来源 IP' : 'Allowed IPs',
+    allowedIpsPlaceholder: zh ? '例如：10.0.0.10,192.168.1.0/24' : 'For example: 10.0.0.10,192.168.1.0/24',
+    rateLimit: zh ? '每分钟限流' : 'Requests / min',
     createKey: zh ? '创建密钥' : 'Create Key',
     cancel: zh ? '取消' : 'Cancel',
     createNewKey: zh ? '创建新密钥' : 'Create New Key',
     refresh: zh ? '刷新' : 'Refresh',
     createdAt: zh ? '创建时间' : 'Created',
+    expiresAt: zh ? '过期时间' : 'Expires',
     lastUsed: zh ? '最近使用' : 'Last used',
+    anyIp: zh ? '不限来源' : 'Any IP',
     noKeys: zh ? '暂无 API 密钥' : 'No API keys yet',
     removeTitle: zh ? '确认删除 API 密钥' : 'Confirm API Key Deletion',
     removeDescription: (name: string) =>
@@ -55,6 +68,12 @@ export function ApiKeyManagement() {
     loading,
     newKeyName,
     setNewKeyName,
+    newPermissions,
+    setNewPermissions,
+    newAllowedIps,
+    setNewAllowedIps,
+    newRateLimit,
+    setNewRateLimit,
     visibleKeys,
     apiKeys,
     loadApiKeys,
@@ -69,6 +88,7 @@ export function ApiKeyManagement() {
       <Card className="border-orange-200 bg-orange-50 p-4">
         <p className="text-sm font-medium text-orange-900">{copy.securityNotice}</p>
         <p className="mt-1 text-xs text-orange-700">{copy.securityDesc}</p>
+        <p className="mt-1 text-xs text-orange-700">{copy.expiryHint}</p>
       </Card>
 
       {creating ? (
@@ -85,6 +105,44 @@ export function ApiKeyManagement() {
                 placeholder={copy.keyNamePlaceholder}
                 className="mt-2"
               />
+              <p className="mt-2 text-xs" style={{ color: theme.colors.textSecondary }}>
+                {copy.expiryHint}
+              </p>
+            </div>
+            <div>
+              <Label style={{ color: theme.colors.text }}>{copy.permissions}</Label>
+              <Input
+                value={newPermissions}
+                onChange={(event) => setNewPermissions(event.target.value)}
+                placeholder={copy.permissionsPlaceholder}
+                className="mt-2"
+              />
+              <p className="mt-2 text-xs" style={{ color: theme.colors.textSecondary }}>
+                {copy.permissionsHint}
+              </p>
+            </div>
+            <div>
+              <Label style={{ color: theme.colors.text }}>{copy.allowedIps}</Label>
+              <Textarea
+                value={newAllowedIps}
+                onChange={(event) => setNewAllowedIps(event.target.value)}
+                placeholder={copy.allowedIpsPlaceholder}
+                className="mt-2 resize-none"
+                rows={3}
+              />
+              <p className="mt-2 text-xs" style={{ color: theme.colors.textSecondary }}>
+                {copy.allowlistHint}
+              </p>
+            </div>
+            <div>
+              <Label style={{ color: theme.colors.text }}>{copy.rateLimit}</Label>
+              <Input
+                type="number"
+                min={1}
+                value={newRateLimit}
+                onChange={(event) => setNewRateLimit(event.target.value)}
+                className="mt-2"
+              />
             </div>
             <div className="flex gap-2">
               <Button onClick={createKey} disabled={loading}>
@@ -94,6 +152,9 @@ export function ApiKeyManagement() {
                 variant="outline"
                 onClick={() => {
                   setNewKeyName('');
+                  setNewPermissions('read');
+                  setNewAllowedIps('');
+                  setNewRateLimit('60');
                   setCreating(false);
                 }}
                 disabled={loading}
@@ -141,7 +202,12 @@ export function ApiKeyManagement() {
                     </div>
                     <div className="mt-1 text-xs" style={{ color: theme.colors.textSecondary }}>
                       {copy.createdAt}: {item.createdAt}
+                      {item.expiresAt ? ` · ${copy.expiresAt}: ${item.expiresAt}` : ''}
+                      {` · ${copy.rateLimit}: ${item.rateLimit}`}
                       {item.lastUsed ? ` · ${copy.lastUsed}: ${item.lastUsed}` : ''}
+                    </div>
+                    <div className="mt-1 text-xs" style={{ color: theme.colors.textSecondary }}>
+                      {copy.allowedIps}: {item.allowedIps?.length ? item.allowedIps.join(', ') : copy.anyIp}
                     </div>
                   </div>
                 </div>
@@ -216,4 +282,3 @@ export function ApiKeyManagement() {
     </div>
   );
 }
-

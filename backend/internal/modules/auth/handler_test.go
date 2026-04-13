@@ -18,6 +18,7 @@ type stubAuthService struct {
 	getCurrentUserFn          func(context.Context, string, string, string) (*CurrentUserResponse, error)
 	getLoginAttemptsSummaryFn func(context.Context, string, string) (*LoginAttemptSummary, error)
 	unlockAccountFn           func(context.Context, string, string) error
+	validateAPIKeyFn          func(context.Context, string) (*APIKeyAuthResult, error)
 }
 
 func (s *stubAuthService) GetPublicConfig() map[string]interface{} { return nil }
@@ -47,17 +48,22 @@ func (s *stubAuthService) KickSession(context.Context, string, string) error { r
 func (s *stubAuthService) ParseTokenClaims(string) (*middleware.Claims, error) {
 	return nil, nil
 }
-func (s *stubAuthService) CreateApiKey(context.Context, string, string, string) (*ApiKeyResponse, error) {
+func (s *stubAuthService) CreateApiKey(context.Context, string, string, string, []string, int, string) (*ApiKeyResponse, error) {
 	return nil, nil
 }
 func (s *stubAuthService) ListApiKeys(context.Context, string) (*ApiKeyListResponse, error) {
 	return nil, nil
 }
 func (s *stubAuthService) DeleteApiKey(context.Context, string, string) error { return nil }
-func (s *stubAuthService) UpdateApiKey(context.Context, string, string, string, string) error {
+func (s *stubAuthService) UpdateApiKey(context.Context, string, string, string, string, []string, int, string) error {
 	return nil
 }
-func (s *stubAuthService) ValidateApiKey(context.Context, string) (string, error) { return "", nil }
+func (s *stubAuthService) ValidateApiKey(ctx context.Context, apiKey string) (*APIKeyAuthResult, error) {
+	if s.validateAPIKeyFn != nil {
+		return s.validateAPIKeyFn(ctx, apiKey)
+	}
+	return nil, nil
+}
 func (s *stubAuthService) GetLoginAttemptsSummary(ctx context.Context, username, tenantCode string) (*LoginAttemptSummary, error) {
 	if s.getLoginAttemptsSummaryFn != nil {
 		return s.getLoginAttemptsSummaryFn(ctx, username, tenantCode)
